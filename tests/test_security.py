@@ -16,8 +16,9 @@ class SessionTest(unittest.TestCase):
         self.assertIsNone(store.get(session.session_id))
 
     def test_expired_session_is_dropped(self):
-        store = SessionStore(ttl=0)
+        store = SessionStore(ttl=1)
         session = store.create()
+        session.last_seen -= 2
         self.assertIsNone(store.get(session.session_id))
 
     def test_many_sessions_are_bounded(self):
