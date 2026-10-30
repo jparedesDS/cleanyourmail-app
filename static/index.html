@@ -35,6 +35,7 @@
       <label class="field"><span>Email</span>
         <input id="email" type="email" autocomplete="off" placeholder="you@example.com">
       </label>
+      <p id="providerHint" class="note provider-hint"></p>
       <label class="field"><span>App password / OAuth token</span>
         <input id="password" type="password" autocomplete="off" placeholder="Kept in memory only">
       </label>
@@ -75,11 +76,24 @@
         </article>
       </div>
 
+      <div class="filters">
+        <p class="filter-title">Only categories <span class="muted">(leave empty for all)</span></p>
+        <div class="filter-grid" id="planCategories">
+          <label class="check"><input type="checkbox" value="newsletter"> Newsletter</label>
+          <label class="check"><input type="checkbox" value="promotion"> Promotion</label>
+          <label class="check"><input type="checkbox" value="social"> Social</label>
+          <label class="check"><input type="checkbox" value="notification"> Notification</label>
+          <label class="check"><input type="checkbox" value="cold"> Cold outreach</label>
+          <label class="check"><input type="checkbox" value="spam"> Spam</label>
+        </div>
+      </div>
+
       <div id="planPanel" class="plan hidden">
         <div class="plan-head"><h3>Plan review</h3><span id="planState" class="badge">Not reviewed</span></div>
         <div id="planSummary"></div>
         <div class="warning"><strong>Nothing is applied yet.</strong> Review the actions below. Moves are reversible; unsubscribe is not.</div>
         <label class="check"><input id="reviewPlan" type="checkbox"> I reviewed this plan</label>
+        <label class="inline apply-limit"><span>Max moves</span><input id="applyLimit" type="number" value="50" min="1" max="10000"></label>
         <button id="applyButton" class="button danger" type="button" disabled>Apply moves</button>
 
         <div class="unsub">

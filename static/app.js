@@ -71,6 +71,28 @@
     return body;
   };
 
+  const providerHints = {
+    "gmail.com": "Gmail: enable IMAP and use a 16-character App Password with 2-Step Verification.",
+    "googlemail.com": "Gmail: enable IMAP and use a 16-character App Password with 2-Step Verification.",
+    "outlook.com": "Microsoft: use an OAuth2 access token; basic auth is disabled.",
+    "hotmail.com": "Microsoft: use an OAuth2 access token; basic auth is disabled.",
+    "live.com": "Microsoft: use an OAuth2 access token; basic auth is disabled.",
+    "yahoo.com": "Yahoo: create an app password in Account Security.",
+    "icloud.com": "iCloud: use an app-specific password; 2FA is required.",
+    "me.com": "iCloud: use an app-specific password; 2FA is required.",
+    "fastmail.com": "Fastmail: create a scoped app password with IMAP/SMTP access.",
+    "proton.me": "Proton: run Proton Bridge and use its local password.",
+    "protonmail.com": "Proton: run Proton Bridge and use its local password.",
+  };
+
+  const updateProviderHint = () => {
+    const email = $("email").value.trim();
+    const domain = email.includes("@") ? email.split("@").pop().toLowerCase() : "";
+    $("providerHint").textContent = domain
+      ? (providerHints[domain] || "Use an app password or OAuth2 token from your provider. Never your normal password.")
+      : "Use an app password or OAuth2 token from your provider. Never your normal password.";
+  };
+
   const action = async (button, label, fn) => {
     if (state.busy) return;
     state.busy = true;
@@ -97,6 +119,7 @@
     $("envBadge").classList.toggle("hidden", !data.password_env_set);
     $("envNote").classList.toggle("hidden", !data.password_env_set);
     $("appVersion").textContent = data.app_version ? "v" + data.app_version : "";
+    updateProviderHint();
     if (state.planReady) {
       $("planState").textContent = state.planApplied
         ? "Applied"
@@ -398,6 +421,8 @@
 
   const plan = (button) => runCommand(button, "Planning…", "/api/plan", {
     mode: $("mode").value,
+    categories: Array.from(document.querySelectorAll("#planCategories input:checked"))
+      .map((item) => item.value),
   }, {
     after: (result) => {
       if (result.ok && result.data && result.data.plan) {
@@ -425,7 +450,10 @@
     if (!$("reviewPlan").checked) return;
     if (!window.confirm("Apply the planned moves? This changes your mailbox. Moves are reversible.")) return;
     action(button, "Applying…", async () => {
-      const result = await api("/api/apply", secretBody({ confirm: "APPLY" }));
+      const result = await api("/api/apply", secretBody({
+        confirm: "APPLY",
+        limit: Number($("applyLimit").value || 50),
+      }));
       $("reviewPlan").checked = false;
       $("applyButton").disabled = true;
       $("planState").textContent = "Applied";
@@ -462,6 +490,7 @@
   const lock = (button) => action(button, "Locking…", async () => {
     await api("/api/lock", {});
     state.csrf = "";
+    $("password").value = "";
     clear($("output"));
     $("output").append(el("p", "success", "Session ended. Close this tab and restart the app to open a new session."));
     setStatus("Locked");
@@ -469,6 +498,7 @@
   });
 
   const wire = () => {
+    $("email").addEventListener("input", updateProviderHint);
     $("saveSettings").addEventListener("click", () => saveSettings($("saveSettings")));
     $("createConfig").addEventListener("click", () => createConfig($("createConfig")));
     $("validate").addEventListener("click", () => runCommand($("validate"), "Validating…", "/api/validate", {}));

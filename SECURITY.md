@@ -33,7 +33,7 @@ rules and it does not add capabilities the CLI does not have.
 - Binds to `127.0.0.1` only.
 - Starts with a one-time token in the URL. The token is consumed and the browser gets an `HttpOnly`,
   `SameSite=Strict` session cookie.
-- Every API call requires the session, a CSRF token and a localhost `Origin`.
+- Every API call requires the session, a CSRF token, a localhost `Origin` and a localhost `Host`.
 - Strict Content Security Policy, no inline scripts, no external assets, no telemetry.
 - The password is kept in page memory and passed to the CLI subprocess through its environment. It is
   never written to disk or logs.

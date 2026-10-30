@@ -28,7 +28,7 @@ subprocess boundary and the files the app touches. The CLI's own threat model is
 |---|---|
 | Another local user opens the app | Random port, one-time URL token, session cookie, `SameSite=Strict`; the app is meant for a single-user machine. |
 | Malicious website sends requests to localhost | `Origin` allowlist, CSRF header, `SameSite=Strict` cookie, JSON-only POSTs. |
-| DNS rebinding | Server binds `127.0.0.1`; `Origin` must be localhost with the actual port. |
+| DNS rebinding | Server binds `127.0.0.1`; `Host` and `Origin` must be localhost with the actual port. |
 | Session theft through XSS | Strict CSP, no inline scripts, no external assets, all email data rendered with `textContent`. |
 | Secret in logs | The server does not log request bodies, query strings or cookies. The password is never written to disk. |
 | Secret in the repo | The app stores only paths; the password is a page-memory value or `CYM_PASSWORD` in the server environment. |

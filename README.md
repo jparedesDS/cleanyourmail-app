@@ -17,7 +17,7 @@ scan headers, review a plan, apply reversible moves, unsubscribe separately and 
 
 No cloud, no account, no telemetry, no bodies, no permanent deletion.
 
-> **Status:** `0.1.0` MVP. Local only, from source. The CLI remains the source of truth.
+> **Status:** `0.2.0` MVP. Local only, from source. The CLI remains the source of truth.
 
 ![CleanYourMail local app](docs/screenshot.png)
 
@@ -53,6 +53,8 @@ cd cleanyourmail-app
 python app.py
 ```
 
+On Windows you can also double-click `run.bat`; on macOS/Linux, `./run.sh`.
+
 The app starts a local server on `127.0.0.1` with a random port and prints a **one-time URL**. It
 opens your browser. If the browser does not open, copy the URL from the terminal.
 
@@ -65,7 +67,8 @@ path in the app.
 2. Enter your email and click **Create config**. The CLI picks the provider preset from the domain.
 3. Put your app password or OAuth2 token in the password field. It stays in memory.
 4. Click **Test connection**.
-5. Scan, review the report and build a plan.
+5. Scan, review the report and build a plan. You can limit the plan to specific categories and the
+   first apply to a maximum number of moves.
 6. Review the plan, check the box and apply the moves.
 7. Unsubscribe separately, only if you want to. It is irreversible.
 8. Use the undo journal for moves and Gmail archives.
@@ -91,6 +94,7 @@ Unsubscribe is separate on purpose. The app will not mix it with the move step.
 ## Security model
 
 - **Localhost only.** The server binds `127.0.0.1`; there is no option to expose it.
+- **Host and Origin allowlists.** Requests must use a localhost `Host` and `Origin`.
 - **One-time URL + session.** The startup token is single-use. The browser gets an `HttpOnly`,
   `SameSite=Strict` session cookie.
 - **CSRF and Origin checks.** Every API call needs the session, a CSRF header and a localhost Origin.
@@ -125,15 +129,16 @@ python -m unittest discover -s tests -v
 python -m compileall -q app.py cleanyourmail_app tests
 ```
 
-The suite covers the session store, CLI wrapper, one-time token, CSRF/Origin checks, security
-headers, static path traversal and session lock. The CLI tests use a fake `mail.py`, so no real
-mailbox is needed.
+The suite covers the session store, CLI wrapper, one-time token, CSRF/Origin/Host checks, security
+headers, static path traversal, plan review, single-use apply and session lock. The CLI tests use a
+fake `mail.py`, so no real mailbox is needed.
 
 ## Project layout
 
 | Path | What it is |
 |---|---|
 | `app.py` | Entry point. |
+| `run.bat`, `run.sh` | Launchers for Windows and macOS/Linux. |
 | `cleanyourmail_app/server.py` | Local HTTP server and API routes. |
 | `cleanyourmail_app/cli.py` | Locates and calls the CleanYourMail CLI. |
 | `cleanyourmail_app/security.py` | One-time tokens, sessions, CSRF. |

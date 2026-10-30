@@ -66,8 +66,9 @@ The trade-off is that the app cannot stream fine-grained progress yet. A future 
 2. The browser opens the URL. The server consumes the token, creates a session and redirects to `/`
    with an `HttpOnly`, `SameSite=Strict` cookie.
 3. The UI fetches `/api/state`, receives the CSRF token and the current paths, and renders.
-4. Every POST sends the session cookie, `X-CSRF-Token` and a localhost `Origin`.
-5. The server validates all three, runs the CLI, parses JSON and returns a result.
+4. Every POST sends the session cookie, `X-CSRF-Token` and a localhost `Origin`. The server also
+   checks the `Host` header.
+5. The server validates all of them, runs the CLI, parses JSON and returns a result.
 6. The UI renders the result with DOM text nodes, never `innerHTML`.
 
 ## State
@@ -86,11 +87,12 @@ journals. Those belong to the CLI and its `state_dir`.
 
 ## Plan review and apply
 
-`plan` runs the CLI and returns `{path, plan}`. The app keeps the plan path in memory and sets
-`plan_reviewed = false`. The UI must display the plan and the user must check the review box, which
-calls `/api/plan/review`. `apply` is refused unless `plan_reviewed` is true and the request includes
-`confirm: "APPLY"`. After a successful apply, the plan is marked applied and a second apply is
-refused until a new plan is built. Unsubscribe can still use the same plan.
+`plan` runs the CLI and returns `{path, plan}`. The UI can pass category filters and the app keeps the
+plan path in memory with `plan_reviewed = false`. The UI must display the plan and the user must check
+the review box, which calls `/api/plan/review`. `apply` is refused unless `plan_reviewed` is true and
+the request includes `confirm: "APPLY"`. The first apply is capped by the UI (default 50 moves). After
+a successful apply, the plan is marked applied and a second apply is refused until a new plan is
+built. Unsubscribe can still use the same plan.
 
 Unsubscribe is a separate endpoint with its own checkbox, `confirm: "UNSUBSCRIBE"` and a 1–50 cap.
 Undo is a separate endpoint with `confirm: "UNDO"` and a validated run id.

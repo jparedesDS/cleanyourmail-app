@@ -188,6 +188,14 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _require_host(self) -> bool:
+        host = self.headers.get("Host", "").lower()
+        allowed = {f"127.0.0.1:{self.port}", f"localhost:{self.port}"}
+        if host not in allowed:
+            self._error(403, "Host not allowed.")
+            return False
+        return True
+
     # -- static ------------------------------------------------------------
 
     def _serve_index(self) -> None:
@@ -267,6 +275,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- GET ---------------------------------------------------------------
 
     def do_GET(self) -> None:
+        if not self._require_host():
+            return
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
         if path == "/":
@@ -303,6 +313,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- POST --------------------------------------------------------------
 
     def do_POST(self) -> None:
+        if not self._require_host():
+            return
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
         session = self._require_session()
@@ -348,7 +360,17 @@ class Handler(BaseHTTPRequestHandler):
             mode = body.get("mode", "folders")
             if mode not in {"folders", "archive"}:
                 raise ValueError("mode must be folders or archive.")
-            result = self._run(["plan", "--mode", mode], body, 120)
+            categories = body.get("categories", [])
+            if not isinstance(categories, list):
+                raise ValueError("categories must be a list.")
+            allowed = {"newsletter", "promotion", "social", "notification", "cold", "spam"}
+            unknown = set(categories) - allowed
+            if unknown:
+                raise ValueError(f"Unknown categories: {', '.join(sorted(unknown))}.")
+            command = ["plan", "--mode", mode]
+            for category in categories:
+                command.extend(["--category", str(category)])
+            result = self._run(command, body, 120)
             payload = self._result_payload(result)
             data = result.get("data") or {}
             if result["ok"] and isinstance(data, dict) and data.get("path"):
@@ -444,8 +466,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if body.get("confirm") != "APPLY":
             raise ValueError('confirm must be "APPLY".')
+        limit = self._int(body, "limit", 1, 10000, 50)
         result = self._run(
-            ["apply", self.state.plan_path, "--yes", "--action", "move"],
+            ["apply", self.state.plan_path, "--yes", "--action", "move",
+             "--limit", str(limit)],
             body,
             900,
         )
