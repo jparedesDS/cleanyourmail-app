@@ -43,6 +43,7 @@ class AppState:
     plan_path: str | None = None
     plan_data: dict[str, Any] | None = None
     plan_reviewed: bool = False
+    plan_applied: bool = False
 
 
 def _state_payload(state: AppState, session: Session) -> dict[str, Any]:
@@ -56,6 +57,7 @@ def _state_payload(state: AppState, session: Session) -> dict[str, Any]:
         "password_env_set": bool(os.environ.get("CYM_PASSWORD")),
         "plan_ready": bool(state.plan_path),
         "plan_reviewed": state.plan_reviewed,
+        "plan_applied": state.plan_applied,
         "app_version": __version__,
     }
 
@@ -353,10 +355,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.state.plan_path = str(data["path"])
                 self.state.plan_data = data.get("plan") if isinstance(data.get("plan"), dict) else None
                 self.state.plan_reviewed = False
+                self.state.plan_applied = False
             self._json(200, payload)
         elif path == "/api/plan/review":
             if not self.state.plan_path:
                 raise ValueError("Build a plan first.")
+            if self.state.plan_applied:
+                self._error(409, "This plan has already been applied. Build a new plan.")
+                return
             reviewed = body.get("reviewed")
             if not isinstance(reviewed, bool):
                 raise ValueError("reviewed must be true or false.")
@@ -430,6 +436,9 @@ class Handler(BaseHTTPRequestHandler):
     def _apply(self, body: dict[str, Any]) -> None:
         if not self.state.plan_path:
             raise ValueError("Build a plan first.")
+        if self.state.plan_applied:
+            self._error(409, "This plan has already been applied. Build a new plan.")
+            return
         if not self.state.plan_reviewed:
             self._error(409, "Review the plan before applying it.")
             return
@@ -442,6 +451,7 @@ class Handler(BaseHTTPRequestHandler):
         )
         if result["ok"]:
             self.state.plan_reviewed = False
+            self.state.plan_applied = True
         self._json(200, self._result_payload(result))
 
     def _unsubscribe(self, body: dict[str, Any]) -> None:

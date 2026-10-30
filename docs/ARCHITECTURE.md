@@ -89,7 +89,8 @@ journals. Those belong to the CLI and its `state_dir`.
 `plan` runs the CLI and returns `{path, plan}`. The app keeps the plan path in memory and sets
 `plan_reviewed = false`. The UI must display the plan and the user must check the review box, which
 calls `/api/plan/review`. `apply` is refused unless `plan_reviewed` is true and the request includes
-`confirm: "APPLY"`. After a successful apply, the flag is reset.
+`confirm: "APPLY"`. After a successful apply, the plan is marked applied and a second apply is
+refused until a new plan is built. Unsubscribe can still use the same plan.
 
 Unsubscribe is a separate endpoint with its own checkbox, `confirm: "UNSUBSCRIBE"` and a 1–50 cap.
 Undo is a separate endpoint with `confirm: "UNDO"` and a validated run id.

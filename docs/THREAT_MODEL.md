@@ -35,7 +35,7 @@ subprocess boundary and the files the app touches. The CLI's own threat model is
 | Command injection | `subprocess.run` with an argument list and no shell; fixed command names; run ids validated with `[A-Za-z0-9_-]{1,64}`. |
 | Path traversal in static files | `resolve()` + `relative_to(static_dir)` + reject `..`; only files under `static/` are served. |
 | Malicious CLI output | Parsed as JSON and rendered as text; never evaluated as code or HTML. |
-| Plan tampering | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan and explicit `APPLY`. |
+| Plan tampering | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan, explicit `APPLY` and allows one apply per plan. |
 | Applying unsubscribe by accident | Separate endpoint, separate checkbox, `UNSUBSCRIBE` confirmation, 1–50 cap, never mixed with moves. |
 | Permanent deletion | The app has no delete endpoint. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
 | Undo the wrong run | Run id validation, CLI account check, Message-ID/`X-GM-MSGID` verification. |

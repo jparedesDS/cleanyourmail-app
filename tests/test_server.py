@@ -13,7 +13,10 @@ from cleanyourmail_app.settings import Settings
 FAKE = """\
 import json, sys
 cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-print(json.dumps({"ok": True, "command": cmd, "args": sys.argv[2:]}))
+if cmd == "plan":
+    print(json.dumps({"path": "plan.json", "plan": {"stats": {"messages": 2, "actionable": 1}, "actions": [{"type": "move", "category": "newsletter", "mailbox": "INBOX", "uids": [1], "dest": "CleanYourMail/Newsletters"}]}}))
+else:
+    print(json.dumps({"ok": True, "command": cmd, "args": sys.argv[2:]}))
 """
 
 
@@ -113,6 +116,25 @@ class ServerTest(unittest.TestCase):
             headers={"Cookie": cookie, "X-CSRF-Token": csrf, "Origin": origin,
                      "Content-Type": "application/json"})
         self.assertEqual(status, 400)
+
+    def test_plan_apply_and_no_double_apply(self):
+        cookie, csrf = self.open_session()
+        origin = f"http://127.0.0.1:{self.port}"
+        headers = {"Cookie": cookie, "X-CSRF-Token": csrf, "Origin": origin}
+        status, _, payload = self.request("POST", "/api/plan", body={"mode": "folders"}, headers=headers)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(self.state.plan_path, "plan.json")
+        status, _, payload = self.request("POST", "/api/plan/review", body={"reviewed": True}, headers=headers)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["reviewed"])
+        status, _, payload = self.request("POST", "/api/apply", body={"confirm": "APPLY"}, headers=headers)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(self.state.plan_applied)
+        status, _, payload = self.request("POST", "/api/apply", body={"confirm": "APPLY"}, headers=headers)
+        self.assertEqual(status, 409)
+        self.assertIn("already", payload["error"])
 
     def test_lock_invalidates_the_session(self):
         cookie, csrf = self.open_session()

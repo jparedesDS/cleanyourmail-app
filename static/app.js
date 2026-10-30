@@ -8,6 +8,7 @@
     planReviewed: false,
     planHasMoves: false,
     planHasUnsubs: false,
+    planApplied: false,
     configExists: false,
     busy: false,
   };
@@ -90,15 +91,18 @@
     state.configExists = Boolean(data.config_exists);
     state.planReady = Boolean(data.plan_ready);
     state.planReviewed = Boolean(data.plan_reviewed);
+    state.planApplied = Boolean(data.plan_applied);
     $("cliPath").value = data.cli_path || "";
     $("configPath").value = data.config_path || "";
     $("envBadge").classList.toggle("hidden", !data.password_env_set);
     $("envNote").classList.toggle("hidden", !data.password_env_set);
     $("appVersion").textContent = data.app_version ? "v" + data.app_version : "";
     if (state.planReady) {
-      $("planState").textContent = state.planReviewed ? "Reviewed" : "Not reviewed";
+      $("planState").textContent = state.planApplied
+        ? "Applied"
+        : (state.planReviewed ? "Reviewed" : "Not reviewed");
       $("reviewPlan").checked = state.planReviewed;
-      $("applyButton").disabled = !state.planReviewed;
+      $("applyButton").disabled = !state.planReviewed || state.planApplied;
     }
   };
 
@@ -183,6 +187,7 @@
     const unsubs = actions.filter((item) => item.type === "unsubscribe");
     state.planHasMoves = moves.length > 0;
     state.planHasUnsubs = unsubs.length > 0;
+    state.planApplied = false;
     const summary = $("planSummary");
     clear(summary);
     summary.append(statGrid([
@@ -394,9 +399,12 @@
   const plan = (button) => runCommand(button, "Planning…", "/api/plan", {
     mode: $("mode").value,
   }, {
-    after: () => {
-      state.planReady = true;
-      state.planReviewed = false;
+    after: (result) => {
+      if (result.ok && result.data && result.data.plan) {
+        state.planReady = true;
+        state.planReviewed = false;
+        state.planApplied = false;
+      }
     },
   });
 
@@ -405,7 +413,7 @@
     try {
       await api("/api/plan/review", { reviewed: checked });
       state.planReviewed = checked;
-      $("applyButton").disabled = !checked || !state.planHasMoves;
+      $("applyButton").disabled = !checked || !state.planHasMoves || state.planApplied;
       $("planState").textContent = checked ? "Reviewed" : "Not reviewed";
     } catch (error) {
       $("reviewPlan").checked = !checked;
@@ -422,6 +430,7 @@
       $("applyButton").disabled = true;
       $("planState").textContent = "Applied";
       state.planReviewed = false;
+      state.planApplied = true;
       renderResult(result);
     });
   };

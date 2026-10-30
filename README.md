@@ -99,7 +99,7 @@ Unsubscribe is separate on purpose. The app will not mix it with the move step.
   through its environment. It is never written to disk or logs.
 - **No bodies, no permanent deletion.** The app cannot add capabilities the CLI does not have.
 - **Review first.** Applying moves requires an explicit reviewed-plan flag; unsubscribe has its own
-  confirmation and cap.
+  confirmation and cap. A plan can be applied once; build a new plan for another run.
 - **Safe rendering.** Email subjects and senders are treated as text, never HTML.
 
 Read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the full model.
