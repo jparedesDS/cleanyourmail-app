@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CleanYourMail — local app</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="CleanYourMail local app">
+      <span class="brand-mark" aria-hidden="true">✉</span>
+      <span class="brand-copy"><strong>CleanYourMail</strong><small>local app</small></span>
+    </a>
+    <div class="top-actions">
+      <span id="sessionBadge" class="badge">Local only</span>
+      <button id="lockButton" class="button ghost small" type="button">Lock</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card setup">
+      <div class="card-head">
+        <div><p class="kicker">Step 1</p><h2>Connection</h2></div>
+        <span id="envBadge" class="badge hidden">Env secret</span>
+      </div>
+      <p class="muted">This app runs on your machine. The password stays in memory and is passed only to the local CLI.</p>
+
+      <label class="field"><span>CleanYourMail CLI</span>
+        <input id="cliPath" type="text" spellcheck="false" placeholder=".../cleanyourmail/tools/mail.py">
+      </label>
+      <label class="field"><span>Config file</span>
+        <input id="configPath" type="text" spellcheck="false" placeholder=".../cleanyourmail.toml">
+      </label>
+      <label class="field"><span>Email</span>
+        <input id="email" type="email" autocomplete="off" placeholder="you@example.com">
+      </label>
+      <label class="field"><span>App password / OAuth token</span>
+        <input id="password" type="password" autocomplete="off" placeholder="Kept in memory only">
+      </label>
+      <p id="envNote" class="note hidden">Using <code>CYM_PASSWORD</code> from the environment; the password field is optional.</p>
+
+      <div class="actions">
+        <button id="saveSettings" class="button" type="button">Save settings</button>
+        <button id="createConfig" class="button ghost" type="button">Create config</button>
+        <button id="validate" class="button ghost" type="button">Validate</button>
+        <button id="doctor" class="button ghost" type="button">Test connection</button>
+      </div>
+    </section>
+
+    <section class="card workflow">
+      <div class="card-head">
+        <div><p class="kicker">Step 2</p><h2>Clean up</h2></div>
+        <span class="badge">Plan first</span>
+      </div>
+
+      <div class="steps">
+        <article class="step">
+          <span class="step-num">1</span>
+          <h3>Scan headers</h3>
+          <label class="inline"><span>Days</span><input id="days" type="number" value="365" min="1" max="3650"></label>
+          <button id="scan" class="button small" type="button">Scan</button>
+        </article>
+        <article class="step">
+          <span class="step-num">2</span>
+          <h3>Review report</h3>
+          <label class="inline"><span>Top</span><input id="top" type="number" value="30" min="1" max="200"></label>
+          <button id="report" class="button small" type="button">Report</button>
+        </article>
+        <article class="step">
+          <span class="step-num">3</span>
+          <h3>Build plan</h3>
+          <label class="inline"><span>Mode</span><select id="mode"><option value="folders">Folders</option><option value="archive">Archive</option></select></label>
+          <button id="plan" class="button small" type="button">Plan</button>
+        </article>
+      </div>
+
+      <div id="planPanel" class="plan hidden">
+        <div class="plan-head"><h3>Plan review</h3><span id="planState" class="badge">Not reviewed</span></div>
+        <div id="planSummary"></div>
+        <div class="warning"><strong>Nothing is applied yet.</strong> Review the actions below. Moves are reversible; unsubscribe is not.</div>
+        <label class="check"><input id="reviewPlan" type="checkbox"> I reviewed this plan</label>
+        <button id="applyButton" class="button danger" type="button" disabled>Apply moves</button>
+
+        <div class="unsub">
+          <h4>Unsubscribe separately</h4>
+          <p class="muted">Irreversible. Never applied to spam. Capped per batch.</p>
+          <label class="inline"><span>Limit</span><input id="unsubLimit" type="number" value="10" min="1" max="50"></label>
+          <label class="check"><input id="confirmUnsub" type="checkbox"> I understand this cannot be undone</label>
+          <button id="unsubscribeButton" class="button ghost" type="button" disabled>Send unsubscribe requests</button>
+        </div>
+      </div>
+
+      <div class="journal">
+        <div class="plan-head"><h3>Undo journal</h3><button id="journalButton" class="button ghost small" type="button">Show runs</button></div>
+        <div id="journalList" class="journal-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="card output-card">
+    <div class="card-head">
+      <div><p class="kicker">Output</p><h2>Result</h2></div>
+      <span id="status" class="badge">Ready</span>
+    </div>
+    <div id="output" class="output"><p class="muted">Connect, scan, review and plan. Nothing changes until you apply.</p></div>
+  </section>
+
+  <footer class="footer">
+    <span>CleanYourMail <span id="appVersion"></span></span>
+    <span>Headers only · No permanent deletion · Undo every move</span>
+    <span><a href="https://github.com/jparedesDS/cleanyourmail" rel="noopener">GitHub</a> · <a href="https://jparedesds.github.io/cleanyourmail-web/" rel="noopener">Website</a></span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
