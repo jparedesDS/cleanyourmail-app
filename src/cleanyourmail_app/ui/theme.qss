@@ -202,7 +202,7 @@ QPushButton#link {
     color: #FFB38A;
     border: none;
     padding: 0 6px;
-    min-height: 32px;
+    min-height: 44px;
     text-align: left;
 }
 
@@ -378,7 +378,7 @@ QRadioButton {
     background: transparent;
     color: #F3F1EC;
     spacing: 10px;
-    min-height: 36px;
+    min-height: 44px;
 }
 
 QCheckBox:focus,
