@@ -657,3 +657,87 @@ QLabel#successPanel {
     border-radius: 12px;
     padding: 12px 16px;
 }
+
+/* Feedback header button and the opt-in feedback dialog. */
+QPushButton#feedbackButton {
+    background: transparent;
+    color: #FFB38A;
+    border: 1px solid #2A2C31;
+    border-radius: 12px;
+    padding: 0 16px;
+    min-height: 44px;
+}
+
+QPushButton#feedbackButton:hover {
+    background-color: #241F1C;
+    border-color: #FFB38A;
+    color: #FFC7A6;
+}
+
+QPushButton#feedbackButton:focus {
+    border: 2px solid #A8E6CF;
+    padding: 0 15px;
+}
+
+QDialog#feedbackDialog,
+QWidget#feedbackContent {
+    background-color: #121316;
+}
+
+QWidget#feedbackFooter {
+    background-color: #1B1C21;
+    border-top: 1px solid #2A2C31;
+}
+
+QLabel#feedbackTitle {
+    color: #F3F1EC;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+QLabel#feedbackBody,
+QLabel#feedbackChecklistHelp {
+    color: #A19E96;
+}
+
+QLabel#feedbackStatus[role="muted"] {
+    color: #A19E96;
+}
+
+QLabel#feedbackStatus[role="success"] {
+    color: #A8E6CF;
+}
+
+QLabel#feedbackStatus[role="error"] {
+    color: #FFB38A;
+}
+
+QPushButton#feedbackSend {
+    background-color: #FFB38A;
+    color: #121316;
+    border: 1px solid #FFB38A;
+    font-weight: 600;
+    min-height: 48px;
+}
+
+QPushButton#feedbackSend:hover {
+    background-color: #FFC7A6;
+    border-color: #FFC7A6;
+}
+
+QPushButton#feedbackSend:pressed {
+    background-color: #F2A277;
+    border-color: #F2A277;
+}
+
+QPushButton#feedbackSend:focus {
+    border: 2px solid #F3F1EC;
+    padding: 0 19px;
+}
+
+QPushButton#feedbackSend:disabled {
+    background-color: #3A322D;
+    color: #8C837B;
+    border-color: #3A322D;
+}
+

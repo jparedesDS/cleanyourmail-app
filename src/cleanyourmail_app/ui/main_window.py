@@ -25,15 +25,19 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from cleanyourmail_app import version
 from cleanyourmail_app.domain.providers import Provider, provider_by_id
 from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
+from cleanyourmail_app.services.cli import CliError
 from cleanyourmail_app.services.settings import SettingsStore
+from cleanyourmail_app.ui.dialogs.feedback import FeedbackDialog
 from cleanyourmail_app.ui.pages.connect import ConnectPage
 from cleanyourmail_app.ui.pages.preferences import PreferencesPage
 from cleanyourmail_app.ui.pages.provider import ProviderPage
@@ -100,6 +104,12 @@ class MainWindow(QMainWindow):
         header.addWidget(self.app_label)
         header.addStretch(1)
         header.addWidget(self.privacy_label)
+        header.addSpacing(12)
+        self.feedback_button = QPushButton(central)
+        self.feedback_button.setObjectName("feedbackButton")
+        self.feedback_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.feedback_button.clicked.connect(self._open_feedback)
+        header.addWidget(self.feedback_button)
         header.addSpacing(12)
         self.language_combo = QComboBox(central)
         self.language_combo.setObjectName("headerLanguage")
@@ -297,6 +307,36 @@ class MainWindow(QMainWindow):
         finally:
             self._syncing_language = False
 
+    # -- feedback -----------------------------------------------------------
+
+    def _open_feedback(self) -> None:
+        """Open the local dialog with local facts only.
+
+        Only the sidecar's ``--version`` is read, best-effort. The dialog never
+        sends anything on open and no network client is constructed here.
+        """
+        stored = self.settings.load()
+        dialog = FeedbackDialog(
+            version.__version__,
+            self._sidecar_version(),
+            provider_by_id(stored.provider),
+            stored.preferences,
+            self.translator,
+            self,
+        )
+        dialog.exec()
+
+    def _sidecar_version(self) -> str:
+        """Bare sidecar version, or ``unknown`` when it cannot be read."""
+        try:
+            line = self.services.cli.version().strip()
+        except CliError:
+            return "unknown"
+        prefix = "CleanYourMail "
+        if line.lower().startswith(prefix.lower()):
+            line = line[len(prefix) :].strip()
+        return line or "unknown"
+
     # -- language -----------------------------------------------------------
 
     def set_language(self, language: str) -> None:
@@ -323,6 +363,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(t("app.window_title"))
         self.app_label.setText(t("app.name"))
         self.privacy_label.setText(t("app.privacy"))
+        self.feedback_button.setText(t("feedback.open"))
+        self.feedback_button.setAccessibleName(t("feedback.open"))
+        self.feedback_button.setToolTip(t("feedback.open"))
         self._sync_header_language()
         for step in STEPS:
             self.step_labels[step].setText(t(f"progress.{step}"))
