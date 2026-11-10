@@ -5,162 +5,123 @@
 <p align="center">
   <a href="https://github.com/jparedesDS/cleanyourmail-app/actions/workflows/tests.yml"><img src="https://github.com/jparedesDS/cleanyourmail-app/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <img src="https://img.shields.io/badge/license-MIT-b9f36a?labelColor=08110d" alt="MIT">
-  <img src="https://img.shields.io/badge/python-3.11%2B-b9f36a?labelColor=08110d" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/python-3.12%2B-b9f36a?labelColor=08110d" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/windows-10%2F11%20x64-b9f36a?labelColor=08110d" alt="Windows 10/11 x64">
   <img src="https://img.shields.io/badge/local--only-no%20telemetry-b9f36a?labelColor=08110d" alt="Local only">
 </p>
 
-# CleanYourMail — local app
+# CleanYourMail app
 
-**Your inbox, minus the noise — with a UI.** A local, secure app for people who prefer buttons over
-prompts. It wraps the existing [CleanYourMail](https://github.com/jparedesDS/cleanyourmail) CLI:
-scan headers, review a plan, apply reversible moves, unsubscribe separately and undo.
+**Your inbox, minus the noise — as a native Windows app.** CleanYourMail app is a PySide6 front end
+for the [CleanYourMail](https://github.com/jparedesDS/cleanyourmail) CLI. It guides you through
+connecting a mailbox, choosing what to clean, reviewing a reversible plan and undoing it.
 
-No cloud, no account, no telemetry, no bodies, no permanent deletion.
+No browser, no local server, no account, no cloud, no telemetry, no bodies, no permanent deletion.
 
-> **Status:** `0.2.0` MVP. Local only, from source. The CLI remains the source of truth.
-
-![CleanYourMail local app](docs/screenshot.png)
+> **Status:** `0.3.0` is in development. This repository currently contains the native app scaffold:
+> versioning, package layout and Windows CI. The wizard arrives in later tasks.
 
 ## Why this app
 
-CleanYourMail is a skill for coding agents. The CLI is deliberately small, but it still expects a
-terminal and a config file. This app is a front door for people who do not want to learn prompts or
-edit TOML:
+The CleanYourMail CLI is the engine and the source of truth. It already owns IMAP access,
+classification, plans, reversible moves and the undo journal. What it does not offer is a short path
+for someone who does not want to use a terminal or edit a TOML file.
 
-- Choose a config file and create it from your provider and email.
-- Test the connection.
-- Scan, report, plan, review and apply from one screen.
-- See the exact moves and unsubscribe targets before anything changes.
-- Keep the undo journal one click away.
+This app adds that path without duplicating the engine:
 
-The app does not reimplement IMAP, classification or safety rules. It calls the CLI and shows the
-result. That keeps one safety model, one test suite and one source of truth.
+- Pick a provider and connect without hand-writing a config.
+- Choose categories and mode with checkboxes and radios.
+- Scan, read the report and inspect the plan before anything changes.
+- Apply only after an explicit review, then undo from the same window.
+- Read every screen in English or Spanish.
+
+The app never implements IMAP, planning, moves, undo or unsubscribe itself. It calls the frozen
+CleanYourMail CLI sidecar and renders the result, so there is one safety model and one set of rules.
 
 ## Requirements
 
-- Python **3.11+**.
-- The [CleanYourMail CLI](https://github.com/jparedesDS/cleanyourmail) repository.
-- No `pip install`: the app and the CLI use the Python standard library.
+- Windows 10/11 x64.
+- Python **3.12+** to run from source.
+- The CleanYourMail CLI `1.2.2` sidecar. Release builds bundle it; for development, point `CYM_CLI`
+  at a local `mail.py` or `cym-cli` build.
 
-## Quick start
+The installer is per-user, needs no administrator rights, and is not code-signed in 0.3.0.
 
-Clone both repositories side by side:
+## Development
 
 ```bash
-git clone https://github.com/jparedesDS/cleanyourmail.git
-git clone https://github.com/jparedesDS/cleanyourmail-app.git
-cd cleanyourmail-app
-python app.py
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -e ".[dev]"
+python -m cleanyourmail_app --version
 ```
 
-On Windows you can also double-click `run.bat`; on macOS/Linux, `./run.sh`.
+`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.3.0`.
 
-The app starts a local server on `127.0.0.1` with a random port and prints a **one-time URL**. It
-opens your browser. If the browser does not open, copy the URL from the terminal.
+Run the tests:
 
-The app auto-detects `../cleanyourmail/tools/mail.py`. If your folder has another name, set the CLI
-path in the app.
+```bash
+python -m pytest -q
+```
 
-### First run
+The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or network access.
 
-1. Set the **config file** path (or keep the default).
-2. Enter your email and click **Create config**. The CLI picks the provider preset from the domain.
-3. Put your app password or OAuth2 token in the password field. It stays in memory.
-4. Click **Test connection**.
-5. Scan, review the report and build a plan. You can limit the plan to specific categories and the
-   first apply to a maximum number of moves.
-6. Review the plan, check the box and apply the moves.
-7. Unsubscribe separately, only if you want to. It is irreversible.
-8. Use the undo journal for moves and Gmail archives.
+## What the app will do
 
-The app never writes the password to disk or logs. If you prefer, set `CYM_PASSWORD` in the
-environment before starting the app; the password field is then optional.
+1. **Welcome / provider.** Gmail, Outlook / Microsoft 365, Yahoo, iCloud, Fastmail, Proton Bridge
+   or custom IMAP, plus the email address.
+2. **Connect.** A guided App Password flow for Gmail, a device-code flow for Outlook, and
+   provider-specific app-password help for the rest. The normal password is never requested.
+3. **Preferences.** Categories to clean, folders or archive, protections, limits and language.
+4. **Review and clean.** Scan, report, plan, review gate, apply with a limit, and the undo journal.
+   Unsubscribe stays separate, off by default, with its irreversible warning.
 
-## What you can do
+## Provider status
 
-| Action | CLI command | Changes mail? |
+| Provider | App path | Status |
 |---|---|---|
-| Validate config | `validate` | No |
-| Test connection | `doctor` | No |
-| Scan headers | `scan` | No |
-| Review report | `report` | No |
-| Build plan | `plan` | No |
-| Apply moves | `apply --action move` | Moves/archives |
-| Unsubscribe | `unsubscribe` | Sends requests |
-| Undo | `undo` | Moves/archives |
+| Gmail | App Password + 2FA | pass, validated with CLI 1.2.2 |
+| Outlook / Microsoft 365 | Device code | partial: Microsoft 365 needs tenant admin consent; Outlook.com personal needs a verified publisher |
+| Yahoo, iCloud, Fastmail | App password | documented, not smoke-tested |
+| Proton Bridge | Bridge password | documented, not smoke-tested |
+| Custom IMAP | Host, port and TLS | documented, not smoke-tested |
 
-Unsubscribe is separate on purpose. The app will not mix it with the move step.
+The app reports these states honestly. It does not claim one-click Outlook support.
 
 ## Security model
 
-- **Localhost only.** The server binds `127.0.0.1`; there is no option to expose it.
-- **Host and Origin allowlists.** Requests must use a localhost `Host` and `Origin`.
-- **One-time URL + session.** The startup token is single-use. The browser gets an `HttpOnly`,
-  `SameSite=Strict` session cookie.
-- **CSRF and Origin checks.** Every API call needs the session, a CSRF header and a localhost Origin.
-- **Strict CSP.** No inline scripts, no external assets, no third-party requests.
-- **No secret storage.** The password lives in the page memory and is passed to the CLI subprocess
-  through its environment. It is never written to disk or logs.
-- **No bodies, no permanent deletion.** The app cannot add capabilities the CLI does not have.
-- **Review first.** Applying moves requires an explicit reviewed-plan flag; unsubscribe has its own
-  confirmation and cap. A plan can be applied once; build a new plan for another run.
-- **Safe rendering.** Email subjects and senders are treated as text, never HTML.
+- **Local only.** No account, cloud, telemetry or body access.
+- **CLI only.** The app cannot add capabilities the CLI does not have.
+- **No secret in argv.** App passwords are written to the CLI `password_file`; the app never passes
+  them as command-line arguments.
+- **No secret at rest in app settings.** Secrets never enter QSettings, logs, error dialogs or test
+  output.
+- **Review first.** No write without a reviewed plan; undo stays one click away.
+- **No permanent deletion.** Moves and archives are reversible.
+- **English and Spanish first-class.** Every string lives in `i18n/*.json`.
 
-Read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the full model.
-
-## How it works
-
-```text
-Browser (127.0.0.1)
-        |
-        v
-app.py / local HTTP server  --->  cleanyourmail/tools/mail.py  --->  IMAP / SMTP
-        |                                  |
-        +---- static UI (no build step)    +---- plan.json / journal / config
-```
-
-The server keeps only non-secret paths in a small settings file. The CLI owns the config, the state
-cache, the plan and the undo journal. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Tests
-
-```bash
-python -m unittest discover -s tests -v
-python -m compileall -q app.py cleanyourmail_app tests
-```
-
-The suite covers the session store, CLI wrapper, one-time token, CSRF/Origin/Host checks, security
-headers, static path traversal, plan review, single-use apply and session lock. The CLI tests use a
-fake `mail.py`, so no real mailbox is needed.
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 ## Project layout
 
 | Path | What it is |
 |---|---|
-| `app.py` | Entry point. |
-| `run.bat`, `run.sh` | Launchers for Windows and macOS/Linux. |
-| `cleanyourmail_app/server.py` | Local HTTP server and API routes. |
-| `cleanyourmail_app/cli.py` | Locates and calls the CleanYourMail CLI. |
-| `cleanyourmail_app/security.py` | One-time tokens, sessions, CSRF. |
-| `cleanyourmail_app/settings.py` | Non-secret path settings. |
-| `static/` | HTML, CSS and JavaScript. No build step. |
-| `docs/` | Banner, architecture and threat model. |
-| `tests/` | Standard-library unittest suite. |
-
-## Limitations
-
-- This is a source-run MVP, not a signed desktop binary yet.
-- Long scans show a busy state; progress streaming comes later.
-- The app does not acquire or refresh OAuth tokens; the CLI does not either.
-- The app is not a hosted service and should not be exposed on a network.
-- Gmail labels, provider limits and tenant policy still apply exactly as in the CLI.
+| `src/cleanyourmail_app/` | Native app package. |
+| `src/cleanyourmail_app/version.py` | Single source of the app version. |
+| `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app` entry point. |
+| `src/cleanyourmail_app/ui/` | PySide6 window, pages, widgets, theme and resources. |
+| `src/cleanyourmail_app/domain/` | Provider catalog, preferences and plan models. |
+| `src/cleanyourmail_app/services/` | CLI sidecar, config, secrets, settings, logging. |
+| `src/cleanyourmail_app/i18n/` | English and Spanish strings. |
+| `tests/` | pytest and pytest-qt suite with fake CLI fixtures. |
+| `docs/superpowers/specs/` | 0.3.0 design. |
+| `docs/superpowers/plans/` | Task-by-task implementation plan. |
 
 ## Links
 
 - Skill and CLI: <https://github.com/jparedesDS/cleanyourmail>
 - Website: <https://jparedesds.github.io/cleanyourmail-web/>
 - Safety model: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
-- App security: [SECURITY.md](SECURITY.md)
 
 ## License
 

@@ -1,21 +1,51 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "cleanyourmail-app"
-version = "0.2.0"
-description = "Local, secure UI for CleanYourMail. No cloud, no telemetry, headers only."
+dynamic = ["version"]
+description = "Windows desktop app for CleanYourMail. Local only, no cloud, no telemetry."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Jose Paredes" }]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
+  "Operating System :: Microsoft :: Windows",
   "Topic :: Communications :: Email",
 ]
+dependencies = ["PySide6>=6.8,<7"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-qt>=4.4",
+  "pyinstaller>=6.10",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.dynamic]
+version = { attr = "cleanyourmail_app.version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cleanyourmail_app = ["ui/theme.qss", "ui/resources/*", "i18n/*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+qt_api = "pyside6"
+testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
