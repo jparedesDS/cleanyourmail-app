@@ -734,7 +734,9 @@ def test_outlook_never_offers_a_password_field(qtbot, services):
     assert page.password_edit.isHidden() is True
     assert page.save_button.isHidden() is True
     assert page.start_button.isHidden() is False
-    assert page.start_button.isEnabled() is False
+    # Task 8 replaced the interim disabled panel with the device-code flow.
+    assert page.start_button.isEnabled() is True
+    assert page.outlook_limitation.isHidden() is False
 
 
 # --- Shell wiring ----------------------------------------------------------

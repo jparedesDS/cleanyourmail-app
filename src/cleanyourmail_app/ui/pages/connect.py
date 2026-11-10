@@ -1,10 +1,12 @@
-"""The second wizard page: guide the provider's app password and test it.
+"""The second wizard page: guide the provider's sign-in and test it.
 
 Gmail needs 2-Step Verification and an App Password; Yahoo, iCloud and
 Fastmail have their own app-password page; Proton Bridge and Custom IMAP use a
-plain password. The page branches on ``Provider.auth_kind``, keeps the
-provider's instructions visible, and never asks for the account's normal
-password or implements IMAP itself.
+plain password. Outlook uses Microsoft's device-code flow, which the sidecar
+owns: the page shows the URL and code, waits in a worker thread and never sees
+a token. The page branches on ``Provider.auth_kind``, keeps the provider's
+instructions visible, and never asks for the account's normal password or
+implements IMAP itself.
 
 Saving is deliberately ordered: the sidecar's ``init`` creates the TOML (it
 names the ``password_file``), the app writes that file through
@@ -13,6 +15,11 @@ is cleared from the field and from this page's local variables as soon as it
 has been written, and it is never passed in argv, stored in settings, logged or
 rendered. A failed doctor leaves the saved file in place and shows copy, not
 the sidecar's raw output, so a server message can never echo a secret.
+
+For Outlook, ``connect outlook --no-wait`` and ``--wait`` run off the UI thread
+as well. Cancel advances an epoch instead of killing the process: the sidecar
+may finish in the background, but a late result is ignored, so it cannot save a
+selection or move the wizard after the person cancelled.
 """
 
 from __future__ import annotations
@@ -20,7 +27,7 @@ from __future__ import annotations
 import re
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -36,6 +43,15 @@ from cleanyourmail_app.domain.providers import Provider
 from cleanyourmail_app.services.app_services import AppServices
 from cleanyourmail_app.services.cli import CliError
 from cleanyourmail_app.services.config import ConfigServiceError
+from cleanyourmail_app.services.oauth import (
+    REASON_CONSENT,
+    REASON_EXPIRED,
+    REASON_FAILED,
+    DeviceCode,
+    OAuthError,
+    OutlookConnect,
+    outlook_failure_reason,
+)
 from cleanyourmail_app.services.secrets import save_app_password
 from cleanyourmail_app.ui.style import set_dynamic_property
 
@@ -89,9 +105,15 @@ def is_valid_app_password(provider: Provider | None, value: object) -> bool:
 
 
 class _DoctorSignals(QObject):
-    """Carry one boolean from the worker back to the UI thread."""
+    """Carry one boolean from the worker back to the UI thread.
+
+    ``tagged`` is the same answer plus the Outlook flow's epoch, so a doctor
+    started before Cancel can be recognised as stale instead of being mistaken
+    for the current attempt. The app-password path keeps using ``finished``.
+    """
 
     finished = Signal(bool)
+    tagged = Signal(int, bool)
 
 
 class _DoctorJob(QRunnable):
@@ -108,11 +130,13 @@ class _DoctorJob(QRunnable):
         cli: object,
         config_path: object,
         signals: _DoctorSignals,
+        token: int | None = None,
     ) -> None:
         super().__init__()
         self._cli = cli
         self._config_path = config_path
         self._signals = signals
+        self._token = token
 
     def run(self) -> None:  # noqa: D401 - QRunnable's contract
         ok = False
@@ -125,15 +149,68 @@ class _DoctorJob(QRunnable):
             # could name a path, and a log is not the place for it.
             ok = False
         try:
-            self._signals.finished.emit(ok)
+            if self._token is None:
+                self._signals.finished.emit(ok)
+            else:
+                self._signals.tagged.emit(self._token, ok)
         except RuntimeError:
             # The window was closed while doctor was still running; there is
             # no receiver left to tell, and the pool must not see an exception.
             pass
 
 
+class _OutlookSignals(QObject):
+    """Carry one device-code step back from a worker thread.
+
+    ``value`` is a ``DeviceCode`` for ``start`` and the sidecar result dict for
+    ``wait``. ``reason`` is empty on success and one of the ``REASON_*`` values
+    otherwise. The raw sidecar output never crosses the boundary.
+    """
+
+    finished = Signal(str, int, object, str)
+
+
+class _OutlookJob(QRunnable):
+    """Run one Microsoft step without blocking the page.
+
+    ``epoch`` is the page's generation counter at launch time. Cancel bumps it,
+    so the page can ignore a job that finishes after the person cancelled; the
+    process itself is left to finish and is never killed mid-token.
+    """
+
+    def __init__(
+        self,
+        phase: str,
+        work: object,
+        epoch: int,
+        signals: _OutlookSignals,
+    ) -> None:
+        super().__init__()
+        self._phase = phase
+        self._work = work
+        self._epoch = epoch
+        self._signals = signals
+
+    def run(self) -> None:  # noqa: D401 - QRunnable's contract
+        value: object = None
+        reason = ""
+        try:
+            value = self._work()  # type: ignore[operator]
+        except OAuthError as exc:
+            reason = exc.reason
+        except Exception:
+            # A missing sidecar, a timeout or a crash is a failed sign-in; the
+            # exception text may name a path and is never rendered or logged.
+            reason = REASON_FAILED
+        try:
+            self._signals.finished.emit(self._phase, self._epoch, value, reason)
+        except RuntimeError:
+            # The window closed while the flow was in flight.
+            pass
+
+
 class ConnectPage(QWidget):
-    """Provider instructions, one secret field, Save and a live connection test."""
+    """Provider instructions, one sign-in path and a live connection test."""
 
     connectionSucceeded = Signal()
     backRequested = Signal()
@@ -155,10 +232,20 @@ class ConnectPage(QWidget):
         self._error_key: str | None = None
         self._hint_key: str | None = None
         self._pool = QThreadPool.globalInstance()
+        # The Outlook flow. ``_outlook_epoch`` is bumped by Cancel (and by a
+        # provider change), so a worker that finishes late is ignored. The
+        # device code itself is public UI state; no token is stored here.
+        self._device_code: DeviceCode | None = None
+        self._outlook_running = False
+        self._outlook_epoch = 0
+        self._outlook_done = False
         # Unparented on purpose: if the window closes mid-doctor the job keeps
         # the emitter alive and Qt drops the receiver instead of raising.
         self._signals = _DoctorSignals()
         self._signals.finished.connect(self._on_doctor_finished)
+        self._signals.tagged.connect(self._on_outlook_doctor_finished)
+        self._outlook_signals = _OutlookSignals()
+        self._outlook_signals.finished.connect(self._on_outlook_finished)
 
         self._build()
         self._apply_provider()
@@ -177,18 +264,26 @@ class ConnectPage(QWidget):
         """The account address the shell handed over."""
         return self._email
 
+    @property
+    def device_code(self) -> DeviceCode | None:
+        """The pending Microsoft code, or ``None`` before Start/after Cancel."""
+        return self._device_code
+
     def set_provider(self, provider: Provider, email: str) -> None:
         """Show the instructions for ``provider`` and start from a clean state.
 
         Called every time the shell arrives from the provider page. An
-        in-flight ``doctor`` is never interrupted mid-write; the shell disables
-        Back while it runs, so a new provider can only arrive after it ends.
+        in-flight ``doctor`` or Microsoft sign-in is never interrupted
+        mid-write; the shell disables Back while it runs, so a new provider can
+        only arrive after it ends. A reset bumps the Outlook epoch, so nothing
+        left over from the previous provider can update this one.
         """
         if not isinstance(provider, Provider):
             raise TypeError("set_provider() needs a Provider value")
-        if self._doctor_running:
+        if self._doctor_running or self._outlook_running:
             return
 
+        self._reset_outlook()
         self._provider = provider
         self._email = email.strip() if isinstance(email, str) else ""
         self._clear_password_field()
@@ -245,10 +340,60 @@ class ConnectPage(QWidget):
         self.two_factor_label.setObjectName("warning")
         self.two_factor_label.setWordWrap(True)
 
+        # The limitation is a panel before the button, not an error after it:
+        # the person learns about tenant consent and the publisher rule before
+        # Microsoft can block the sign-in.
+        self.outlook_limitation = QLabel(self)
+        self.outlook_limitation.setObjectName("warningPanel")
+        self.outlook_limitation.setWordWrap(True)
+
         self.start_button = QPushButton(self)
         self.start_button.setObjectName("primary")
         self.start_button.setMinimumWidth(220)
         self.start_button.setEnabled(False)
+        self.start_button.clicked.connect(self._start_outlook)
+
+        self.device_code_panel = QWidget(self)
+        code_layout = QVBoxLayout(self.device_code_panel)
+        code_layout.setContentsMargins(0, 0, 0, 0)
+        code_layout.setSpacing(6)
+
+        self.device_code_label = QLabel(self.device_code_panel)
+        self.device_code_label.setObjectName("section")
+
+        code_row = QHBoxLayout()
+        code_row.setContentsMargins(0, 0, 0, 0)
+        code_row.setSpacing(8)
+        self.device_code_edit = QLineEdit(self.device_code_panel)
+        self.device_code_edit.setObjectName("deviceCode")
+        self.device_code_edit.setReadOnly(True)
+        self.device_code_label.setBuddy(self.device_code_edit)
+        self.copy_code_button = self._link_button(self.device_code_panel)
+        self.copy_code_button.clicked.connect(self._copy_device_code)
+        self.signin_button = self._link_button(self.device_code_panel)
+        self.signin_button.clicked.connect(self._open_signin_page)
+        code_row.addWidget(self.device_code_edit, 1)
+        code_row.addWidget(self.copy_code_button)
+        code_row.addWidget(self.signin_button)
+
+        code_layout.addWidget(self.device_code_label)
+        code_layout.addLayout(code_row)
+
+        self.outlook_actions = QWidget(self)
+        actions_row = QHBoxLayout(self.outlook_actions)
+        actions_row.setContentsMargins(0, 0, 0, 0)
+        actions_row.setSpacing(8)
+        self.approve_button = QPushButton(self.outlook_actions)
+        self.approve_button.setObjectName("primary")
+        self.approve_button.setMinimumWidth(220)
+        self.approve_button.clicked.connect(self._approve_outlook)
+        self.cancel_button = QPushButton(self.outlook_actions)
+        self.cancel_button.setObjectName("secondary")
+        self.cancel_button.setMinimumWidth(140)
+        self.cancel_button.clicked.connect(self._cancel_outlook)
+        actions_row.addWidget(self.approve_button)
+        actions_row.addWidget(self.cancel_button)
+        actions_row.addStretch(1)
 
         self.host_label = QLabel(self)
         self.host_label.setObjectName("section")
@@ -318,7 +463,10 @@ class ConnectPage(QWidget):
         root.addWidget(self.intro_label)
         root.addWidget(self.checklist)
         root.addWidget(self.two_factor_label)
+        root.addWidget(self.outlook_limitation)
         root.addWidget(self.start_button)
+        root.addWidget(self.device_code_panel)
+        root.addWidget(self.outlook_actions)
         root.addSpacing(4)
         root.addWidget(self.host_label)
         root.addWidget(self.host_edit)
@@ -357,7 +505,11 @@ class ConnectPage(QWidget):
         self.app_passwords_button.setVisible(is_gmail)
         self.host_label.setVisible(is_custom)
         self.host_edit.setVisible(is_custom)
+        self.outlook_limitation.setVisible(is_device_code)
         self.start_button.setVisible(is_device_code)
+        has_code = is_device_code and self._device_code is not None
+        self.device_code_panel.setVisible(has_code)
+        self.outlook_actions.setVisible(has_code)
 
         for widget in (
             self.password_label,
@@ -383,7 +535,14 @@ class ConnectPage(QWidget):
         for index, label in enumerate(self.step_labels, start=1):
             label.setText(t(f"connect.gmail.step_{index}"))
         self.two_factor_label.setText(t("connect.gmail.two_factor_missing"))
+        self.outlook_limitation.setText(t("connect.outlook.blocked.body"))
         self.start_button.setText(t("connect.outlook.start"))
+        self.device_code_label.setText(t("connect.outlook.code"))
+        self.device_code_edit.setAccessibleName(t("connect.outlook.code"))
+        self.copy_code_button.setText(t("connect.outlook.copy_code"))
+        self.signin_button.setText(t("connect.outlook.url"))
+        self.approve_button.setText(t("connect.outlook.approve"))
+        self.cancel_button.setText(t("connect.outlook.cancel"))
 
         self.security_button.setText(self._security_button_text())
         self.app_passwords_button.setText(t("connect.gmail.open_app_passwords"))
@@ -481,7 +640,43 @@ class ConnectPage(QWidget):
         self.password_error.setVisible(show_password_error)
         set_dynamic_property(self.password_edit, "invalid", show_password_error)
         self.save_button.setEnabled(valid and not self._doctor_running)
-        self.back_button.setEnabled(not self._doctor_running)
+        self.back_button.setEnabled(
+            not self._doctor_running and not self._outlook_running
+        )
+        self._refresh_outlook_state()
+
+    def _refresh_outlook_state(self) -> None:
+        """Enable the Microsoft controls for the current phase.
+
+        Start is available before a code exists; Approve only after one, and
+        only when no worker is running. Cancel is visible for the whole flow so
+        the person can leave it without saving, including while ``--wait`` is
+        blocked on Microsoft.
+        """
+        provider = self._provider
+        is_device = provider is not None and provider.auth_kind == "device_code"
+        if not is_device:
+            self.outlook_limitation.setVisible(False)
+            self.device_code_panel.setVisible(False)
+            self.outlook_actions.setVisible(False)
+            return
+
+        busy = self._outlook_running
+        has_code = self._device_code is not None
+        self.outlook_limitation.setVisible(True)
+        self.device_code_panel.setVisible(has_code)
+        self.outlook_actions.setVisible(has_code or busy)
+        self.approve_button.setVisible(has_code)
+        self.cancel_button.setVisible(busy)
+        self.start_button.setEnabled(
+            not busy and not has_code and not self._outlook_done
+        )
+        self.copy_code_button.setEnabled(has_code and not self._outlook_done)
+        self.signin_button.setEnabled(has_code and not self._outlook_done)
+        self.approve_button.setEnabled(
+            has_code and not busy and not self._outlook_done
+        )
+        self.cancel_button.setEnabled(busy)
 
     def _target_host(self) -> str | None:
         """The host ``init`` should write, or ``None`` to keep its preset.
@@ -555,9 +750,11 @@ class ConnectPage(QWidget):
         """
         self.password_edit.setText("")
 
-    def _start_doctor(self, config_path: object) -> None:
+    def _start_doctor(self, config_path: object, token: int | None = None) -> None:
         self._show_status("connect.doctor.running", "muted")
-        job = _DoctorJob(self._services.cli, config_path, self._signals)
+        job = _DoctorJob(
+            self._services.cli, config_path, self._signals, token=token
+        )
         self._pool.start(job)
 
     def _on_doctor_finished(self, ok: bool) -> None:
@@ -570,6 +767,168 @@ class ConnectPage(QWidget):
         self.doctorFinished.emit(ok)
         if ok:
             self.connectionSucceeded.emit()
+
+    def _on_outlook_doctor_finished(self, epoch: int, ok: bool) -> None:
+        """Finish the Outlook chain, unless Cancel invalidated this attempt."""
+        self._doctor_running = False
+        if epoch != self._outlook_epoch:
+            # Cancel (or a provider change) already reset the page. The sidecar
+            # may have saved the token; the page must not save or advance here.
+            self._refresh_state()
+            return
+
+        self._outlook_running = False
+        self._clear_device_code()
+        if ok:
+            self._outlook_done = True
+            self._refresh_state()
+            self._show_status("connect.doctor.ok", "success")
+            self.doctorFinished.emit(True)
+            self.connectionSucceeded.emit()
+            return
+
+        self._refresh_state()
+        self._show_error("connect.doctor.failed", "connect.doctor.hint")
+        self.doctorFinished.emit(False)
+
+    # -- Outlook device code ------------------------------------------------
+
+    def _reset_outlook(self) -> None:
+        """Forget the flow and invalidate any worker still in flight."""
+        self._outlook_epoch += 1
+        self._outlook_running = False
+        self._outlook_done = False
+        self._clear_device_code()
+
+    def _clear_device_code(self) -> None:
+        """Drop the code widget too, so no stale code can be copied."""
+        self._device_code = None
+        self.device_code_edit.setText("")
+
+    def _start_outlook(self) -> None:
+        """Create/keep the TOML, then ask the sidecar for a code."""
+        provider = self._provider
+        if provider is None or provider.auth_kind != "device_code":
+            return
+        if self._outlook_running or self._outlook_done:
+            return
+
+        self._clear_feedback()
+        self._outlook_running = True
+        self._refresh_state()
+        self._show_status("connect.outlook.starting", "muted")
+
+        try:
+            config_path = self._services.config.ensure(provider, self._email)
+        except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
+            self._outlook_running = False
+            self._refresh_state()
+            self._show_error("errors.config")
+            return
+
+        connect = OutlookConnect(self._services.cli, config_path)
+        job = _OutlookJob(
+            "start", connect.start, self._outlook_epoch, self._outlook_signals
+        )
+        self._pool.start(job)
+
+    def _approve_outlook(self) -> None:
+        """Finish the pending sign-in with ``--wait``, then run ``doctor``."""
+        if self._device_code is None or self._outlook_running or self._outlook_done:
+            return
+
+        self._outlook_running = True
+        self._refresh_state()
+        self._show_status("connect.outlook.waiting", "muted")
+        connect = OutlookConnect(
+            self._services.cli, self._services.config.config_path()
+        )
+        job = _OutlookJob(
+            "wait", connect.wait, self._outlook_epoch, self._outlook_signals
+        )
+        self._pool.start(job)
+
+    def _on_outlook_finished(
+        self, phase: str, epoch: int, value: object, reason: str
+    ) -> None:
+        """Handle one worker result, ignoring anything from a cancelled epoch."""
+        if epoch != self._outlook_epoch:
+            return
+
+        if phase == "start":
+            self._outlook_running = False
+            if reason or not isinstance(value, DeviceCode):
+                self._fail_outlook(reason or REASON_FAILED)
+                return
+            self._device_code = value
+            self.device_code_edit.setText(value.user_code)
+            self._refresh_state()
+            # The "asking Microsoft" line has done its job.
+            self._clear_feedback()
+            return
+
+        if phase != "wait":
+            return
+
+        if not reason:
+            if not isinstance(value, dict) or not value.get("ok"):
+                reason = outlook_failure_reason(value)
+        if reason:
+            self._fail_outlook(reason)
+            return
+
+        # Microsoft accepted the code and the sidecar saved its own refresh
+        # token. The app only asks the sidecar whether the mailbox answers.
+        self._doctor_running = True
+        self._refresh_state()
+        self._start_doctor(
+            self._services.config.config_path(), token=self._outlook_epoch
+        )
+
+    def _fail_outlook(self, reason: str) -> None:
+        """Show localized copy and return to the state that offers Start."""
+        self._outlook_running = False
+        self._doctor_running = False
+        self._clear_device_code()
+        self._refresh_state()
+        if reason == REASON_CONSENT:
+            self._show_error(
+                "connect.outlook.blocked.title", "connect.outlook.blocked.help"
+            )
+        elif reason == REASON_EXPIRED:
+            self._show_error(
+                "connect.outlook.expired", "connect.outlook.retry_hint"
+            )
+        else:
+            self._show_error(
+                "connect.outlook.failed", "connect.outlook.retry_hint"
+            )
+
+    def _cancel_outlook(self) -> None:
+        """Abandon the UI flow without saving; late results are ignored."""
+        if self._provider is None or self._provider.auth_kind != "device_code":
+            return
+        if not self._outlook_running and not self._doctor_running:
+            return
+
+        self._outlook_epoch += 1
+        self._outlook_running = False
+        self._doctor_running = False
+        self._outlook_done = False
+        self._clear_device_code()
+        self._refresh_state()
+        self._show_status("connect.outlook.cancelled", "muted")
+
+    def _copy_device_code(self) -> None:
+        """Copy the user code only; a token never reaches the clipboard."""
+        if self._device_code is None:
+            return
+        QGuiApplication.clipboard().setText(self._device_code.user_code)
+        self._show_status("connect.outlook.copied", "muted")
+
+    def _open_signin_page(self) -> None:
+        if self._device_code is not None:
+            self._open_url(self._device_code.verification_uri)
 
     # -- feedback -----------------------------------------------------------
 
@@ -615,6 +974,6 @@ class ConnectPage(QWidget):
     # -- navigation ---------------------------------------------------------
 
     def _go_back(self) -> None:
-        if self._doctor_running:
+        if self._doctor_running or self._outlook_running:
             return
         self.backRequested.emit()

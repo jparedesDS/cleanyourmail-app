@@ -127,6 +127,13 @@
       "copy_code": "Copy code",
       "waiting": "Waiting for approval in your browser…",
       "approve": "I approved the sign-in",
+      "starting": "Asking Microsoft for a code…",
+      "copied": "Code copied.",
+      "cancel": "Cancel",
+      "cancelled": "The sign-in was cancelled. Nothing was saved.",
+      "expired": "The Microsoft sign-in expired, was declined or was revoked. Start the sign-in again.",
+      "failed": "Microsoft sign-in did not finish. Start it again, or check the provider help.",
+      "retry_hint": "Press “Connect Microsoft” to start again.",
       "blocked": {
         "title": "Microsoft blocked the sign-in",
         "body": "Microsoft 365 accounts need a tenant administrator to approve this app. Outlook.com personal accounts need a verified publisher. CleanYourMail cannot bypass either rule.",

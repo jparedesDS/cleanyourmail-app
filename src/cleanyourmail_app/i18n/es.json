@@ -127,6 +127,13 @@
       "copy_code": "Copiar código",
       "waiting": "Esperando la aprobación en tu navegador…",
       "approve": "Aprobé el inicio de sesión",
+      "starting": "Pidiendo un código a Microsoft…",
+      "copied": "Código copiado.",
+      "cancel": "Cancelar",
+      "cancelled": "Se canceló el inicio de sesión. No se guardó nada.",
+      "expired": "El inicio de sesión de Microsoft caducó, se rechazó o se revocó. Inícialo de nuevo.",
+      "failed": "El inicio de sesión de Microsoft no terminó. Inícialo de nuevo o consulta la ayuda del proveedor.",
+      "retry_hint": "Pulsa «Conectar Microsoft» para empezar de nuevo.",
       "blocked": {
         "title": "Microsoft bloqueó el inicio de sesión",
         "body": "Las cuentas de Microsoft 365 necesitan que un administrador apruebe esta app. Las cuentas personales de Outlook.com necesitan un editor verificado. CleanYourMail no puede saltarse ninguna de las dos reglas.",
