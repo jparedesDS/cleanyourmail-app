@@ -231,23 +231,31 @@ def test_uninstall_guard_accepts_an_app_local_entry(tmp_path: Path):
     _assert_safe_uninstall_sections(script.read_text(encoding="utf-8"))
 
 
-def test_spec_is_onedir_windowed_and_bundles_the_sidecar():
-    text = _read(SPEC)
+def _code(text: str) -> str:
+    """Non-comment lines only, so a commented-out example cannot satisfy a check."""
+    return "\n".join(
+        line for line in text.splitlines() if not line.strip().startswith("#")
+    )
 
-    assert re.search(r'^\s*name="CleanYourMail",\s*$', text, re.MULTILINE)
-    assert re.search(r'^\s*contents_directory="\.",\s*$', text, re.MULTILINE)
-    assert re.search(r"^\s*console=False,\s*$", text, re.MULTILINE)
-    assert "COLLECT(" in text
-    assert "exclude_binaries=True" in text
+
+def test_spec_is_onedir_windowed_and_bundles_the_sidecar():
+    code = _code(_read(SPEC))
+
+    assert re.search(r'^\s*name="CleanYourMail",\s*$', code, re.MULTILINE)
+    assert re.search(r'^\s*contents_directory="\.",\s*$', code, re.MULTILINE)
+    assert re.search(r"^\s*console=False,\s*$", code, re.MULTILINE)
+    assert "COLLECT(" in code
+    assert "exclude_binaries=True" in code
     assert re.search(
         r'a\.datas\s*\+=\s*Tree\(\s*str\(\s*RESOURCES\s*/\s*"cli"\s*\)\s*,'
         r'\s*prefix="resources/cli"\s*\)',
-        text,
+        code,
     ), "the sidecar must be staged with Tree(..., prefix='resources/cli')"
-    assert "theme.qss" in text
-    assert 'glob("*.json")' in text
-    assert '"ui" / "resources"' in text
-    assert "cym-cli.exe" in text
+    assert "theme.qss" in code
+    assert '"cleanyourmail_app/i18n"' in code
+    assert 'glob("*.json")' in code
+    assert '"ui" / "resources"' in code
+    assert "cym-cli.exe" in code
 
 
 def test_gitignore_covers_build_outputs():
@@ -259,15 +267,17 @@ def test_gitignore_covers_build_outputs():
     assert "build" in lines
 
 
-def test_smoke_installer_is_secret_safe_and_checks_the_state_dir():
+def test_smoke_installer_is_secret_safe_and_checks_the_cli_state_dir():
     text = _read(SMOKE)
 
     assert "Get-FileHash" not in text, "the smoke must not hash user data"
     assert "Get-Content -LiteralPath $SecretFile" not in text
     assert "LastWriteTimeUtc" in text
-    assert "%LOCALAPPDATA%" in text or "$env:LOCALAPPDATA" in text
-    assert 'Join-Path $env:LOCALAPPDATA "cleanyourmail-app"' in text
-    assert '"state"' in text or "\\state" in text
+    assert 'Join-Path $env:LOCALAPPDATA "CleanYourMail"' in text
+    assert "cleanyourmail-app\\state" not in text
+    assert "cleanyourmail-app/state" not in text
+    assert "task-12-state-sentinel-" in text
+    assert "NewGuid" in text
     assert "cleanyourmail.txt" in text
 
 

@@ -206,12 +206,23 @@ try {
         -PassThru `
         -RedirectStandardOutput $appVersionFile `
         -RedirectStandardError $appErrorFile
-    $appVersion = (Get-Content -LiteralPath $appVersionFile -Raw).Trim()
-    if ($appProcess.ExitCode -ne 0 -or $appVersion -ne "CleanYourMail app 0.3.0") {
-        $appError = ""
-        if (Test-Path $appErrorFile) {
-            $appError = (Get-Content -LiteralPath $appErrorFile -Raw).Trim()
-        }
+    $appVersionText = ""
+    if (Test-Path -LiteralPath $appVersionFile) {
+        $appVersionText = Get-Content -LiteralPath $appVersionFile -Raw
+    }
+    $appError = ""
+    if (Test-Path -LiteralPath $appErrorFile) {
+        $appError = Get-Content -LiteralPath $appErrorFile -Raw
+    }
+    if ($appProcess.ExitCode -ne 0) {
+        throw "App smoke test exited $($appProcess.ExitCode).`nstdout:`n$appVersionText`nstderr:`n$appError"
+    }
+    if ([string]::IsNullOrWhiteSpace($appVersionText)) {
+        Write-Host "App smoke test produced no version output."
+        throw "App smoke test produced no version output (exit 0).`nstderr:`n$appError"
+    }
+    $appVersion = $appVersionText.Trim()
+    if ($appVersion -ne "CleanYourMail app 0.3.0") {
         throw "App smoke test failed: expected 'CleanYourMail app 0.3.0', got '$appVersion' (exit $($appProcess.ExitCode)).`n$appError"
     }
 }

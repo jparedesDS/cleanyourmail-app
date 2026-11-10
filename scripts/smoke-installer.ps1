@@ -9,7 +9,7 @@
 
         %APPDATA%\cleanyourmail-app\settings.json
         %USERPROFILE%\.secrets\cleanyourmail.txt
-        %LOCALAPPDATA%\cleanyourmail-app\state
+        %LOCALAPPDATA%\CleanYourMail
 
     Existing user data is never read. The script records Test-Path, file length
     and LastWriteTimeUtc only; it never hashes or prints the contents of a
@@ -45,15 +45,13 @@ $SettingsDir = Join-Path $env:APPDATA "cleanyourmail-app"
 $SettingsFile = Join-Path $SettingsDir "settings.json"
 $SecretDir = Join-Path $env:USERPROFILE ".secrets"
 $SecretFile = Join-Path $SecretDir "cleanyourmail.txt"
-$StateParent = Join-Path $env:LOCALAPPDATA "cleanyourmail-app"
-$StateDir = Join-Path $StateParent "state"
-$StateFile = Join-Path $StateDir "task-12-state-sentinel.txt"
+$StateDir = Join-Path $env:LOCALAPPDATA "CleanYourMail"
+$StateFile = Join-Path $StateDir ("task-12-state-sentinel-" + [guid]::NewGuid().ToString("N") + ".txt")
 
 $CreatedSettingsDir = $false
 $CreatedSettingsFile = $false
 $CreatedSecretDir = $false
 $CreatedSecretFile = $false
-$CreatedStateParent = $false
 $CreatedStateDir = $false
 $CreatedStateFile = $false
 $Installed = $false
@@ -128,25 +126,23 @@ try {
         $CreatedSecretFile = $true
     }
 
-    # CLI state sentinel. Do not add a file to an existing state directory; the
-    # directory's own existence and timestamp are enough.
-    if (-not (Test-Path -LiteralPath $StateParent)) {
-        New-Item -ItemType Directory -Force -Path $StateParent | Out-Null
-        $CreatedStateParent = $true
-    }
+    # CLI state sentinel. The pinned CLI (v1.2.2) stores state under
+    # %LOCALAPPDATA%\CleanYourMail\<account-key> (tools/config.py); CYM_STATE_DIR
+    # would override it, but the app never sets it. Use a unique file in the
+    # state root so real account state files are never modified or removed.
     if (-not (Test-Path -LiteralPath $StateDir)) {
         New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
         $CreatedStateDir = $true
-        Set-Content -LiteralPath $StateFile -Encoding UTF8 -Value "task-12-state-sentinel"
-        $CreatedStateFile = $true
     }
+    Set-Content -LiteralPath $StateFile -Encoding UTF8 -Value "task-12-state-sentinel"
+    $CreatedStateFile = $true
 
     $settingsDirBefore = Get-PathState $SettingsDir
     $settingsFileBefore = Get-PathState $SettingsFile
     $secretDirBefore = Get-PathState $SecretDir
     $secretFileBefore = Get-PathState $SecretFile
-    $stateParentBefore = Get-PathState $StateParent
     $stateDirBefore = Get-PathState $StateDir
+    $stateFileBefore = Get-PathState $StateFile
 
     Write-Host "==> Installing per-user (silent)"
     $installLog = Join-Path $env:TEMP "clean-your-mail-install.log"
@@ -175,10 +171,22 @@ try {
         -PassThru `
         -RedirectStandardOutput $versionOut `
         -RedirectStandardError $versionErr
-    $version = (Get-Content -LiteralPath $versionOut -Raw).Trim()
+    $versionText = ""
+    if (Test-Path -LiteralPath $versionOut) {
+        $versionText = Get-Content -LiteralPath $versionOut -Raw
+    }
+    $versionErrorText = ""
+    if (Test-Path -LiteralPath $versionErr) {
+        $versionErrorText = Get-Content -LiteralPath $versionErr -Raw
+    }
     Write-Host "installed app exit: $($appProcess.ExitCode)"
+    Assert-True ($appProcess.ExitCode -eq 0) "installed app exited $($appProcess.ExitCode); stderr:`n$versionErrorText"
+    if ([string]::IsNullOrWhiteSpace($versionText)) {
+        Write-Host "installed app --version produced no output."
+        throw "installed app --version produced no output (exit 0); stderr:`n$versionErrorText"
+    }
+    $version = $versionText.Trim()
     Write-Host "installed app version: $version"
-    Assert-True ($appProcess.ExitCode -eq 0) "installed app exited $($appProcess.ExitCode)"
     Assert-True ($version -eq "CleanYourMail app 0.3.0") "unexpected installed version: '$version'"
 
     Write-Host "==> Uninstalling per-user (silent)"
@@ -200,8 +208,8 @@ try {
     Assert-Unchanged $settingsFileBefore (Get-PathState $SettingsFile) "settings sentinel"
     Assert-Unchanged $secretDirBefore (Get-PathState $SecretDir) "secrets directory"
     Assert-Unchanged $secretFileBefore (Get-PathState $SecretFile) "secret sentinel"
-    Assert-Unchanged $stateParentBefore (Get-PathState $StateParent) "CLI state parent"
     Assert-Unchanged $stateDirBefore (Get-PathState $StateDir) "CLI state directory"
+    Assert-Unchanged $stateFileBefore (Get-PathState $StateFile) "CLI state sentinel"
 
     Write-Host "settings sentinel: survived (metadata unchanged)"
     Write-Host "secret sentinel:   survived (metadata unchanged; content never read)"
@@ -228,10 +236,6 @@ finally {
     if ($CreatedStateDir -and (Test-Path -LiteralPath $StateDir)) {
         $remaining = @(Get-ChildItem -LiteralPath $StateDir -Force)
         if ($remaining.Count -eq 0) { Remove-Item -LiteralPath $StateDir -Force }
-    }
-    if ($CreatedStateParent -and (Test-Path -LiteralPath $StateParent)) {
-        $remaining = @(Get-ChildItem -LiteralPath $StateParent -Force)
-        if ($remaining.Count -eq 0) { Remove-Item -LiteralPath $StateParent -Force }
     }
     if ($CreatedSettingsFile -and (Test-Path -LiteralPath $SettingsFile)) {
         Remove-Item -LiteralPath $SettingsFile -Force
