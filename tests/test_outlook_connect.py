@@ -627,6 +627,18 @@ def test_cancel_drops_a_late_wait_result_without_saving(
     assert ["doctor"] not in _commands(cli)
 
 
+def test_reenter_after_success_allows_a_new_outlook_sign_in(qtbot, page):
+    page._outlook_done = True
+    page._refresh_state()
+    assert page.start_button.isEnabled() is False
+
+    # Back from Preferences reaches Connect again; it must not be a dead end.
+    page.reenter()
+
+    assert page.start_button.isEnabled() is True
+    assert page.device_code is None
+
+
 def test_cancel_drops_a_late_doctor_result(qtbot, page, services, cli):
     t = services.translator.t
     cli.doctor_gate = threading.Event()

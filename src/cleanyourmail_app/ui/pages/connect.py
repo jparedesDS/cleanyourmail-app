@@ -311,6 +311,18 @@ class ConnectPage(QWidget):
         self._clear_device_code()
         self._clear_feedback()
 
+    def reenter(self) -> None:
+        """Reopen the page without leaving a completed Outlook flow dead.
+
+        After a successful Outlook doctor the Start button is disabled on
+        purpose, but coming Back from Preferences should allow a fresh
+        sign-in instead of showing a page with no code and no action.
+        """
+        if self._doctor_running or self._outlook_running:
+            return
+        self._reset_outlook()
+        self._refresh_state()
+
     # -- layout -------------------------------------------------------------
 
     def _build(self) -> None:
@@ -768,7 +780,10 @@ class ConnectPage(QWidget):
 
         try:
             config_path = self._ensure_config(provider, host)
-        except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
+        except CliError:
+            self._fail("errors.cli_failed")
+            return
+        except (ConfigServiceError, OSError, TypeError, ValueError):
             self._fail("errors.config")
             return
         if config_path is None:
@@ -912,7 +927,12 @@ class ConnectPage(QWidget):
 
         try:
             config_path = self._ensure_config(provider, None)
-        except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
+        except CliError:
+            self._outlook_running = False
+            self._refresh_state()
+            self._show_error("errors.cli_failed")
+            return
+        except (ConfigServiceError, OSError, TypeError, ValueError):
             self._outlook_running = False
             self._refresh_state()
             self._show_error("errors.config")

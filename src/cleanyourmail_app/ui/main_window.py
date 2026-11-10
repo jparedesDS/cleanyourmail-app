@@ -252,6 +252,10 @@ class MainWindow(QMainWindow):
     def _on_preferences_back(self) -> None:
         """Return to Connect, when that page is registered."""
         if "connect" in self.pages:
+            page = self.pages["connect"]
+            reenter = getattr(page, "reenter", None)
+            if callable(reenter):
+                reenter()
             self.show_page("connect")
 
     def _on_review_back(self) -> None:

@@ -666,7 +666,7 @@ def test_a_missing_sidecar_is_reported_and_the_page_stays_usable(
     _save(qtbot, page)
 
     assert page.error_label.isHidden() is False
-    assert page.error_label.text() == services.translator.t("errors.config")
+    assert page.error_label.text() == services.translator.t("errors.cli_failed")
     assert page.password_edit.text() == SECRET
     assert page.save_button.isEnabled() is True
     assert page.back_button.isEnabled() is True

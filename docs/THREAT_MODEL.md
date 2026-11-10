@@ -50,7 +50,7 @@ CSRF token or localhost listener in 0.3.x.
 | Permanent deletion | The app has no delete action. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
 | Unexpected network exposure | The app opens no socket and no HTTP server. Only the sidecar talks to the provider. |
 | SmartScreen / unsigned installer | The release documents the unsigned warning and publishes a SHA-256; code signing is deferred. |
-| Supply-chain compromise | Dependencies are pinned in `pyproject.toml`; the sidecar is built from an exact tag with a clean-worktree check; CI runs the contract tests and the installer smoke. |
+| Supply-chain compromise | Dependencies use declared version ranges in `pyproject.toml` and are installed from PyPI at build time; the sidecar is built from an exact tag with a clean-worktree check; CI runs the contract tests and the installer smoke. |
 | Malicious website reaching the app | There is no localhost listener, no session cookie and no browser surface to reach. |
 | Browser profile or extension compromise | The app does not use a browser. The only browser interaction is the person opening Microsoft's device-login page, which the OS handles. |
 

@@ -26,6 +26,27 @@ PACKAGE_DIR = CATALOG_DIR.parent
 THEME_PATH = PACKAGE_DIR / "ui" / "theme.qss"
 RESOURCES_DIR = PACKAGE_DIR / "ui" / "resources"
 
+#: Mojibake tokens that have appeared when a Spanish string was written through
+#: a non-UTF-8 console. They are not valid Spanish words; a question mark at the
+#: end of a question is fine, but these are not.
+LOST_SPANISH_TOKENS = (
+    "versi?n",
+    "sesi?n",
+    "cancel?",
+    "aprob?",
+    "usar?",
+    "contrase?a",
+    "contrase?as",
+    "l?nea",
+    "configuraci?n",
+    "conexi?n",
+    "reemplazar?a",
+    "est?",
+    "a?n",
+    "env?a",
+    "que s? se",
+)
+
 PROVIDER_IDS = ("gmail", "outlook", "yahoo", "icloud", "fastmail", "proton", "custom")
 PAGE_PREFIXES = (
     "app",
@@ -81,6 +102,13 @@ def test_english_and_spanish_have_identical_keys():
     assert english, "the English catalog is empty"
     assert not sorted(english - spanish), f"missing in Spanish: {sorted(english - spanish)}"
     assert not sorted(spanish - english), f"missing in English: {sorted(spanish - english)}"
+
+
+def test_spanish_copy_has_no_console_mojibake_tokens():
+    raw = (CATALOG_DIR / "es.json").read_text(encoding="utf-8")
+
+    for token in LOST_SPANISH_TOKENS:
+        assert token not in raw, f"lost Spanish accent: {token!r}"
 
 
 @pytest.mark.parametrize("language", CATALOGS)

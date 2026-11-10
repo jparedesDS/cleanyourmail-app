@@ -216,8 +216,10 @@ class ConfigService:
         """The ``password_file`` the existing TOML names.
 
         Falls back to ``secret_path`` when the config is missing or has no
-        usable value. Relative paths are resolved against the config's parent,
-        and ``~`` is expanded, so the app writes where the sidecar will read.
+        usable value. ``~`` is expanded. The pinned sidecar resolves a relative
+        ``password_file`` against its current working directory, which it
+        inherits from this app, so the app resolves it the same way instead of
+        guessing a path next to the config.
         """
         try:
             with self.config_path().open("rb") as handle:
@@ -232,15 +234,18 @@ class ConfigService:
             return self.secret_path
         candidate = Path(os.path.expanduser(value.strip()))
         if not candidate.is_absolute():
-            candidate = self.config_path().parent / candidate
+            # Match the pinned sidecar: ``resolve_secret`` reads the path as
+            # given, so a relative value is relative to the shared process cwd.
+            candidate = Path.cwd() / candidate
         return candidate
 
     def state_dir(self) -> Path:
         """The CLI state folder this config uses, without reading the cache.
 
-        Precedence: a top-level or ``[account] state_dir`` in the TOML, then
-        ``CYM_STATE_DIR``, then the pinned CLI's per-user default
-        (``%LOCALAPPDATA%\\CleanYourMail`` on Windows).
+        Precedence: the top-level ``state_dir`` key the pinned CLI accepts,
+        then ``CYM_STATE_DIR``, then the per-user default
+        (``%LOCALAPPDATA%\\CleanYourMail`` on Windows). ``[account] state_dir``
+        is not a CLI key and is deliberately ignored.
         """
         try:
             with self.config_path().open("rb") as handle:
@@ -249,16 +254,11 @@ class ConfigService:
             data = {}
         value = data.get("state_dir")
         if isinstance(value, str) and value.strip():
-            return _resolve_state_path(value.strip(), self.config_path().parent)
-        account = data.get("account")
-        if isinstance(account, dict):
-            value = account.get("state_dir")
-            if isinstance(value, str) and value.strip():
-                return _resolve_state_path(value.strip(), self.config_path().parent)
+            return _resolve_state_path(value.strip(), Path.cwd())
 
         override = os.environ.get("CYM_STATE_DIR", "").strip()
         if override:
-            return _resolve_state_path(override, self.config_path().parent)
+            return _resolve_state_path(override, Path.cwd())
 
         if os.name == "nt":
             base = os.environ.get("LOCALAPPDATA", "")

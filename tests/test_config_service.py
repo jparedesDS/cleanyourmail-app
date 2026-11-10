@@ -472,8 +472,8 @@ def test_password_file_reads_the_configs_absolute_path(service: ConfigService):
     assert service.password_file() == target
 
 
-def test_password_file_resolves_a_relative_path_against_the_config(
-    service: ConfigService,
+def test_password_file_resolves_a_relative_path_against_the_shared_cwd(
+    service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     path = service.config_path()
     path.parent.mkdir(parents=True)
@@ -484,8 +484,9 @@ def test_password_file_resolves_a_relative_path_against_the_config(
         ),
         encoding="utf-8",
     )
+    monkeypatch.chdir(tmp_path)
 
-    assert service.password_file() == path.parent / "secrets" / "local.txt"
+    assert service.password_file() == tmp_path / "secrets" / "local.txt"
 
 
 def test_password_file_expands_the_user_home(service: ConfigService):
@@ -526,7 +527,7 @@ def test_state_dir_honours_cym_state_dir(
     assert service.state_dir() == tmp_path / "override"
 
 
-def test_state_dir_prefers_the_account_value(
+def test_state_dir_ignores_the_unknown_account_value(
     service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     path = service.config_path()
@@ -534,13 +535,14 @@ def test_state_dir_prefers_the_account_value(
     path.write_text(
         TEMPLATE.format(email="me@gmail.com").replace(
             "imap_starttls = false",
-            f'imap_starttls = false\nstate_dir = "{(tmp_path / "from-config").as_posix()}"',
+            f'imap_starttls = false\nstate_dir = "{(tmp_path / "from-account").as_posix()}"',
         ),
         encoding="utf-8",
     )
     monkeypatch.setenv("CYM_STATE_DIR", str(tmp_path / "override"))
 
-    assert service.state_dir() == tmp_path / "from-config"
+    # [account] state_dir is not a key the pinned CLI accepts; it must not win.
+    assert service.state_dir() == tmp_path / "override"
 
 def test_state_dir_reads_the_top_level_cli_key(
     service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -549,8 +551,8 @@ def test_state_dir_reads_the_top_level_cli_key(
     path.parent.mkdir(parents=True)
     path.write_text(
         TEMPLATE.format(email="me@gmail.com").replace(
-            "\n[scan]",
-            f'\nstate_dir = "{(tmp_path / "top-level").as_posix()}"\n\n[scan]',
+            "[account]",
+            f'state_dir = "{(tmp_path / "top-level").as_posix()}"\n\n[account]',
         ),
         encoding="utf-8",
     )

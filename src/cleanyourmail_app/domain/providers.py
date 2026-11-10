@@ -50,7 +50,7 @@ CUSTOM = Provider(
     domains=(),
     help_url=f"{GITHUB_DOCS}/PROVIDERS.md",
     status="documented",
-    note="Host and port in Advanced.",
+    note="Host only; port 993 with TLS.",
 )
 
 #: Display order on the provider page. Keep ``custom`` last.

@@ -180,6 +180,7 @@ jobs:
 
       - name: Smoke test the installer
         shell: pwsh
+        timeout-minutes: 10
         run: |
           New-Item -ItemType Directory -Force -Path "build" | Out-Null
           $log = Join-Path (Get-Location) "build\installer-smoke.log"
