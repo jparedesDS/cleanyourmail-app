@@ -2,65 +2,85 @@
 
 ## Scope
 
-This model covers the local CleanYourMail app: the browser UI, the local HTTP server, the CLI
-subprocess boundary and the files the app touches. The CLI's own threat model is in
+This model covers the native CleanYourMail app 0.3.x: the PySide6 UI, the in-process services, the
+frozen `cym-cli.exe` CleanYourMail 1.2.2 sidecar and the files the app touches on Windows 10/11 x64.
+The CLI's own threat model is in
 [`cleanyourmail/docs/SAFETY.md`](https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md).
+
+The retired 0.2.x local-web UI is out of scope. There is no browser, HTTP server, cookie, session,
+CSRF token or localhost listener in 0.3.x.
 
 ## Assets
 
-- Mailbox credentials: app password or OAuth2 access token.
+- Mailbox credentials: an app password (Gmail/Yahoo/iCloud/Fastmail/Proton Bridge/custom IMAP) or the
+  sidecar-owned Microsoft OAuth refresh token.
 - Message metadata: sender, subject, date, flags and unsubscribe headers.
+- The CLI config (`cleanyourmail.toml`), which names `password_file` and `state_dir`.
 - The plan (`plan.json`), the undo journal and the CLI cache.
 - The user's mailbox state: folders, labels and messages.
-- The local config file and the app's path settings.
+- App settings: provider, email and cleaning preferences (never a secret).
 
 ## Trust boundaries
 
-1. **Browser ↔ local server.** The browser is the renderer; the server is the authority. The boundary
-   is HTTP on `127.0.0.1`.
-2. **Server ↔ CLI.** The server passes only a command, a config path and an optional secret in the
-   environment. It parses JSON output.
-3. **CLI ↔ mail provider.** IMAP/SMTP, outside this app; the CLI's safety model applies.
+1. **UI ↔ sidecar.** The UI passes a fixed command, a config path and non-secret options. It reads
+   one JSON object from stdout. The app never passes a password in argv or environment; the sidecar
+   reads the private password file. The sidecar owns the OAuth token.
+2. **Sidecar ↔ provider.** IMAP/SMTP over the network, outside this app; the CLI's safety model and
+   TLS rules apply. Custom IMAP in this build is port 993 with TLS only.
+3. **App ↔ local filesystem.** The app writes the config, the app-password file and its settings.
+   It does not read the OAuth store, message bodies or the CLI cache.
+4. **Build ↔ released installer.** The sidecar is built from the pinned tag and staged into the
+   app; CI verifies its version and the installed app version.
 
 ## Threats and mitigations
 
 | Threat | Mitigation |
 |---|---|
-| Another local user opens the app | Random port, one-time URL token, session cookie, `SameSite=Strict`; the app is meant for a single-user machine. |
-| Malicious website sends requests to localhost | `Origin` allowlist, CSRF header, `SameSite=Strict` cookie, JSON-only POSTs. |
-| DNS rebinding | Server binds `127.0.0.1`; `Host` and `Origin` must be localhost with the actual port. |
-| Session theft through XSS | Strict CSP, no inline scripts, no external assets, all email data rendered with `textContent`. |
-| Secret in logs | The server does not log request bodies, query strings or cookies. The password is never written to disk. |
-| Secret in the repo | The app stores only paths; the password is a page-memory value or `CYM_PASSWORD` in the server environment. |
-| Command injection | `subprocess.run` with an argument list and no shell; fixed command names; run ids validated with `[A-Za-z0-9_-]{1,64}`. |
-| Path traversal in static files | `resolve()` + `relative_to(static_dir)` + reject `..`; only files under `static/` are served. |
-| Malicious CLI output | Parsed as JSON and rendered as text; never evaluated as code or HTML. |
-| Plan tampering | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan, explicit `APPLY` and allows one apply per plan. |
-| Applying unsubscribe by accident | Separate endpoint, separate checkbox, `UNSUBSCRIBE` confirmation, 1–50 cap, never mixed with moves. |
-| Permanent deletion | The app has no delete endpoint. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
-| Undo the wrong run | Run id validation, CLI account check, Message-ID/`X-GM-MSGID` verification. |
-| Network exposure | No `--host` option; only `127.0.0.1`. No reverse proxy instructions. |
-| Supply-chain compromise | Standard library only; no runtime dependencies; CI runs the same tests on Windows, macOS and Linux. |
+| App password left in the widget or undo history | The field is cleared with `setText("")` on save, Back and account change; tests assert `undo()` cannot restore it. |
+| App password in argv | The app never passes a secret as an argument. `save_app_password` writes the file; `CliClient` argv is asserted secret-free. |
+| App password in QSettings, a label or a log | Settings hold only provider/email/preferences. Errors use localized generic copy, and 0.3.0 writes no local log. Tests scan rendered labels and settings. |
+| App password written to the wrong account's file | An existing config for another email or IMAP host raises `ConfigMismatchError`; the person must confirm before `init --force`, and the app writes the `password_file` the config actually names. |
+| OAuth token exposed to the UI | The app only calls the sidecar's device-code commands and renders URL/code. It never reads the OAuth store or a token field. |
+| Command injection through a run id, plan path or host | Argument-list subprocesses with no shell; fixed command names; run ids match a strict pattern; plan path is one argv word; custom host rejects spaces and URL schemes. |
+| Malicious or malformed sidecar JSON | Parsed as data, never evaluated; unknown shapes become a failed command, not a crash. Raw stdout/stderr are never rendered. |
+| Plan tampering after review | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan and allows one apply per plan. |
+| Double apply | The gate closes as soon as an apply starts, including a timeout or partial result; only a fresh scan or plan reopens it. |
+| Applying unsubscribe by accident | There is no unsubscribe action in 0.3.0. The plan column is informational; Apply is always `--action move`. |
+| Undo the wrong run | The full run id from the journal is passed back; the CLI verifies account and message identity. Undo requires confirmation. |
+| Permanent deletion | The app has no delete action. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
+| Unexpected network exposure | The app opens no socket and no HTTP server. Only the sidecar talks to the provider. |
+| SmartScreen / unsigned installer | The release documents the unsigned warning and publishes a SHA-256; code signing is deferred. |
+| Supply-chain compromise | Dependencies are pinned in `pyproject.toml`; the sidecar is built from an exact tag with a clean-worktree check; CI runs the contract tests and the installer smoke. |
+| Malicious website reaching the app | There is no localhost listener, no session cookie and no browser surface to reach. |
+| Browser profile or extension compromise | The app does not use a browser. The only browser interaction is the person opening Microsoft's device-login page, which the OS handles. |
 
 ## Non-goals
 
-- A hostile local administrator or malware running as the same user.
-- A compromised operating system, browser extension or screen recorder.
+- A hostile local administrator or malware running as the same Windows user.
+- A compromised operating system, screen recorder or clipboard manager.
 - Physical access to an unlocked machine.
 - Protecting a mailbox from the mail provider itself.
 - A multi-user or hosted deployment.
-- Guaranteeing that unsubscribe stops a sender.
+- Guaranteeing that a sender honours an unsubscribe request (and 0.3.0 does not send one).
+- Full custom-IMAP support for ports other than 993 or STARTTLS; that needs a later sidecar.
 
 ## Residual risks
 
-- A user can still share a screenshot that contains sender or subject data.
-- A user can configure a broad app password; the app cannot narrow provider scopes.
-- A user can ignore the plan review; the app enforces a checkbox, not attention.
-- The password is visible to the user's browser process while the page is open.
-- Local malware with the same user privileges can read the CLI config or the state directory.
+- The person can share a screenshot that contains sender or subject data.
+- The person can configure a broad app password; the app cannot narrow provider scopes.
+- The person can ignore the plan review; the app enforces a checkbox and a confirmation, not
+  attention.
+- The password file is protected best-effort by a user ACL on Windows; a same-user process can read
+  it, as it can read the CLI's own files.
+- The sidecar process has the same user privileges as the app.
+- Without a local log, diagnosing a failed sidecar call relies on the localized copy and the user's
+  own reproduction; this is a deliberate security trade-off.
 
 ## Verification
 
-The test suite covers the session store, the one-time token, CSRF and Origin checks, security headers,
-static path traversal, session lock and the CLI wrapper. The app intentionally uses a fake CLI in
-tests, not a mailbox.
+The suite covers secret-free argv, widget/undo clearing, settings and label scanning, config
+mismatch and replace, the actual `password_file` path, version mismatch, HTTPS-only link opening,
+Outlook cancellation and late-result suppression, review/apply gating, double apply, journal/undo
+run-id handling, and no unsubscribe call. Packaging tests pin the per-user installer, the uninstaller
+bounds and the bundled sidecar; CI launches the frozen GUI and runs the installer smoke with
+metadata-only sentinels. Tests use fake CLI processes and never a real mailbox or credential.

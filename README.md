@@ -64,7 +64,7 @@ CleanYourMail CLI sidecar and renders the result, so there is one safety model a
 - Windows 10/11 x64 for the installer.
 - Python **3.12+** only to run from source.
 - The CleanYourMail CLI `1.2.2` sidecar. The installer bundles it; for development, point `CYM_CLI`
-  at a local `mail.py` or `cym-cli` build.
+  at a built `cym-cli.exe` with the same JSON contract. The app does not run `mail.py` directly.
 
 ## Development
 
@@ -93,7 +93,8 @@ The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or 
    provider-specific app-password help for the rest. The normal password is never requested.
 3. **Preferences.** Categories to clean, folders or archive, protections, limits and language.
 4. **Review and clean.** Scan, report, plan, review gate, apply with a limit, and the undo journal.
-   Unsubscribe stays separate, off by default, with its irreversible warning.
+   The plan's unsubscribe column is informational only: this build never sends unsubscribe
+   requests, and Apply always runs with `--action move`.
 
 ## Provider status
 
@@ -103,7 +104,7 @@ The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or 
 | Outlook / Microsoft 365 | Device code | partial: Microsoft 365 needs tenant admin consent; Outlook.com personal needs a verified publisher |
 | Yahoo, iCloud, Fastmail | App password | documented, not smoke-tested |
 | Proton Bridge | Bridge password | documented, not smoke-tested |
-| Custom IMAP | Host, port and TLS | documented, not smoke-tested |
+| Custom IMAP | Host; fixed port 993 with TLS | documented, not smoke-tested |
 
 The app reports these states honestly. It does not claim one-click Outlook support.
 
@@ -117,6 +118,7 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
   output.
 - **Review first.** No write without a reviewed plan; undo stays one click away.
 - **No permanent deletion.** Moves and archives are reversible.
+- **No unsubscribe in 0.3.0.** The plan may show unsubscribe modes, but Apply only moves messages.
 - **English and Spanish first-class.** Every string lives in `i18n/*.json`.
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
@@ -128,10 +130,13 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 | `src/cleanyourmail_app/` | Native app package. |
 | `src/cleanyourmail_app/version.py` | Single source of the app version. |
 | `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app` entry point. |
+| `src/cleanyourmail_app/app.py` | Builds the local services and opens the wizard. |
 | `src/cleanyourmail_app/ui/` | PySide6 window, pages, widgets, theme and resources. |
-| `src/cleanyourmail_app/domain/` | Provider catalog, preferences and plan models. |
-| `src/cleanyourmail_app/services/` | CLI sidecar, config, secrets, settings, logging. |
+| `src/cleanyourmail_app/domain/` | Provider catalog, settings, preferences and plan models. |
+| `src/cleanyourmail_app/services/` | Sidecar client (`cli.py`), config (`config.py`), secrets (`secrets.py`), OAuth (`oauth.py`) and settings (`settings.py`). |
 | `src/cleanyourmail_app/i18n/` | English and Spanish strings. |
+| `scripts/` | Sidecar/app builds and the installer smoke test. |
+| `packaging/` | Inno Setup script and icons. |
 | `tests/` | pytest and pytest-qt suite with fake CLI fixtures. |
 | `docs/superpowers/specs/` | 0.3.0 design. |
 | `docs/superpowers/plans/` | Task-by-task implementation plan. |

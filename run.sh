@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 set -eu
-exec python3 app.py "$@"
+exec python3 -m cleanyourmail_app "$@"
