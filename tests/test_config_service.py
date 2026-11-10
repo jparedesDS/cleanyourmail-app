@@ -557,3 +557,38 @@ def test_state_dir_reads_the_top_level_cli_key(
     monkeypatch.delenv("CYM_STATE_DIR", raising=False)
 
     assert service.state_dir() == tmp_path / "top-level"
+
+def test_proton_refuses_a_same_email_config_for_another_host(
+    service: ConfigService, cli: FakeCli
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@proton.me").replace(
+            'imap_host = "imap.gmail.com"', 'imap_host = "imap.other.example"'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigMismatchError):
+        service.ensure(provider_by_id("proton"), "me@proton.me")
+
+    assert cli.calls == []
+
+
+def test_proton_accepts_its_preset_host_without_running_init(
+    service: ConfigService, cli: FakeCli
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@proton.me").replace(
+            'imap_host = "imap.gmail.com"', 'imap_host = "127.0.0.1"'
+        ),
+        encoding="utf-8",
+    )
+
+    again = service.ensure(provider_by_id("proton"), "me@proton.me")
+
+    assert again == path
+    assert cli.calls == []

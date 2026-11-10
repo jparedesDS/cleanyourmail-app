@@ -262,3 +262,8 @@ def test_run_cancels_a_slow_sidecar_and_returns_a_normalized_result():
     assert result["cancelled"] is True
     assert result["exit_code"] == -1
     assert result["data"] == {}
+
+def test_print_version_returns_the_sidecar_line(fake: FakeCli):
+    fake.respond("CleanYourMail 1.2.2\n")
+
+    assert fake.client().print_version() == EXPECTED_CLI_VERSION

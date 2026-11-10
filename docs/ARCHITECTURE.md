@@ -64,7 +64,7 @@ a native view and a process wrapper around the frozen sidecar.
 | CLI config | `%APPDATA%\cleanyourmail-app\cleanyourmail.toml` | App creates through `init`; CLI reads |
 | App password | `[account] password_file` (default `%USERPROFILE%\.secrets\cleanyourmail.txt`) | App writes; CLI reads |
 | Outlook OAuth store | `%USERPROFILE%\.secrets\cleanyourmail-oauth.json` | Sidecar only |
-| CLI state/cache/journal | `[account] state_dir`, `CYM_STATE_DIR`, or `%LOCALAPPDATA%\CleanYourMail` | CLI only |
+| CLI state/cache/journal | top-level `state_dir`, `CYM_STATE_DIR`, or `%LOCALAPPDATA%\CleanYourMail` | CLI only |
 
 The app never stores a secret in its own settings. The password file is the only credential the app
 writes, and it does so after verifying which config will read it.

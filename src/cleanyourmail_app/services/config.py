@@ -27,6 +27,11 @@ from cleanyourmail_app.services.cli import CliClient
 CONFIG_FILENAME = "cleanyourmail.toml"
 OUTLOOK_HOST = "outlook.office365.com"
 
+#: Proton Bridge's sidecar preset. ``ensure`` leaves the host out of ``init``
+#: so the 1143/STARTTLS preset survives, but the existing-config check still
+#: knows which host this provider must have.
+PROTON_HOST = "127.0.0.1"
+
 #: How far back the app asks the CLI to scan. This is the sidecar template's
 #: default (one year); the wizard has no scan-window control, so the app owns
 #: the value instead of exposing another knob.
@@ -171,9 +176,12 @@ class ConfigService:
         existing_host = existing.get("existing_host", "")
 
         same_email = existing_email.strip().lower() == email.strip().lower()
-        wanted_host = (
-            OUTLOOK_HOST if provider.id == "outlook" else requested_host
-        )
+        if provider.id == "outlook":
+            wanted_host: str | None = OUTLOOK_HOST
+        elif provider.id == "proton":
+            wanted_host = PROTON_HOST
+        else:
+            wanted_host = requested_host
         same_host = (
             wanted_host is None
             or existing_host.strip().lower() == wanted_host.strip().lower()
@@ -265,7 +273,7 @@ class ConfigService:
         root = Path(os.path.expanduser(base)) if base else (
             Path.home() / ".local" / "state"
         )
-        return root / "CleanYourMail"
+        return root / "cleanyourmail"
 
     def update_preferences(self, preferences: Preferences) -> None:
         """Write the chosen policy into the existing TOML, line by line."""
