@@ -36,6 +36,18 @@ from cleanyourmail_app.ui.pages import connect as CONNECT
 #: A valid Gmail App Password, used only as a sentinel: no real credential.
 SECRET = "qwertyuiopasdfgh"
 
+#: The sidecar's documented IMAP presets, including Proton's 1143/STARTTLS.
+#: ``init`` applies these only when no ``--host`` overrides the default.
+PRESETS: dict[str, tuple[str, int, bool, bool]] = {
+    "gmail.com": ("imap.gmail.com", 993, True, False),
+    "googlemail.com": ("imap.gmail.com", 993, True, False),
+    "yahoo.com": ("imap.mail.yahoo.com", 993, True, False),
+    "icloud.com": ("imap.mail.me.com", 993, True, False),
+    "fastmail.com": ("imap.fastmail.com", 993, True, False),
+    "proton.me": ("127.0.0.1", 1143, False, True),
+    "protonmail.com": ("127.0.0.1", 1143, False, True),
+}
+
 TEMPLATE = """\
 # CleanYourMail configuration -- keep this file out of git.
 
@@ -43,9 +55,9 @@ TEMPLATE = """\
 name = "personal"
 email = "{email}"
 imap_host = "{host}"
-imap_port = 993
-imap_ssl = true
-imap_starttls = false
+imap_port = {port}
+imap_ssl = {ssl}
+imap_starttls = {starttls}
 auth = "login"
 password_file = "{secret}"
 
@@ -122,9 +134,16 @@ class FakeCli:
             }
         target = Path(args[args.index("--path") + 1])
         email = args[args.index("--email") + 1]
-        host = "imap.example.com"
+        domain = email.rsplit("@", 1)[-1].lower()
         if "--host" in args:
+            # An explicit host replaces the preset with the 993/TLS default,
+            # exactly like the sidecar's init_template.
             host = args[args.index("--host") + 1]
+            port, ssl, starttls = 993, True, False
+        else:
+            host, port, ssl, starttls = PRESETS.get(
+                domain, ("imap.example.com", 993, True, False)
+            )
         secret = ""
         if "--secret-file" in args:
             secret = args[args.index("--secret-file") + 1]
@@ -133,7 +152,12 @@ class FakeCli:
         # with forward slashes, exactly as the real sidecar does.
         target.write_text(
             TEMPLATE.format(
-                email=email, host=host, secret=str(secret).replace("\\", "/")
+                email=email,
+                host=host,
+                port=port,
+                ssl=str(ssl).lower(),
+                starttls=str(starttls).lower(),
+                secret=str(secret).replace("\\", "/"),
             ),
             encoding="utf-8",
         )
@@ -425,7 +449,7 @@ def test_saving_writes_the_secret_runs_doctor_and_clears_the_field(
     assert page.error_label.isHidden() is True
 
 
-def test_saving_creates_the_config_with_the_provider_host(
+def test_saving_leaves_the_gmail_preset_to_the_sidecar(
     qtbot, page, services, cli
 ):
     page.password_edit.setText(SECRET)
@@ -433,11 +457,12 @@ def test_saving_creates_the_config_with_the_provider_host(
     _save(qtbot, page, page.connectionSucceeded)
 
     init = cli.calls[0]["args"]
-    assert init[init.index("--host") + 1] == "imap.gmail.com"
+    assert "--host" not in init
     config = tomllib.loads(
         services.config.config_path().read_text(encoding="utf-8")
     )
     assert config["account"]["imap_host"] == "imap.gmail.com"
+    assert config["account"]["imap_port"] == 993
     assert config["account"]["email"] == "me@gmail.com"
     assert Path(config["account"]["password_file"]) == services.config.secret_path
 
@@ -450,7 +475,7 @@ def test_saving_creates_the_config_with_the_provider_host(
         ("fastmail", "imap.fastmail.com"),
     ],
 )
-def test_each_app_password_provider_gets_its_imap_host(
+def test_app_password_providers_leave_the_sidecar_preset_alone(
     qtbot, services, cli, provider_id, host
 ):
     page = CONNECT.ConnectPage(services)
@@ -461,7 +486,31 @@ def test_each_app_password_provider_gets_its_imap_host(
     _save(qtbot, page, page.connectionSucceeded)
 
     init = cli.calls[0]["args"]
-    assert init[init.index("--host") + 1] == host
+    assert "--host" not in init
+    config = tomllib.loads(
+        services.config.config_path().read_text(encoding="utf-8")
+    )
+    assert config["account"]["imap_host"] == host
+
+
+def test_proton_leaves_the_bridge_preset_intact(qtbot, services, cli):
+    """Passing ``--host`` would replace 1143/STARTTLS with 993/TLS."""
+    page = CONNECT.ConnectPage(services)
+    qtbot.addWidget(page)
+    page.set_provider(provider_by_id("proton"), "me@proton.me")
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page, page.connectionSucceeded)
+
+    init = cli.calls[0]["args"]
+    assert "--host" not in init
+    config = tomllib.loads(
+        services.config.config_path().read_text(encoding="utf-8")
+    )
+    assert config["account"]["imap_host"] == "127.0.0.1"
+    assert config["account"]["imap_port"] == 1143
+    assert config["account"]["imap_ssl"] is False
+    assert config["account"]["imap_starttls"] is True
 
 
 def test_save_is_disabled_while_doctor_runs(qtbot, page, services, cli):
@@ -601,6 +650,19 @@ def test_the_page_does_not_keep_the_secret_after_save(qtbot, page, services):
     assert not hasattr(page, "secret")
     assert not hasattr(page, "_secret")
     assert page.password_edit.text() == ""
+
+
+def test_undo_cannot_restore_the_saved_password(qtbot, page, services):
+    """``QLineEdit.clear()`` leaves the value undoable; Ctrl+Z must not."""
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page, page.connectionSucceeded)
+    assert page.password_edit.text() == ""
+
+    page.password_edit.undo()
+
+    assert page.password_edit.text() == ""
+    assert SECRET not in _labels(page)
 
 
 # --- Custom and Outlook ----------------------------------------------------

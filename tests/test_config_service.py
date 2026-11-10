@@ -176,7 +176,7 @@ def test_ensure_outlook_adds_host_and_xoauth2(service: ConfigService, cli: FakeC
     assert args[:3] == ["init", "--email", "me@corp.example"]
 
 
-def test_ensure_passes_a_host_for_a_known_provider(
+def test_ensure_passes_an_explicit_host_override(
     service: ConfigService, cli: FakeCli
 ):
     service.ensure(provider_by_id("gmail"), "me@gmail.com", host="imap.gmail.com")

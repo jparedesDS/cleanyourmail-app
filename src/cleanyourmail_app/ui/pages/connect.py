@@ -39,19 +39,6 @@ from cleanyourmail_app.services.config import ConfigServiceError
 from cleanyourmail_app.services.secrets import save_app_password
 from cleanyourmail_app.ui.style import set_dynamic_property
 
-#: The IMAP host each catalog provider needs. ``init`` cannot infer it from the
-#: address (its template default is ``imap.example.com``), so the page passes
-#: the documented host explicitly. Outlook sets its own host in ``ensure``.
-IMAP_HOSTS: dict[str, str] = {
-    "gmail": "imap.gmail.com",
-    "yahoo": "imap.mail.yahoo.com",
-    "icloud": "imap.mail.me.com",
-    "fastmail": "imap.fastmail.com",
-    # Proton Bridge only listens on localhost; its 1143/STARTTLS pair cannot be
-    # written by the pinned sidecar yet, so doctor will report the mismatch.
-    "proton": "127.0.0.1",
-}
-
 #: Providers whose connection uses a pasted secret.
 SECRET_KINDS = frozenset({"app_password", "bridge", "custom"})
 
@@ -188,7 +175,7 @@ class ConnectPage(QWidget):
 
         self._provider = provider
         self._email = email.strip() if isinstance(email, str) else ""
-        self.password_edit.clear()
+        self._clear_password_field()
         self.host_edit.clear()
         self._clear_feedback()
         self._apply_provider()
@@ -481,13 +468,17 @@ class ConnectPage(QWidget):
         self.back_button.setEnabled(not self._doctor_running)
 
     def _target_host(self) -> str | None:
-        """The host ``init`` should write for the current provider."""
+        """The host ``init`` should write, or ``None`` to keep its preset.
+
+        The sidecar already knows Gmail, Yahoo, iCloud, Fastmail and Proton
+        (including Proton's 1143/STARTTLS); passing ``--host`` would replace
+        that preset with the 993/TLS default. Only Custom IMAP needs a host
+        from the page, and an explicit host there has no preset to protect.
+        """
         provider = self._provider
-        if provider is None or provider.auth_kind == "device_code":
-            return None
-        if provider.auth_kind == "custom":
+        if provider is not None and provider.auth_kind == "custom":
             return self.host_edit.text().strip() or None
-        return IMAP_HOSTS.get(provider.id)
+        return None
 
     # -- save ---------------------------------------------------------------
 
@@ -526,15 +517,24 @@ class ConnectPage(QWidget):
         except (OSError, ValueError):
             # Cleared even when the write fails: the value must not be left in
             # the field for a screenshot or a later error path.
-            self.password_edit.clear()
+            self._clear_password_field()
             secret = ""
             self._fail("errors.secret_write")
             return
 
         # The field and the local go away as soon as the file is written.
-        self.password_edit.clear()
+        self._clear_password_field()
         secret = ""
         self._start_doctor(config_path)
+
+    def _clear_password_field(self) -> None:
+        """Empty the field without leaving the value in Qt's undo history.
+
+        ``QLineEdit.clear()`` keeps the old text undoable, so Ctrl+Z could
+        bring a stored password back on screen. ``setText("")`` clears the
+        undo/redo history as part of setting the property.
+        """
+        self.password_edit.setText("")
 
     def _start_doctor(self, config_path: object) -> None:
         self._show_status("connect.doctor.running", "muted")

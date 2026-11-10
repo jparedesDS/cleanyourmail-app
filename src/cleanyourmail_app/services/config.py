@@ -81,12 +81,17 @@ class ConfigService:
         A second call returns the same path without running the sidecar, so a
         config edited by the CLI (or by a later app build) is never clobbered.
 
-        ``host`` lets the wizard pass the provider's IMAP host, which the
-        sidecar cannot guess from the address (its template default is
-        ``imap.example.com``). ``port`` and ``ssl`` exist so a page can state
-        what it wants, but the pinned sidecar's ``init`` has no flag for them:
-        only the template's 993/TLS pair is supported, and any other value is
-        rejected instead of being silently ignored.
+        ``host`` is for Custom IMAP, where the sidecar has no preset and its
+        template default is ``imap.example.com``. Known domains already get a
+        preset from the sidecar (Gmail, Yahoo, iCloud, Fastmail and Proton,
+        including Proton's 1143/STARTTLS); passing an explicit host there
+        replaces that preset with the 993/TLS template, so callers should only
+        pass one when there is no preset to protect.
+
+        ``port`` and ``ssl`` exist so a page can state what it wants, but the
+        pinned sidecar's ``init`` has no flag for them: the template default is
+        993/TLS (a provider preset such as Proton's may differ), so any other
+        requested value is rejected instead of being silently ignored.
         """
         if not isinstance(provider, Provider):
             raise TypeError("ensure() needs a Provider value")
