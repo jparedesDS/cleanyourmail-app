@@ -84,23 +84,58 @@ function Remove-IfPresent {
 New-Item -ItemType Directory -Force -Path $Build | Out-Null
 
 # ---------------------------------------------------------------------------
-# 1. Clone the pinned tag (reuse a clean checkout already at that tag).
+# 1. Clone the pinned tag. A checkout is reused only when it is exactly at the
+#    requested tag, clean, and cloned from the expected origin. Anything else
+#    (a dirty tree, a moved tag, a fork) is rebuilt from scratch.
 # ---------------------------------------------------------------------------
 $reuseSource = $false
 if (-not $Force -and (Test-Path (Join-Path $Source ".git"))) {
     $describeExit = 1
+    $originExit = 1
+    $statusExit = 1
     $existingTag = ""
+    $origin = ""
+    $status = ""
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
         $existingTag = (& git -C $Source describe --tags --exact-match 2>$null | Out-String).Trim()
         $describeExit = $LASTEXITCODE
+        $origin = (& git -C $Source remote get-url origin 2>$null | Out-String).Trim()
+        $originExit = $LASTEXITCODE
+        $status = (& git -C $Source status --porcelain 2>$null | Out-String).Trim()
+        $statusExit = $LASTEXITCODE
     }
     finally {
         $ErrorActionPreference = $previousErrorAction
     }
-    if ($describeExit -eq 0 -and $existingTag -eq $CliVersion) {
+
+    $expectedOrigin = $RepoUrl.Trim().TrimEnd("/")
+    $actualOrigin = $origin.Trim().TrimEnd("/")
+    if ($actualOrigin.ToLowerInvariant().EndsWith(".git")) {
+        $actualOrigin = $actualOrigin.Substring(0, $actualOrigin.Length - 4)
+    }
+    if ($expectedOrigin.ToLowerInvariant().EndsWith(".git")) {
+        $expectedOrigin = $expectedOrigin.Substring(0, $expectedOrigin.Length - 4)
+    }
+    $originMatches = [string]::Equals(
+        $actualOrigin,
+        $expectedOrigin,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
+
+    if (
+        $describeExit -eq 0 -and
+        $existingTag -eq $CliVersion -and
+        $statusExit -eq 0 -and
+        [string]::IsNullOrWhiteSpace($status) -and
+        $originExit -eq 0 -and
+        $originMatches
+    ) {
         $reuseSource = $true
+    }
+    else {
+        Write-Host "==> Existing checkout is not a clean $CliVersion checkout of $RepoUrl; re-cloning"
     }
 }
 
