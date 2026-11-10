@@ -13,6 +13,7 @@ page, logged or rendered, so a response body cannot leak a token into a label.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -126,13 +127,17 @@ class OutlookConnect:
     def __init__(self, cli: object, config_path: object) -> None:
         self._cli = cli
         self._config_path = Path(config_path) if config_path is not None else None
+        self._cancelled = threading.Event()
 
     def start(self) -> DeviceCode:
         """Ask Microsoft for a code and return the URL, code and pending path.
 
         Raises ``OAuthError`` when the sidecar refuses the request or answers
         without a usable URL/code; no token is ever part of the returned value.
+        A new start clears the previous Cancel, so the same service can be
+        reused for a retry.
         """
+        self._cancelled.clear()
         result = self._cli.run(  # type: ignore[attr-defined]
             ["connect", "outlook", "--no-wait"],
             config_path=self._config_path,
@@ -161,16 +166,35 @@ class OutlookConnect:
             expires_in = 0
         return DeviceCode(verification_uri, user_code, pending, max(0, expires_in))
 
+    def cancel(self) -> None:
+        """Ask a running ``--wait`` to stop the sidecar instead of ignoring it."""
+        self._cancelled.set()
+
     def wait(self) -> dict[str, Any]:
         """Finish a pending sign-in and return the sidecar's result untouched.
 
         The sidecar saves the refresh token in its own store. A non-zero exit is
         a result with ``ok=False``, not an exception, so the page can classify
         the reason; ``CliError`` is still raised when the sidecar cannot be
-        started or does not answer at all.
+        started or does not answer at all. If Cancel was requested, the child
+        is terminated and a normalized ``{ok: False, cancelled: True}`` result
+        is returned without reading or using any token.
         """
-        return self._cli.run(  # type: ignore[attr-defined]
+        result = self._cli.run(  # type: ignore[attr-defined]
             ["connect", "outlook", "--wait"],
             config_path=self._config_path,
             timeout=WAIT_TIMEOUT,
+            cancel_event=self._cancelled,
         )
+        if self._cancelled.is_set() or (
+            isinstance(result, dict) and result.get("cancelled")
+        ):
+            return {
+                "ok": False,
+                "cancelled": True,
+                "exit_code": -1,
+                "data": {},
+                "stdout": "",
+                "stderr": "",
+            }
+        return result

@@ -63,6 +63,7 @@ class PreferencesPage(QWidget):
     """Checkboxes, a mode, protections, limits and an optional Advanced panel."""
 
     continueRequested = Signal()
+    backRequested = Signal()
     languageChanged = Signal(str)
 
     def __init__(
@@ -135,6 +136,7 @@ class PreferencesPage(QWidget):
             self._loading = False
 
         self._feedback_key = None
+        self._sync_paths()
         self._refresh_state()
 
     # -- layout -------------------------------------------------------------
@@ -306,6 +308,11 @@ class PreferencesPage(QWidget):
         self.state_path_edit.setObjectName("statePath")
         self.state_path_edit.setReadOnly(True)
         self.state_path_label.setBuddy(self.state_path_edit)
+        self.cli_state_label = QLabel(self.advanced_panel)
+        self.cli_state_edit = QLineEdit(self.advanced_panel)
+        self.cli_state_edit.setObjectName("cliStatePath")
+        self.cli_state_edit.setReadOnly(True)
+        self.cli_state_label.setBuddy(self.cli_state_edit)
         self.language_label = QLabel(self.advanced_panel)
         self.language_combo = QComboBox(self.advanced_panel)
         self.language_combo.setObjectName("language")
@@ -321,9 +328,11 @@ class PreferencesPage(QWidget):
         advanced.addWidget(self.config_path_edit, 0, 1)
         advanced.addWidget(self.state_path_label, 1, 0)
         advanced.addWidget(self.state_path_edit, 1, 1)
-        advanced.addWidget(self.language_label, 2, 0)
-        advanced.addWidget(self.language_combo, 2, 1)
-        advanced.addWidget(self.advanced_help, 3, 0, 1, 2)
+        advanced.addWidget(self.cli_state_label, 2, 0)
+        advanced.addWidget(self.cli_state_edit, 2, 1)
+        advanced.addWidget(self.language_label, 3, 0)
+        advanced.addWidget(self.language_combo, 3, 1)
+        advanced.addWidget(self.advanced_help, 4, 0, 1, 2)
         advanced.setColumnStretch(1, 1)
         self.advanced_panel.setVisible(False)
 
@@ -337,8 +346,14 @@ class PreferencesPage(QWidget):
         self.continue_button.setMinimumWidth(180)
         self.continue_button.clicked.connect(self._continue)
 
+        self.back_button = QPushButton(self)
+        self.back_button.setObjectName("secondary")
+        self.back_button.setMinimumWidth(140)
+        self.back_button.clicked.connect(self._go_back)
+
         actions = QHBoxLayout()
         actions.setContentsMargins(32, 12, 32, 24)
+        actions.addWidget(self.back_button)
         actions.addStretch(1)
         actions.addWidget(self.continue_button)
 
@@ -369,6 +384,7 @@ class PreferencesPage(QWidget):
         """Show where the app keeps its state; the fields are read-only."""
         self.config_path_edit.setText(str(self._services.config.config_path()))
         self.state_path_edit.setText(str(self._services.config.app_data))
+        self.cli_state_edit.setText(str(self._services.config.state_dir()))
 
     # -- copy ---------------------------------------------------------------
 
@@ -410,14 +426,19 @@ class PreferencesPage(QWidget):
         self.config_path_edit.setAccessibleName(
             t("preferences.advanced.config_path")
         )
-        self.state_path_label.setText(t("preferences.advanced.state_path"))
+        self.state_path_label.setText(t("preferences.advanced.app_data"))
         self.state_path_edit.setAccessibleName(
-            t("preferences.advanced.state_path")
+            t("preferences.advanced.app_data")
+        )
+        self.cli_state_label.setText(t("preferences.advanced.cli_state"))
+        self.cli_state_edit.setAccessibleName(
+            t("preferences.advanced.cli_state")
         )
         self.language_label.setText(t("preferences.advanced.language"))
         self.language_combo.setAccessibleName(t("preferences.advanced.language"))
         self.advanced_help.setText(t("preferences.advanced.help"))
 
+        self.back_button.setText(t("common.back"))
         self.continue_button.setText(t("preferences.continue"))
         self._sync_language_combo()
         self._refresh_state()
@@ -514,6 +535,10 @@ class PreferencesPage(QWidget):
         self.continue_button.setEnabled(self.is_valid())
 
     # -- navigation ---------------------------------------------------------
+
+    def _go_back(self) -> None:
+        """Ask the shell for the previous page; no config is written."""
+        self.backRequested.emit()
 
     def _continue(self) -> None:
         """Save the choices, write the TOML policy, then let the shell advance."""

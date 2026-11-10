@@ -21,6 +21,7 @@ What these tests pin down:
 from __future__ import annotations
 
 import json
+import threading
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -76,12 +77,16 @@ class FakeCli:
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
 
+    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+        return expected
+
     def run(
         self,
         args: list[str],
         *,
         config_path: Path | None = None,
         timeout: int = 120,
+        cancel_event: threading.Event | None = None,
     ) -> dict[str, Any]:
         self.calls.append(list(args))
         command = args[0]
@@ -310,6 +315,8 @@ def test_the_advanced_section_is_collapsed_until_opened(qtbot, page, services):
     assert page.config_path_edit.isReadOnly() is True
     assert page.state_path_edit.text() == str(services.config.app_data)
     assert page.state_path_edit.isReadOnly() is True
+    assert page.cli_state_edit.text() == str(services.config.state_dir())
+    assert page.cli_state_edit.isReadOnly() is True
 
 
 def test_advanced_is_collapsed_again_on_a_reopened_page(qtbot, services):
@@ -446,3 +453,44 @@ def test_continue_reaches_the_review_page(qtbot, window, services):
         )
 
     assert window.current_page_key() == "review"
+
+def test_back_returns_to_connect_without_saving_a_policy(
+    qtbot, window, services
+):
+    _select(window, "gmail", "me@gmail.com")
+    window.connect_page.password_edit.setText(SECRET)
+    with qtbot.waitSignal(
+        window.connect_page.connectionSucceeded, timeout=5000
+    ):
+        qtbot.mouseClick(
+            window.connect_page.save_button, Qt.MouseButton.LeftButton
+        )
+    assert window.current_page_key() == "preferences"
+
+    qtbot.mouseClick(
+        window.preferences_page.back_button, Qt.MouseButton.LeftButton
+    )
+
+    assert window.current_page_key() == "connect"
+
+
+def test_back_from_review_returns_to_preferences(qtbot, window, services):
+    _select(window, "gmail", "me@gmail.com")
+    window.connect_page.password_edit.setText(SECRET)
+    with qtbot.waitSignal(
+        window.connect_page.connectionSucceeded, timeout=5000
+    ):
+        qtbot.mouseClick(
+            window.connect_page.save_button, Qt.MouseButton.LeftButton
+        )
+    with qtbot.waitSignal(
+        window.preferences_page.continueRequested, timeout=1000
+    ):
+        qtbot.mouseClick(
+            window.preferences_page.continue_button, Qt.MouseButton.LeftButton
+        )
+    assert window.current_page_key() == "review"
+
+    qtbot.mouseClick(window.review_page.back_button, Qt.MouseButton.LeftButton)
+
+    assert window.current_page_key() == "preferences"

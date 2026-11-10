@@ -20,6 +20,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -68,6 +69,9 @@ class MainWindow(QMainWindow):
         self.stack.setObjectName("pageStack")
         self.step_labels: dict[str, QLabel] = {}
         self.pages: dict[str, QWidget] = {}
+        #: Guards the header language combo against re-entering its handler
+        #: while ``retranslate`` rewrites the item texts.
+        self._syncing_language = False
 
         self.setMinimumSize(900, 620)
         self.resize(1040, 820)
@@ -96,6 +100,15 @@ class MainWindow(QMainWindow):
         header.addWidget(self.app_label)
         header.addStretch(1)
         header.addWidget(self.privacy_label)
+        header.addSpacing(12)
+        self.language_combo = QComboBox(central)
+        self.language_combo.setObjectName("headerLanguage")
+        self.language_combo.setMinimumWidth(110)
+        self._build_header_languages()
+        self.language_combo.currentIndexChanged.connect(
+            self._on_header_language_changed
+        )
+        header.addWidget(self.language_combo)
         root.addLayout(header)
 
         root.addWidget(self._build_rail(central))
@@ -119,10 +132,12 @@ class MainWindow(QMainWindow):
 
         self.preferences_page = PreferencesPage(self.services, self)
         self.preferences_page.continueRequested.connect(self._on_preferences_continue)
+        self.preferences_page.backRequested.connect(self._on_preferences_back)
         self.preferences_page.languageChanged.connect(self.set_language)
         self.add_page("preferences", self.preferences_page)
 
         self.review_page = ReviewPage(self.services, self)
+        self.review_page.backRequested.connect(self._on_review_back)
         self.add_page("review", self.review_page)
 
         self.show_page("provider")
@@ -204,7 +219,11 @@ class MainWindow(QMainWindow):
         self.show_page("connect")
 
     def _on_connect_back(self) -> None:
-        """Return to the provider page, keeping its selected card and address."""
+        """Return to the provider page, dropping any typed secret or code."""
+        page = self.pages.get("connect")
+        clear = getattr(page, "clear_sensitive", None)
+        if callable(clear):
+            clear()
         self.show_page("provider")
 
     def _on_connected(self) -> None:
@@ -230,6 +249,50 @@ class MainWindow(QMainWindow):
             reload_page()
         self.show_page("review")
 
+    def _on_preferences_back(self) -> None:
+        """Return to Connect, when that page is registered."""
+        if "connect" in self.pages:
+            self.show_page("connect")
+
+    def _on_review_back(self) -> None:
+        """Return to Preferences without applying anything implicitly."""
+        if "preferences" in self.pages:
+            reload_page = getattr(self.pages["preferences"], "reload", None)
+            if callable(reload_page):
+                reload_page()
+            self.show_page("preferences")
+
+    # -- language -----------------------------------------------------------
+
+    def _build_header_languages(self) -> None:
+        """The header language control, available on every wizard page."""
+        for language in self.translator.available_languages:
+            self.language_combo.addItem(language, language)
+
+    def _on_header_language_changed(self, index: int) -> None:
+        if self._syncing_language:
+            return
+        language = self.language_combo.itemData(index)
+        if isinstance(language, str) and language != self.translator.language:
+            self.set_language(language)
+
+    def _sync_header_language(self) -> None:
+        """Show the active language without triggering another switch."""
+        self._syncing_language = True
+        try:
+            for index in range(self.language_combo.count()):
+                code = self.language_combo.itemData(index)
+                self.language_combo.setItemText(
+                    index, self.translator.t(f"language.{code}")
+                )
+                if code == self.translator.language:
+                    self.language_combo.setCurrentIndex(index)
+            self.language_combo.setAccessibleName(
+                self.translator.t("language.label")
+            )
+        finally:
+            self._syncing_language = False
+
     # -- language -----------------------------------------------------------
 
     def set_language(self, language: str) -> None:
@@ -237,7 +300,6 @@ class MainWindow(QMainWindow):
         self.translator.set_language(language)
         self.retranslate()
         self._remember_language()
-
     def _remember_language(self) -> None:
         """Persist the choice best-effort; a read-only profile is not fatal."""
         try:
@@ -256,6 +318,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(t("app.window_title"))
         self.app_label.setText(t("app.name"))
         self.privacy_label.setText(t("app.privacy"))
+        self._sync_header_language()
         for step in STEPS:
             self.step_labels[step].setText(t(f"progress.{step}"))
         for page in self.pages.values():

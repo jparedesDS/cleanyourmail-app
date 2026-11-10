@@ -321,6 +321,8 @@ class JournalDialog(QDialog):
 class ReviewPage(QWidget):
     """Scan cards, a report table, a plan table and the review gate."""
 
+    backRequested = Signal()
+
     def __init__(
         self,
         services: AppServices,
@@ -516,6 +518,11 @@ class ReviewPage(QWidget):
         if not self.review_checkbox.isChecked():
             return
         self.apply()
+
+    def _go_back(self) -> None:
+        """Return to Preferences; applying is never implicit on page leave."""
+        if self._busy is None:
+            self.backRequested.emit()
 
     def load_journal(self) -> None:
         """Fetch the newest runs and show them in the modal journal."""
@@ -1080,6 +1087,7 @@ class ReviewPage(QWidget):
 
     def _refresh_actions(self) -> None:
         busy = self._busy is not None
+        self.back_button.setEnabled(not busy)
         for button in (
             self.scan_button,
             self.report_button,
@@ -1277,8 +1285,9 @@ class ReviewPage(QWidget):
         self.unsubscribe_warning = QLabel(self.unsubscribe_panel)
         self.unsubscribe_warning.setObjectName("warningPanel")
         self.unsubscribe_warning.setWordWrap(True)
-        self.unsubscribe_check = QCheckBox(self.unsubscribe_panel)
-        self.unsubscribe_check.setChecked(False)
+        self.unsubscribe_unavailable = QLabel(self.unsubscribe_panel)
+        self.unsubscribe_unavailable.setObjectName("muted")
+        self.unsubscribe_unavailable.setWordWrap(True)
         self.unsubscribe_manual = QLabel(self.unsubscribe_panel)
         self.unsubscribe_manual.setObjectName("muted")
         self.unsubscribe_manual.setWordWrap(True)
@@ -1286,7 +1295,7 @@ class ReviewPage(QWidget):
         self.unsubscribe_spam.setObjectName("muted")
         self.unsubscribe_spam.setWordWrap(True)
         unsubscribe_layout.addWidget(self.unsubscribe_warning)
-        unsubscribe_layout.addWidget(self.unsubscribe_check)
+        unsubscribe_layout.addWidget(self.unsubscribe_unavailable)
         unsubscribe_layout.addWidget(self.unsubscribe_manual)
         unsubscribe_layout.addWidget(self.unsubscribe_spam)
         self.unsubscribe_panel.setVisible(False)
@@ -1303,8 +1312,14 @@ class ReviewPage(QWidget):
         self.apply_button.setEnabled(False)
         self.apply_button.clicked.connect(self._apply_clicked)
 
+        self.back_button = QPushButton(self)
+        self.back_button.setObjectName("secondary")
+        self.back_button.setMinimumWidth(140)
+        self.back_button.clicked.connect(self._go_back)
+
         footer = QHBoxLayout()
         footer.setContentsMargins(32, 12, 32, 24)
+        footer.addWidget(self.back_button)
         footer.addStretch(1)
         footer.addWidget(self.undo_button)
         footer.addWidget(self.apply_button)
@@ -1363,7 +1378,9 @@ class ReviewPage(QWidget):
         )
         table.horizontalHeader().setStretchLastSection(True)
         table.setMinimumHeight(150)
-        table.setAccessibleName(", ".join(headers))
+        table.setAccessibleName(
+            ", ".join(self._translator.t(key) for key in headers)
+        )
         return table
 
     @staticmethod
@@ -1432,11 +1449,35 @@ class ReviewPage(QWidget):
         self.apply_button.setText(t("review.apply"))
         self.journal_button.setText(t("review.journal"))
         self.undo_button.setText(t("review.undo.button"))
+        self.back_button.setText(t("common.back"))
         self.unsubscribe_toggle.setText(t("review.unsubscribe.title"))
         self.unsubscribe_warning.setText(t("review.unsubscribe.warning"))
-        self.unsubscribe_check.setText(t("review.unsubscribe.enable"))
+        self.unsubscribe_unavailable.setText(t("review.unsubscribe.unavailable"))
         self.unsubscribe_manual.setText(t("review.unsubscribe.manual_note"))
         self.unsubscribe_spam.setText(t("review.unsubscribe.spam_note"))
+
+        for table, keys in (
+            (
+                self.report_table,
+                (
+                    "review.plan.category",
+                    "review.report.sender",
+                    "review.plan.messages",
+                    "review.report.unread",
+                    "review.plan.unsubscribe",
+                ),
+            ),
+            (
+                self.plan_table,
+                (
+                    "review.plan.category",
+                    "review.plan.destination",
+                    "review.plan.messages",
+                    "review.plan.unsubscribe",
+                ),
+            ),
+        ):
+            table.setAccessibleName(", ".join(t(key) for key in keys))
 
         # Rendered values carry translated category names and modes.
         if self._scan is not None:

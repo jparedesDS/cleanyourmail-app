@@ -92,7 +92,7 @@
     },
     "custom": {
       "label": "IMAP personalizado",
-      "note": "Host y puerto en Avanzado."
+      "note": "Solo host. Esta versi?n siempre usa el puerto 993 con TLS."
     }
   },
   "connect": {
@@ -130,7 +130,7 @@
       "starting": "Pidiendo un código a Microsoft…",
       "copied": "Código copiado.",
       "cancel": "Cancelar",
-      "cancelled": "Se canceló el inicio de sesión. No se guardó nada.",
+      "cancelled": "El inicio de sesi?n se cancel? en CleanYourMail. Si ya se aprob? en Microsoft, el asistente puede terminar en segundo plano, pero esta app no usar? ese resultado.",
       "expired": "El inicio de sesión de Microsoft caducó, se rechazó o se revocó. Inícialo de nuevo.",
       "failed": "El inicio de sesión de Microsoft no terminó. Inícialo de nuevo o consulta la ayuda del proveedor.",
       "retry_hint": "Pulsa «Conectar Microsoft» para empezar de nuevo.",
@@ -162,13 +162,11 @@
     },
     "custom": {
       "title": "IMAP personalizado",
-      "intro": "Escribe los datos del servidor que te dio tu proveedor.",
+      "intro": "Escribe el host IMAP que te dio tu proveedor. CleanYourMail 1.2.2 siempre conecta por el puerto 993 con TLS; otro puerto o STARTTLS necesita una versi?n posterior del sidecar.",
       "host": "Host",
-      "port": "Puerto",
-      "tls": "Usar TLS",
-      "auth": "Autenticación",
       "auth_password": "Contraseña",
-      "auth_oauth2": "OAuth2"
+      "fixed_port_tls": "Solo puerto 993 con TLS. Si tu proveedor usa otro puerto o STARTTLS, esta versi?n a?n no puede conectar.",
+      "password_help": "Usa la contrase?a IMAP de esta cuenta. Solo se guarda en el archivo privado de contrase?as y nunca se pasa en la l?nea de comandos."
     },
     "advanced": "Ajustes avanzados del servidor",
     "doctor": {
@@ -180,7 +178,15 @@
     "back": "Atrás",
     "continue": "Continuar",
     "help": "Ayuda del proveedor",
-    "secret_note": "La contraseña de aplicación se guarda en un archivo local que solo tú puedes leer. Nunca se registra ni se vuelve a mostrar."
+    "secret_note": "La contraseña de aplicación se guarda en un archivo local que solo tú puedes leer. Nunca se registra ni se vuelve a mostrar.",
+    "bridge": {
+      "password_label": "Contrase?a de Bridge",
+      "password_help": "Usa la contrase?a de Bridge que muestra Proton Bridge. Solo se guarda en el archivo privado de contrase?as y nunca se pasa en la l?nea de comandos."
+    },
+    "replace": {
+      "title": "?Reemplazar la conexi?n existente?",
+      "body": "Esta configuraci?n ya pertenece a {email}. Guardar esta cuenta reemplazar?a esa conexi?n y su contrase?a. ?Reemplazarla?"
+    }
   },
   "preferences": {
     "title": "¿Qué quieres limpiar?",
@@ -239,9 +245,10 @@
     "advanced": {
       "title": "Avanzado",
       "config_path": "Archivo de configuración",
-      "state_path": "Carpeta de estado",
       "language": "Idioma",
-      "help": "La app escribe la configuración por ti. Nunca la editas a mano."
+      "help": "La app escribe la configuración por ti. Nunca la editas a mano.",
+      "app_data": "Carpeta de datos de la app",
+      "cli_state": "Carpeta de estado del CLI"
     },
     "spam_note": "El spam siempre va a Junk y nunca se da de baja.",
     "category_required": "Elige al menos una categoría.",
@@ -287,8 +294,6 @@
     "reviewed": "Revisé este plan y entiendo qué cambia.",
     "reviewed_required": "Revisa el plan antes de aplicar.",
     "apply": "Aplicar plan",
-    "apply_limit": "Aplicar como máximo",
-    "apply_limit_suffix": "mensajes",
     "summary": "{messages} mensajes en {groups} grupos de remitentes.",
     "zero_moves": "No hay nada que aplicar.",
     "undo": {
@@ -306,9 +311,9 @@
     "unsubscribe": {
       "title": "Darse de baja",
       "warning": "La baja pide al servidor del remitente que te quite. No se puede deshacer.",
-      "enable": "Enviar también solicitudes de baja",
       "spam_note": "El spam nunca se da de baja.",
-      "manual_note": "Algunos remitentes solo ofrecen un enlace manual."
+      "manual_note": "Algunos remitentes solo ofrecen un enlace manual.",
+      "unavailable": "Darse de baja no est? disponible en esta versi?n. Aplicar solo mueve mensajes y nunca env?a una solicitud de baja."
     },
     "journal": "Diario",
     "journal_empty": "Aún no hay ejecuciones.",
@@ -325,7 +330,7 @@
     "done": "Listo. Se movieron {count} mensajes.",
     "failed": "La ejecución se detuvo antes de terminar.",
     "failed_undo": "Puedes deshacer los mensajes que ya se movieron.",
-    "partial": "Algunos mensajes se omitieron. El diario tiene los detalles.",
+    "partial": "Algunos mensajes se omitieron. Los mensajes que s? se movieron quedan en el diario y se pueden deshacer.",
     "confirm": "¿Aplicar este plan y mover hasta {count} mensajes? Después podrás deshacer la ejecución.",
     "id": "Ejecución {run}"
   },
@@ -352,9 +357,11 @@
     "undo": "No se pudo deshacer la ejecución. Revisa la conexión e inténtalo de nuevo.",
     "config_missing": "Primero termina de conectar tu buzón.",
     "unknown": "Error inesperado.",
-    "detail_hint": "Los detalles están en el registro local. Nunca contiene contraseñas ni tokens.",
     "close": "Cerrar",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "cli_version": "El asistente de CleanYourMail no es la versi?n 1.2.2. Reinstala la app con su asistente incluido.",
+    "unsafe_url": "Solo se pueden abrir enlaces https:// seguros.",
+    "settings_write": "La app no pudo guardar los ajustes de tu cuenta. Comprueba que tu perfil de usuario permita escribir."
   },
   "installer": {
     "app_name": "CleanYourMail",

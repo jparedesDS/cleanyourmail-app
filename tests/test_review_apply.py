@@ -958,3 +958,10 @@ def test_the_journal_and_undo_controls_are_translated(qtbot, services):
     assert dialog.windowTitle() == t("review.journal")
     assert dialog.table.horizontalHeaderItem(0).text() == t("review.journal_when")
     assert dialog.undo_button.text() == t("review.undo.selected")
+
+def test_partial_apply_copy_is_honest_about_journal_details(services):
+    text = services.translator.t("apply.partial").lower()
+    assert "skipped" in text
+    assert "journal" in text
+    assert "undone" in text
+    assert "details" not in text

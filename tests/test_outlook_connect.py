@@ -28,12 +28,13 @@ from typing import Any
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 from cleanyourmail_app.domain.models import AppSettings
 from cleanyourmail_app.domain.providers import provider_by_id
 from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
+from cleanyourmail_app.services.cli import CliVersionMismatch
 from cleanyourmail_app.services.config import ConfigService
 from cleanyourmail_app.services.oauth import (
     DeviceCode,
@@ -90,12 +91,16 @@ class FakeCli:
         self.wait_threads: list[threading.Thread] = []
         self.doctor_threads: list[threading.Thread] = []
 
+    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+        return expected
+
     def run(
         self,
         args: list[str],
         *,
         config_path: Path | None = None,
         timeout: int = 120,
+        cancel_event: threading.Event | None = None,
     ) -> dict[str, Any]:
         self.calls.append(
             {"args": list(args), "config_path": config_path, "timeout": timeout}
@@ -700,3 +705,82 @@ def test_switching_language_updates_the_outlook_flow(qtbot, window, services):
     assert page.signin_button.text() == t("connect.outlook.url")
     assert page.approve_button.text() == t("connect.outlook.approve")
     assert page.cancel_button.text() == t("connect.outlook.cancel")
+
+def test_cancel_calls_the_service_before_the_epoch_changes(qtbot, page, services):
+    calls: list[str] = []
+
+    class Spy:
+        def cancel(self) -> None:
+            calls.append("cancel")
+
+    page._outlook = Spy()
+    page._outlook_running = True
+    page._outlook_epoch = 7
+
+    page._cancel_outlook()
+
+    assert calls == ["cancel"]
+    assert page._outlook_epoch == 8
+
+
+def test_wait_returns_cancelled_when_the_event_is_set(cli: FakeCli):
+    connect = OutlookConnect(cli, Path("config.toml"))
+    cli.wait_gate = threading.Event()
+    result: dict[str, Any] = {}
+
+    def run() -> None:
+        connect.start()
+        result.update(connect.wait())
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    # Wait until the fake is blocked inside --wait, then cancel it.
+    import time
+
+    deadline = time.monotonic() + 5
+    while not cli.wait_threads and time.monotonic() < deadline:
+        time.sleep(0.01)
+    connect.cancel()
+    cli.wait_gate.set()
+    worker.join(timeout=5)
+
+    assert result["ok"] is False
+    assert result["cancelled"] is True
+    assert result["exit_code"] == -1
+
+def test_a_version_mismatch_stops_outlook_before_any_config(
+    qtbot, page, services, cli
+):
+    cli.verify_version = lambda expected="CleanYourMail 1.2.2": (_ for _ in ()).throw(
+        CliVersionMismatch("wrong")
+    )
+
+    _start(qtbot, page)
+
+    assert page.error_label.text() == services.translator.t("errors.cli_version")
+    assert _commands(cli) == []
+    assert page.start_button.isEnabled() is True
+
+
+def test_outlook_declining_a_replace_runs_no_connect(
+    qtbot, page, services, cli, monkeypatch
+):
+    path = services.config.config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        TEMPLATE.format(
+            email="other@example.com", host="outlook.office365.com", auth="xoauth2"
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        CONNECT.QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+
+    page._start_outlook()
+
+    assert _commands(cli) == []
+    assert page.error_label.isHidden() is True
+    assert page.start_button.isEnabled() is True

@@ -92,7 +92,7 @@
     },
     "custom": {
       "label": "Custom IMAP",
-      "note": "Host and port under Advanced."
+      "note": "Host only. This build always uses port 993 with TLS."
     }
   },
   "connect": {
@@ -130,7 +130,7 @@
       "starting": "Asking Microsoft for a code…",
       "copied": "Code copied.",
       "cancel": "Cancel",
-      "cancelled": "The sign-in was cancelled. Nothing was saved.",
+      "cancelled": "The sign-in was cancelled in CleanYourMail. If it was already approved at Microsoft, the helper may finish in the background, but this app will not use that result.",
       "expired": "The Microsoft sign-in expired, was declined or was revoked. Start the sign-in again.",
       "failed": "Microsoft sign-in did not finish. Start it again, or check the provider help.",
       "retry_hint": "Press “Connect Microsoft” to start again.",
@@ -162,13 +162,11 @@
     },
     "custom": {
       "title": "Custom IMAP",
-      "intro": "Enter the server details your provider gave you.",
+      "intro": "Enter the IMAP host your provider gave you. CleanYourMail 1.2.2 always connects on port 993 with TLS; another port or STARTTLS needs a later sidecar release.",
       "host": "Host",
-      "port": "Port",
-      "tls": "Use TLS",
-      "auth": "Authentication",
       "auth_password": "Password",
-      "auth_oauth2": "OAuth2"
+      "fixed_port_tls": "Port 993 with TLS only. If your provider uses another port or STARTTLS, this build cannot connect yet.",
+      "password_help": "Use the IMAP password for this account. It is stored only in the private password file and is never passed on the command line."
     },
     "advanced": "Advanced server settings",
     "doctor": {
@@ -180,7 +178,15 @@
     "back": "Back",
     "continue": "Continue",
     "help": "Provider help",
-    "secret_note": "The app password is saved in a local file only you can read. It is never logged or shown again."
+    "secret_note": "The app password is saved in a local file only you can read. It is never logged or shown again.",
+    "bridge": {
+      "password_label": "Bridge password",
+      "password_help": "Use the Bridge password Proton Bridge shows. It is stored only in the private password file and is never passed on the command line."
+    },
+    "replace": {
+      "title": "Replace the existing connection?",
+      "body": "This config already belongs to {email}. Saving this account would replace that connection and its password. Replace it?"
+    }
   },
   "preferences": {
     "title": "What should we clean?",
@@ -239,9 +245,10 @@
     "advanced": {
       "title": "Advanced",
       "config_path": "Config file",
-      "state_path": "State folder",
       "language": "Language",
-      "help": "The app writes the config for you. You never edit it by hand."
+      "help": "The app writes the config for you. You never edit it by hand.",
+      "app_data": "App data folder",
+      "cli_state": "CLI state folder"
     },
     "spam_note": "Spam always goes to Junk and is never unsubscribed.",
     "category_required": "Choose at least one category.",
@@ -287,8 +294,6 @@
     "reviewed": "I reviewed this plan and understand what it changes.",
     "reviewed_required": "Review the plan before applying.",
     "apply": "Apply plan",
-    "apply_limit": "Apply at most",
-    "apply_limit_suffix": "messages",
     "summary": "{messages} messages in {groups} sender groups.",
     "zero_moves": "There is nothing to apply.",
     "undo": {
@@ -306,9 +311,9 @@
     "unsubscribe": {
       "title": "Unsubscribe",
       "warning": "Unsubscribe asks the sender's server to remove you. It cannot be undone.",
-      "enable": "Also send unsubscribe requests",
       "spam_note": "Spam is never unsubscribed.",
-      "manual_note": "Some senders only offer a manual link."
+      "manual_note": "Some senders only offer a manual link.",
+      "unavailable": "Unsubscribe is not available in this build. Apply only moves messages and never sends an unsubscribe request."
     },
     "journal": "Journal",
     "journal_empty": "No runs yet.",
@@ -325,7 +330,7 @@
     "done": "Done. {count} messages moved.",
     "failed": "The run stopped before finishing.",
     "failed_undo": "You can undo the messages that were already moved.",
-    "partial": "Some messages were skipped. The journal has the details.",
+    "partial": "Some messages were skipped. The messages that were moved are journaled and can be undone.",
     "confirm": "Apply this plan and move up to {count} messages? You can undo the run afterwards.",
     "id": "Run {run}"
   },
@@ -352,9 +357,11 @@
     "undo": "The run could not be undone. Check the connection and try again.",
     "config_missing": "Finish connecting your mailbox first.",
     "unknown": "Unexpected error.",
-    "detail_hint": "Details are in the local log. It never contains passwords or tokens.",
     "close": "Close",
-    "retry": "Try again"
+    "retry": "Try again",
+    "cli_version": "The CleanYourMail helper is not version 1.2.2. Reinstall the app with its bundled helper.",
+    "unsafe_url": "Only secure https:// links can be opened.",
+    "settings_write": "The app could not save your account settings. Check that your user profile is writable."
   },
   "installer": {
     "app_name": "CleanYourMail",

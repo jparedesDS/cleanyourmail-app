@@ -146,6 +146,7 @@ class ProviderPage(QWidget):
         self.email_edit = QLineEdit(self)
         self.email_edit.setObjectName("emailField")
         self.email_edit.setClearButtonEnabled(True)
+        self.email_label.setBuddy(self.email_edit)
 
         self.email_hint = QLabel(self)
         self.email_hint.setObjectName("muted")
@@ -155,6 +156,11 @@ class ProviderPage(QWidget):
         self.email_error.setObjectName("error")
         self.email_error.setWordWrap(True)
         self.email_error.setVisible(False)
+
+        self.settings_error = QLabel(self)
+        self.settings_error.setObjectName("error")
+        self.settings_error.setWordWrap(True)
+        self.settings_error.setVisible(False)
 
         self.continue_button = QPushButton(self)
         self.continue_button.setObjectName("primary")
@@ -175,6 +181,7 @@ class ProviderPage(QWidget):
         root.addWidget(self.email_edit)
         root.addWidget(self.email_hint)
         root.addWidget(self.email_error)
+        root.addWidget(self.settings_error)
         root.addStretch(1)
 
         # The action stays pinned: a short window scrolls the content, never
@@ -260,13 +267,19 @@ class ProviderPage(QWidget):
             return
 
         current = self._settings.load()
-        self._settings.save(
-            AppSettings(
-                provider=provider.id,
-                email=email,
-                preferences=current.preferences,
+        try:
+            self._settings.save(
+                AppSettings(
+                    provider=provider.id,
+                    email=email,
+                    preferences=current.preferences,
+                )
             )
-        )
+        except (OSError, ValueError, TypeError):
+            self.settings_error.setText(self._translator.t("errors.settings_write"))
+            self.settings_error.setVisible(True)
+            return
+        self.settings_error.setVisible(False)
         self.continueRequested.emit(provider.id, email)
 
     # -- copy ---------------------------------------------------------------

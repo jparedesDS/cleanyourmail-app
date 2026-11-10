@@ -17,14 +17,17 @@ rendered. A failed doctor leaves the saved file in place and shows copy, not
 the sidecar's raw output, so a server message can never echo a secret.
 
 For Outlook, ``connect outlook --no-wait`` and ``--wait`` run off the UI thread
-as well. Cancel advances an epoch instead of killing the process: the sidecar
-may finish in the background, but a late result is ignored, so it cannot save a
-selection or move the wizard after the person cancelled.
+as well. Cancel sets a cancellation event: a running ``--wait`` sidecar process
+is terminated, and a late result is ignored by the epoch guard, so it cannot
+save a selection or move the wizard after the person cancelled. If Microsoft
+already approved the code, the helper may still finish a token exchange in the
+background; the app does not use that result.
 """
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
@@ -33,6 +36,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -41,8 +45,8 @@ from PySide6.QtWidgets import (
 
 from cleanyourmail_app.domain.providers import Provider
 from cleanyourmail_app.services.app_services import AppServices
-from cleanyourmail_app.services.cli import CliError
-from cleanyourmail_app.services.config import ConfigServiceError
+from cleanyourmail_app.services.cli import CliError, CliVersionMismatch
+from cleanyourmail_app.services.config import ConfigMismatchError, ConfigServiceError
 from cleanyourmail_app.services.oauth import (
     REASON_CONSENT,
     REASON_EXPIRED,
@@ -173,9 +177,9 @@ class _OutlookSignals(QObject):
 class _OutlookJob(QRunnable):
     """Run one Microsoft step without blocking the page.
 
-    ``epoch`` is the page's generation counter at launch time. Cancel bumps it,
-    so the page can ignore a job that finishes after the person cancelled; the
-    process itself is left to finish and is never killed mid-token.
+    ``epoch`` is the page's generation counter at launch time. Cancel bumps it
+    and sets the service's cancellation event, so a running ``--wait`` child is
+    terminated and a job that finishes after the person cancelled is ignored.
     """
 
     def __init__(
@@ -239,6 +243,9 @@ class ConnectPage(QWidget):
         self._outlook_running = False
         self._outlook_epoch = 0
         self._outlook_done = False
+        #: The service whose ``wait()`` Cancel must stop. It survives Start so
+        #: Approve reuses the same cancellation event.
+        self._outlook: OutlookConnect | None = None
         # Unparented on purpose: if the window closes mid-doctor the job keeps
         # the emitter alive and Qt drops the receiver instead of raising.
         self._signals = _DoctorSignals()
@@ -286,12 +293,23 @@ class ConnectPage(QWidget):
         self._reset_outlook()
         self._provider = provider
         self._email = email.strip() if isinstance(email, str) else ""
-        self._clear_password_field()
+        self.clear_sensitive()
         self.host_edit.clear()
-        self._clear_feedback()
         self._apply_provider()
         self.retranslate()
         self._refresh_state()
+
+    def clear_sensitive(self) -> None:
+        """Drop typed secrets and one-time code state from the page.
+
+        Called when the person goes Back or picks another account. ``setText``
+        (not ``clear``) drops Qt's undo history, so Ctrl+Z cannot bring a
+        password back on screen. Feedback is cleared with it because the old
+        message may refer to the account being left.
+        """
+        self._clear_password_field()
+        self._clear_device_code()
+        self._clear_feedback()
 
     # -- layout -------------------------------------------------------------
 
@@ -403,6 +421,10 @@ class ConnectPage(QWidget):
         self.host_edit.textChanged.connect(self._refresh_state)
         self.host_label.setBuddy(self.host_edit)
 
+        self.host_note = QLabel(self)
+        self.host_note.setObjectName("muted")
+        self.host_note.setWordWrap(True)
+
         self.password_label = QLabel(self)
         self.password_label.setObjectName("section")
         self.password_edit = QLineEdit(self)
@@ -470,6 +492,7 @@ class ConnectPage(QWidget):
         root.addSpacing(4)
         root.addWidget(self.host_label)
         root.addWidget(self.host_edit)
+        root.addWidget(self.host_note)
         root.addWidget(self.password_label)
         root.addWidget(self.password_edit)
         root.addWidget(self.help_label)
@@ -505,6 +528,7 @@ class ConnectPage(QWidget):
         self.app_passwords_button.setVisible(is_gmail)
         self.host_label.setVisible(is_custom)
         self.host_edit.setVisible(is_custom)
+        self.host_note.setVisible(is_custom)
         self.outlook_limitation.setVisible(is_device_code)
         self.start_button.setVisible(is_device_code)
         has_code = is_device_code and self._device_code is not None
@@ -550,12 +574,19 @@ class ConnectPage(QWidget):
         self.host_label.setText(t("connect.custom.host"))
         self.host_edit.setPlaceholderText(t("connect.custom.host"))
         self.host_edit.setAccessibleName(t("connect.custom.host"))
+        self.host_note.setText(t("connect.custom.fixed_port_tls"))
 
-        password_key = (
-            "connect.custom.auth_password"
-            if provider is not None and provider.auth_kind in {"bridge", "custom"}
-            else "connect.app_password.label"
-        )
+        is_bridge = provider is not None and provider.auth_kind == "bridge"
+        is_custom = provider is not None and provider.auth_kind == "custom"
+        if is_bridge:
+            password_key = "connect.bridge.password_label"
+            help_key = "connect.bridge.password_help"
+        elif is_custom:
+            password_key = "connect.custom.auth_password"
+            help_key = "connect.custom.password_help"
+        else:
+            password_key = "connect.app_password.label"
+            help_key = "connect.app_password.help"
         self.password_label.setText(t(password_key))
         self.password_edit.setAccessibleName(t(password_key))
         # "16-character app password" would be wrong for a Bridge/Custom
@@ -565,7 +596,7 @@ class ConnectPage(QWidget):
             if provider is not None and provider.auth_kind == "app_password"
             else ""
         )
-        self.help_label.setText(t("connect.app_password.help"))
+        self.help_label.setText(t(help_key))
         self.password_error.setText(t("connect.app_password.invalid"))
 
         self.back_button.setText(t("connect.back"))
@@ -614,10 +645,18 @@ class ConnectPage(QWidget):
         links = dict(self._provider.help_links)
         self._open_url(links.get("app_passwords", self._provider.help_url))
 
-    @staticmethod
-    def _open_url(url: str) -> None:
-        if url:
-            QDesktopServices.openUrl(QUrl(url))
+    def _open_url(self, url: str) -> None:
+        """Open only an HTTPS link; never hand an arbitrary scheme to the OS."""
+        target = QUrl(url)
+        if (
+            url
+            and target.isValid()
+            and target.scheme().lower() == "https"
+            and target.host()
+        ):
+            QDesktopServices.openUrl(target)
+            return
+        self._show_error("errors.unsafe_url")
 
     # -- enablement ---------------------------------------------------------
 
@@ -719,15 +758,29 @@ class ConnectPage(QWidget):
         self._show_status("connect.app_password.saving", "muted")
 
         try:
-            config_path = self._services.config.ensure(
-                provider, self._email, host=host, port=993, ssl=True
-            )
-        except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
-            self._fail("errors.config")
+            self._services.cli.verify_version()
+        except CliVersionMismatch:
+            self._fail("errors.cli_version")
+            return
+        except CliError:
+            self._fail("errors.cli_failed")
             return
 
         try:
-            save_app_password(self._services.config.secret_path, secret)
+            config_path = self._ensure_config(provider, host)
+        except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
+            self._fail("errors.config")
+            return
+        if config_path is None:
+            # The person declined to replace another account's connection.
+            self._doctor_running = False
+            self._clear_password_field()
+            self._refresh_state()
+            self._clear_feedback()
+            return
+
+        try:
+            save_app_password(self._services.config.password_file(), secret)
         except (OSError, ValueError):
             # Cleared even when the write fails: the value must not be left in
             # the field for a screenshot or a later error path.
@@ -740,6 +793,31 @@ class ConnectPage(QWidget):
         self._clear_password_field()
         secret = ""
         self._start_doctor(config_path)
+
+    def _ensure_config(self, provider: Provider, host: str | None) -> Path | None:
+        """Create/keep the TOML, asking before replacing a different account.
+
+        ``None`` means the person declined. The password is not written in
+        that case, so the previous account's ``password_file`` is untouched.
+        """
+        try:
+            return self._services.config.ensure(
+                provider, self._email, host=host, port=993, ssl=True
+            )
+        except ConfigMismatchError as exc:
+            t = self._translator.t
+            answer = QMessageBox.question(
+                self,
+                t("connect.replace.title"),
+                t("connect.replace.body", email=exc.existing_email or "?"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return None
+            return self._services.config.ensure(
+                provider, self._email, host=host, port=993, ssl=True, replace=True
+            )
 
     def _clear_password_field(self) -> None:
         """Empty the field without leaving the value in Qt's undo history.
@@ -798,6 +876,7 @@ class ConnectPage(QWidget):
         self._outlook_epoch += 1
         self._outlook_running = False
         self._outlook_done = False
+        self._outlook = None
         self._clear_device_code()
 
     def _clear_device_code(self) -> None:
@@ -819,14 +898,33 @@ class ConnectPage(QWidget):
         self._show_status("connect.outlook.starting", "muted")
 
         try:
-            config_path = self._services.config.ensure(provider, self._email)
+            self._services.cli.verify_version()
+        except CliVersionMismatch:
+            self._outlook_running = False
+            self._refresh_state()
+            self._show_error("errors.cli_version")
+            return
+        except CliError:
+            self._outlook_running = False
+            self._refresh_state()
+            self._show_error("errors.cli_failed")
+            return
+
+        try:
+            config_path = self._ensure_config(provider, None)
         except (CliError, ConfigServiceError, OSError, TypeError, ValueError):
             self._outlook_running = False
             self._refresh_state()
             self._show_error("errors.config")
             return
+        if config_path is None:
+            self._outlook_running = False
+            self._refresh_state()
+            self._clear_feedback()
+            return
 
         connect = OutlookConnect(self._services.cli, config_path)
+        self._outlook = connect
         job = _OutlookJob(
             "start", connect.start, self._outlook_epoch, self._outlook_signals
         )
@@ -840,9 +938,12 @@ class ConnectPage(QWidget):
         self._outlook_running = True
         self._refresh_state()
         self._show_status("connect.outlook.waiting", "muted")
-        connect = OutlookConnect(
-            self._services.cli, self._services.config.config_path()
-        )
+        connect = self._outlook
+        if connect is None:
+            connect = OutlookConnect(
+                self._services.cli, self._services.config.config_path()
+            )
+            self._outlook = connect
         job = _OutlookJob(
             "wait", connect.wait, self._outlook_epoch, self._outlook_signals
         )
@@ -905,12 +1006,14 @@ class ConnectPage(QWidget):
             )
 
     def _cancel_outlook(self) -> None:
-        """Abandon the UI flow without saving; late results are ignored."""
+        """Stop the helper if it is still running; ignore any late result."""
         if self._provider is None or self._provider.auth_kind != "device_code":
             return
         if not self._outlook_running and not self._doctor_running:
             return
 
+        if self._outlook is not None:
+            self._outlook.cancel()
         self._outlook_epoch += 1
         self._outlook_running = False
         self._doctor_running = False

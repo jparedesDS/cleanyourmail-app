@@ -23,12 +23,13 @@ from typing import Any
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 from cleanyourmail_app.domain.models import AppSettings
 from cleanyourmail_app.domain.providers import CUSTOM, provider_by_id
 from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
+from cleanyourmail_app.services.cli import CliError, CliVersionMismatch
 from cleanyourmail_app.services.config import ConfigService
 from cleanyourmail_app.ui.main_window import MainWindow
 from cleanyourmail_app.ui.pages import connect as CONNECT
@@ -89,6 +90,14 @@ class FakeCli:
         self.doctor_ok = True
         self.doctor_threads: list[threading.Thread] = []
         self.doctor_gate: threading.Event | None = None
+        self.verify_calls = 0
+        self.version_error: BaseException | None = None
+
+    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+        self.verify_calls += 1
+        if self.version_error is not None:
+            raise self.version_error
+        return expected
 
     def run(
         self,
@@ -96,6 +105,7 @@ class FakeCli:
         *,
         config_path: Path | None = None,
         timeout: int = 120,
+        cancel_event: threading.Event | None = None,
     ) -> dict[str, Any]:
         self.calls.append(
             {"args": list(args), "config_path": config_path, "timeout": timeout}
@@ -806,3 +816,196 @@ def test_switching_language_updates_the_connect_page(window, services):
     assert connect_page.security_button.text() == t("connect.gmail.open_security")
     assert connect_page.save_button.text() == t("connect.app_password.save")
     assert window.step_labels["connect"].text() == "Conectar"
+
+# --- Account mismatch and the real password file ---------------------------
+
+
+def _prewrite_config(services: AppServices, email: str, host: str = "imap.gmail.com"):
+    path = services.config.config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        TEMPLATE.format(
+            email=email,
+            host=host,
+            port=993,
+            ssl="true",
+            starttls="false",
+            secret=str(services.config.secret_path).replace("\\", "/"),
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_a_different_email_asks_before_replacing(
+    qtbot, page, services, cli, monkeypatch
+):
+    _prewrite_config(services, "other@example.com")
+    calls: list[str] = []
+
+    def decline(*args, **kwargs):
+        calls.append("asked")
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(CONNECT.QMessageBox, "question", decline)
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page)
+
+    assert calls == ["asked"]
+    assert cli.calls == []  # no init, no doctor
+    assert not services.config.secret_path.exists()
+    assert page.password_edit.text() == ""
+    assert page.error_label.isHidden() is True
+
+
+def test_accepting_the_replace_runs_force_and_saves(
+    qtbot, page, services, cli, monkeypatch
+):
+    _prewrite_config(services, "other@example.com")
+    monkeypatch.setattr(
+        CONNECT.QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page, page.connectionSucceeded)
+
+    assert cli.calls[0]["args"][-1] == "--force"
+    config = tomllib.loads(
+        services.config.config_path().read_text(encoding="utf-8")
+    )
+    assert config["account"]["email"] == "me@gmail.com"
+    assert services.config.secret_path.read_text(encoding="utf-8") == SECRET
+
+
+def test_save_writes_the_password_file_the_config_names(
+    qtbot, page, services, cli
+):
+    page.path = services.config.config_path()
+    services.config.ensure(provider_by_id("gmail"), "me@gmail.com")
+    actual = services.config.config_path().parent / "actual-secret.txt"
+    text = services.config.config_path().read_text(encoding="utf-8")
+    text = text.replace(
+        str(services.config.secret_path).replace("\\", "/"),
+        actual.as_posix(),
+    )
+    services.config.config_path().write_text(text, encoding="utf-8")
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page, page.connectionSucceeded)
+
+    assert actual.read_text(encoding="utf-8") == SECRET
+    assert not services.config.secret_path.exists()
+
+
+# --- Sensitive state and navigation ----------------------------------------
+
+
+def test_back_clears_the_password_and_its_undo_history(window, qtbot):
+    _select(window, "gmail", "me@gmail.com")
+    page = window.connect_page
+    page.password_edit.setText(SECRET)
+
+    qtbot.mouseClick(page.back_button, Qt.MouseButton.LeftButton)
+
+    assert window.current_page_key() == "provider"
+    assert page.password_edit.text() == ""
+    page.password_edit.undo()
+    assert page.password_edit.text() == ""
+
+
+def test_choosing_another_provider_clears_the_password_and_code(window, qtbot):
+    _select(window, "gmail", "me@gmail.com")
+    page = window.connect_page
+    page.password_edit.setText(SECRET)
+
+    _select(window, "fastmail", "me@fastmail.com")
+
+    assert page.password_edit.text() == ""
+    page.password_edit.undo()
+    assert page.password_edit.text() == ""
+
+
+# --- Version gate ----------------------------------------------------------
+
+
+def test_a_sidecar_version_mismatch_shows_version_copy(
+    qtbot, page, services, cli
+):
+    cli.version_error = CliVersionMismatch("not 1.2.2")
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page)
+
+    assert page.error_label.text() == services.translator.t(
+        "errors.cli_version"
+    )
+    assert cli.calls == []
+
+
+def test_a_missing_sidecar_before_save_shows_cli_failed(
+    qtbot, page, services, cli
+):
+    cli.version_error = CliError("cannot start")
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page)
+
+    assert page.error_label.text() == services.translator.t("errors.cli_failed")
+    assert cli.calls == []
+    assert page.password_edit.text() == SECRET
+
+
+# --- Provider-specific help and honesty ------------------------------------
+
+
+def test_proton_help_names_the_bridge_password_private_file_and_argv(
+    qtbot, services
+):
+    t = services.translator.t
+    page = CONNECT.ConnectPage(services)
+    qtbot.addWidget(page)
+    page.set_provider(provider_by_id("proton"), "me@proton.me")
+
+    help_text = page.help_label.text()
+    assert help_text == t("connect.bridge.password_help")
+    assert "Bridge" in help_text
+    assert "private password file" in help_text
+    assert "command line" in help_text
+    assert page.password_label.text() == t("connect.bridge.password_label")
+
+
+def test_custom_help_names_the_imap_password_private_file_and_argv(
+    qtbot, services
+):
+    t = services.translator.t
+    page = CONNECT.ConnectPage(services)
+    qtbot.addWidget(page)
+    page.set_provider(CUSTOM, "me@example.com")
+
+    help_text = page.help_label.text()
+    assert help_text == t("connect.custom.password_help")
+    assert "IMAP password" in help_text
+    assert "private password file" in help_text
+    assert "command line" in help_text
+
+
+def test_custom_copy_states_the_fixed_993_tls_limitation(qtbot, services):
+    t = services.translator.t
+    page = CONNECT.ConnectPage(services)
+    qtbot.addWidget(page)
+    page.set_provider(CUSTOM, "me@example.com")
+
+    assert "993" in page.intro_label.text()
+    assert "TLS" in page.intro_label.text()
+    assert page.host_note.text() == t("connect.custom.fixed_port_tls")
+    assert page.host_note.isHidden() is False
+
+
+def test_only_https_links_are_opened(qtbot, page, services):
+    page._open_url("javascript:alert(1)")
+
+    assert FakeDesktopServices.opened == []
+    assert page.error_label.text() == services.translator.t("errors.unsafe_url")

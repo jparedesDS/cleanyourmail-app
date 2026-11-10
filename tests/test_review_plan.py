@@ -619,10 +619,15 @@ def test_a_sidecar_that_cannot_start_fails_the_plan_cleanly(page, cli, qtbot, se
 # --- Layout and copy -------------------------------------------------------
 
 
-def test_the_unsubscribe_section_starts_collapsed_and_off(page):
+def test_the_unsubscribe_section_starts_collapsed_and_explains_it_is_unavailable(
+    page, services
+):
     assert page.unsubscribe_toggle.isChecked() is False
     assert page.unsubscribe_panel.isHidden() is True
-    assert page.unsubscribe_check.isChecked() is False
+    assert not hasattr(page, "unsubscribe_check")
+    assert page.unsubscribe_unavailable.text() == services.translator.t(
+        "review.unsubscribe.unavailable"
+    )
 
 
 def test_every_string_is_translated_into_spanish(qtbot, services):
@@ -685,3 +690,23 @@ def test_preferences_continue_reaches_the_review_page(window):
     assert window.current_page_key() == "review"
     assert window.step_labels["review"].property("active") is True
     assert window.step_labels["preferences"].property("done") is True
+
+def test_review_tables_have_translated_accessible_names(page, services):
+    t = services.translator.t
+    assert page.report_table.accessibleName() == ", ".join(
+        [
+            t("review.plan.category"),
+            t("review.report.sender"),
+            t("review.plan.messages"),
+            t("review.report.unread"),
+            t("review.plan.unsubscribe"),
+        ]
+    )
+    assert page.plan_table.accessibleName() == ", ".join(
+        [
+            t("review.plan.category"),
+            t("review.plan.destination"),
+            t("review.plan.messages"),
+            t("review.plan.unsubscribe"),
+        ]
+    )

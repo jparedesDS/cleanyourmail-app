@@ -395,3 +395,54 @@ def test_the_language_choice_is_remembered(window, app_services):
     window.set_language("es")
 
     assert app_services.settings.load().preferences.language == "es"
+
+# --- Accessibility and settings failures -----------------------------------
+
+
+def test_the_email_label_is_a_buddy_of_the_email_field(page):
+    assert page.email_label.buddy() is page.email_edit
+
+
+def test_a_settings_write_failure_is_shown_inline(
+    qtbot, page, app_services, monkeypatch
+):
+    _select(qtbot, page, "gmail")
+    page.email_edit.setText("me@gmail.com")
+    emitted: list[tuple[str, str]] = []
+    page.continueRequested.connect(lambda provider, email: emitted.append((provider, email)))
+
+    def fail(settings):
+        raise OSError("profile is read-only")
+
+    monkeypatch.setattr(app_services.settings, "save", fail)
+
+    qtbot.mouseClick(page.continue_button, Qt.MouseButton.LeftButton)
+
+    assert emitted == []
+    assert page.settings_error.isHidden() is False
+    assert page.settings_error.text() == app_services.translator.t(
+        "errors.settings_write"
+    )
+
+
+def test_the_header_language_control_is_visible_and_persists(window, page):
+    assert window.language_combo.isVisible() is True
+    assert window.language_combo.currentData() == "en"
+    assert window.language_combo.findData("es") >= 0
+
+    window.language_combo.setCurrentIndex(window.language_combo.findData("es"))
+
+    assert window.translator.language == "es"
+    assert page.title_label.text() == window.translator.t("provider.title")
+    assert window.windowTitle() == window.translator.t("app.window_title")
+    assert window.settings.load_preferences().language == "es"
+    assert window.language_combo.currentData() == "es"
+
+
+def test_switching_language_on_the_preferences_page_keeps_both_controls(
+    window
+):
+    window.set_language("es")
+
+    assert window.language_combo.currentData() == "es"
+    assert window.preferences_page.language_combo.currentData() == "es"
