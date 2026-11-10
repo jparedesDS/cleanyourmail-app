@@ -327,13 +327,11 @@ class MainWindow(QMainWindow):
             self.translator,
             self,
         )
-        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        try:
-            dialog.exec()
-        finally:
-            # ``WA_DeleteOnClose`` covers a window close; ``exec`` can also
-            # return through Accept/Reject, so schedule deletion explicitly.
-            dialog.deleteLater()
+        # ``finished`` fires for both Accept/Reject and the window close. Delete
+        # from the signal; never touch the dialog after ``exec`` returns because
+        # Qt may already have destroyed the C++ object.
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.exec()
 
     def _sidecar_version(self) -> str:
         """Bare sidecar version, or ``unknown`` when it cannot be read.

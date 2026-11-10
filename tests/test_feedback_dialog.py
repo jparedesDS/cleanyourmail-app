@@ -15,8 +15,8 @@ import threading
 import time
 
 import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QDialog, QWidget
+from PySide6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QWidget
 
 from cleanyourmail_app import version
 from cleanyourmail_app.domain.models import AppSettings, Preferences
@@ -127,6 +127,10 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
     )
     captured: dict[str, object] = {}
 
+    class _Finished:
+        def connect(self, slot) -> None:
+            captured["finished_connected"] = True
+
     class FakeDialog:
         def __init__(
             self,
@@ -145,16 +149,14 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
                 translator=translator,
                 parent=parent,
             )
+            self.finished = _Finished()
+
+        def deleteLater(self) -> None:
+            captured["deleted"] = True
 
         def exec(self) -> int:
             captured["executed"] = True
             return 1
-
-        def setAttribute(self, *args) -> None:
-            captured["delete_on_close"] = args
-
-        def deleteLater(self) -> None:
-            captured["deleted"] = True
 
     monkeypatch.setattr(
         "cleanyourmail_app.ui.main_window.FeedbackDialog", FakeDialog
@@ -176,8 +178,7 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
     assert captured["translator"] is window.translator
     assert captured["parent"] is window
     assert EMAIL_SENTINEL not in repr(captured)
-    assert captured["delete_on_close"][0] == Qt.WidgetAttribute.WA_DeleteOnClose
-    assert captured["deleted"] is True
+    assert captured["finished_connected"] is True
 
 
 def test_opening_feedback_handles_a_missing_sidecar(
@@ -185,18 +186,20 @@ def test_opening_feedback_handles_a_missing_sidecar(
 ):
     captured: dict[str, object] = {}
 
+    class _Finished:
+        def connect(self, slot) -> None:
+            return None
+
     class FakeDialog:
         def __init__(self, app_version, sidecar_version, *args):
             captured["sidecar_version"] = sidecar_version
-
-        def exec(self) -> int:
-            return 1
-
-        def setAttribute(self, *args) -> None:
-            return None
+            self.finished = _Finished()
 
         def deleteLater(self) -> None:
             return None
+
+        def exec(self) -> int:
+            return 1
 
     def missing() -> str:
         raise CliError("sidecar not found")
@@ -230,6 +233,7 @@ def test_repeated_opens_do_not_accumulate_dialogs(
             type(self).created.append(self)
 
         def exec(self) -> int:
+            self.finished.emit(0)
             return 0
 
     version_calls: list[str] = []
@@ -254,6 +258,23 @@ def test_repeated_opens_do_not_accumulate_dialogs(
     assert window.findChildren(FakeDialog) == []
     # The first successful read is reused; the second open starts no sidecar.
     assert version_calls == ["read"]
+
+
+def test_opening_and_closing_the_real_dialog_does_not_double_delete(
+    qtbot, window, app_services, monkeypatch
+):
+    monkeypatch.setattr(window, "_sidecar_version", lambda: SIDECAR_VERSION)
+
+    def close_modal() -> None:
+        modal = QApplication.activeModalWidget()
+        if modal is not None:
+            modal.reject()
+
+    QTimer.singleShot(50, close_modal)
+    window._open_feedback()
+    qtbot.wait(50)
+
+    assert window.findChildren(FeedbackDialog) == []
 
 
 # --- Dialog shape and prefill ---------------------------------------------
