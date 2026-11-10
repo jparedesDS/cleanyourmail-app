@@ -1,0 +1,341 @@
+{
+  "app": {
+    "name": "CleanYourMail",
+    "title": "CleanYourMail",
+    "version": "Versión {version}",
+    "tagline": "Tu bandeja, sin el ruido.",
+    "window_title": "CleanYourMail — Tu bandeja, sin el ruido.",
+    "privacy": "Solo local. Sin cuenta, nube ni telemetría."
+  },
+  "common": {
+    "next": "Continuar",
+    "back": "Atrás",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "retry": "Reintentar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "open": "Abrir",
+    "done": "Listo",
+    "skip": "Omitir",
+    "learn_more": "Más información",
+    "advanced": "Avanzado",
+    "optional": "Opcional",
+    "loading": "Procesando…",
+    "refresh": "Actualizar",
+    "search": "Buscar",
+    "remove": "Quitar",
+    "reset": "Restablecer",
+    "apply": "Aplicar",
+    "yes": "Sí",
+    "no": "No",
+    "unknown": "Desconocido"
+  },
+  "progress": {
+    "provider": "Proveedor",
+    "connect": "Conectar",
+    "preferences": "Preferencias",
+    "review": "Revisar",
+    "apply": "Aplicar",
+    "step_of": "{current} de {total}"
+  },
+  "language": {
+    "label": "Idioma",
+    "en": "English",
+    "es": "Español"
+  },
+  "provider": {
+    "title": "¿Qué proveedor de correo usas?",
+    "subtitle": "Elige el servicio que aloja tu buzón. Te guiamos en la conexión; nunca escribes tu contraseña normal.",
+    "email": {
+      "label": "Dirección de correo",
+      "placeholder": "tu@ejemplo.com",
+      "help": "Solo la usamos para reconocer tu proveedor y conectar. Se queda en este equipo.",
+      "invalid": "Escribe una dirección completa, como tu@ejemplo.com.",
+      "detected": "Detectado: {provider}"
+    },
+    "continue": "Continuar",
+    "choose_hint": "Elige un proveedor para continuar.",
+    "selected": "Seleccionado",
+    "status": {
+      "pass": "Probado",
+      "partial": "Con límites",
+      "documented": "Documentado",
+      "pass_detail": "Validado con CleanYourMail 1.2.2.",
+      "partial_detail": "Funciona con límites. Lee la nota antes de conectar.",
+      "documented_detail": "Sigue la documentación del proveedor; aún no se ha probado en real."
+    },
+    "gmail": {
+      "label": "Gmail",
+      "note": "Verificación en 2 pasos + contraseña de aplicación."
+    },
+    "outlook": {
+      "label": "Outlook / Microsoft 365",
+      "note": "Microsoft 365 necesita consentimiento del administrador; Outlook.com personal necesita un editor verificado."
+    },
+    "yahoo": {
+      "label": "Yahoo",
+      "note": "Contraseña de aplicación."
+    },
+    "icloud": {
+      "label": "iCloud",
+      "note": "Contraseña de aplicación."
+    },
+    "fastmail": {
+      "label": "Fastmail",
+      "note": "Contraseña de aplicación."
+    },
+    "proton": {
+      "label": "Proton Bridge",
+      "note": "Bridge debe estar en ejecución."
+    },
+    "custom": {
+      "label": "IMAP personalizado",
+      "note": "Host y puerto en Avanzado."
+    }
+  },
+  "connect": {
+    "title": "Conecta tu buzón",
+    "subtitle": "CleanYourMail nunca pide tu contraseña normal ni la guarda en su configuración.",
+    "app_password": {
+      "label": "Contraseña de aplicación",
+      "placeholder": "Contraseña de aplicación de 16 caracteres",
+      "help": "Pega la contraseña de aplicación de tu proveedor, no la contraseña de tu cuenta.",
+      "invalid": "La contraseña de aplicación tiene 16 caracteres. Quita los espacios y vuelve a revisarla.",
+      "save": "Guardar y probar",
+      "saving": "Guardando…",
+      "saved": "Guardada. El campo ya está vacío.",
+      "cleared": "La contraseña se borra en cuanto se guarda."
+    },
+    "gmail": {
+      "title": "Gmail usa una contraseña de aplicación",
+      "intro": "Google bloquea las contraseñas normales en las apps de correo. Crea una contraseña de aplicación.",
+      "step_1": "Activa la verificación en 2 pasos en tu Cuenta de Google.",
+      "step_2": "Abre Contraseñas de aplicaciones y crea una para «Correo».",
+      "step_3": "Pega aquí la contraseña de 16 caracteres y guárdala.",
+      "open_security": "Abrir seguridad de Google",
+      "open_app_passwords": "Abrir Contraseñas de aplicaciones",
+      "two_factor_missing": "Si no ves Contraseñas de aplicaciones, la verificación en 2 pasos sigue desactivada."
+    },
+    "outlook": {
+      "title": "Conecta con Microsoft",
+      "intro": "Microsoft muestra un código en esta pantalla. Lo apruebas en el navegador; la app nunca ve tu contraseña de Microsoft.",
+      "start": "Conectar Microsoft",
+      "code": "Código",
+      "url": "Página de inicio de sesión",
+      "copy_code": "Copiar código",
+      "waiting": "Esperando la aprobación en tu navegador…",
+      "approve": "Aprobé el inicio de sesión",
+      "blocked": {
+        "title": "Microsoft bloqueó el inicio de sesión",
+        "body": "Las cuentas de Microsoft 365 necesitan que un administrador apruebe esta app. Las cuentas personales de Outlook.com necesitan un editor verificado. CleanYourMail no puede saltarse ninguna de las dos reglas.",
+        "help": "Pide ayuda a tu administrador o usa una conexión IMAP personalizada si tu organización lo permite."
+      }
+    },
+    "yahoo": {
+      "title": "Yahoo usa una contraseña de aplicación",
+      "intro": "Crea una contraseña de aplicación en la seguridad de tu cuenta de Yahoo y pégala aquí.",
+      "open_security": "Abrir seguridad de Yahoo"
+    },
+    "icloud": {
+      "title": "iCloud usa una contraseña de aplicación",
+      "intro": "Crea una contraseña de aplicación en Apple ID y pégala aquí. Tu contraseña de Apple ID no funcionará.",
+      "open_security": "Abrir Apple ID"
+    },
+    "fastmail": {
+      "title": "Fastmail usa una contraseña de aplicación",
+      "intro": "Crea una contraseña de aplicación en los ajustes de Fastmail y pégala aquí.",
+      "open_security": "Abrir ajustes de Fastmail"
+    },
+    "proton": {
+      "title": "Proton Bridge debe estar en ejecución",
+      "intro": "Inicia Proton Bridge en este equipo y usa la contraseña de Bridge que muestra, no tu contraseña de Proton.",
+      "open_help": "Abrir la ayuda de Proton Bridge"
+    },
+    "custom": {
+      "title": "IMAP personalizado",
+      "intro": "Escribe los datos del servidor que te dio tu proveedor.",
+      "host": "Host",
+      "port": "Puerto",
+      "tls": "Usar TLS",
+      "auth": "Autenticación",
+      "auth_password": "Contraseña",
+      "auth_oauth2": "OAuth2"
+    },
+    "advanced": "Ajustes avanzados del servidor",
+    "doctor": {
+      "running": "Probando la conexión…",
+      "ok": "Conectado. Tu buzón respondió correctamente.",
+      "failed": "La prueba de conexión falló.",
+      "hint": "Revisa la dirección, la contraseña de aplicación y la configuración IMAP de tu proveedor."
+    },
+    "back": "Atrás",
+    "continue": "Continuar",
+    "help": "Ayuda del proveedor",
+    "secret_note": "La contraseña de aplicación se guarda en un archivo local que solo tú puedes leer. Nunca se registra ni se vuelve a mostrar."
+  },
+  "preferences": {
+    "title": "¿Qué quieres limpiar?",
+    "subtitle": "Estas opciones se convierten en las reglas de seguridad de esta ejecución. Nada se mueve hasta que revises el plan.",
+    "categories": {
+      "title": "Limpiar"
+    },
+    "category": {
+      "newsletter": {
+        "label": "Newsletters",
+        "help": "Correo masivo recurrente que no pediste."
+      },
+      "promotion": {
+        "label": "Promociones",
+        "help": "Ofertas y marketing."
+      },
+      "social": {
+        "label": "Redes sociales",
+        "help": "Avisos de redes sociales."
+      },
+      "notification": {
+        "label": "Notificaciones",
+        "help": "Alertas de productos y servicios."
+      },
+      "cold": {
+        "label": "Contacto en frío",
+        "help": "Correo comercial no solicitado."
+      },
+      "spam": {
+        "label": "Spam",
+        "help": "Solo se mueve a Junk. Nunca se da de baja."
+      }
+    },
+    "mode": {
+      "title": "Cómo limpiar",
+      "folders": "Mover a carpetas",
+      "folders_help": "Reversible: cada categoría tiene su propia carpeta.",
+      "archive": "Archivar",
+      "archive_help": "Quita la etiqueta de Recibidos. Solo Gmail."
+    },
+    "protect": {
+      "title": "Proteger",
+      "starred": "Mensajes destacados",
+      "answered": "Mensajes respondidos",
+      "min_age": "Solo correo con más de",
+      "min_age_suffix": "días",
+      "help": "El correo protegido nunca se mueve, aunque coincida con una categoría."
+    },
+    "limits": {
+      "title": "Límites",
+      "max_moves": "Máximo de movimientos por ejecución",
+      "max_per_group": "Máximo de mensajes por grupo de remitente",
+      "help": "Las ejecuciones pequeñas son más fáciles de revisar y deshacer."
+    },
+    "advanced": {
+      "title": "Avanzado",
+      "config_path": "Archivo de configuración",
+      "state_path": "Carpeta de estado",
+      "language": "Idioma",
+      "help": "La app escribe la configuración por ti. Nunca la editas a mano."
+    },
+    "spam_note": "El spam siempre va a Junk y nunca se da de baja.",
+    "category_required": "Elige al menos una categoría.",
+    "continue": "Continuar",
+    "save": "Guardar preferencias"
+  },
+  "review": {
+    "title": "Revisa antes de cambiar nada",
+    "subtitle": "Esto es una simulación. Todavía no se ha movido nada.",
+    "scan": "Escanear buzón",
+    "scanning": "Escaneando solo cabeceras…",
+    "scan_done": "Escaneo completo.",
+    "scan_empty": "Ningún mensaje coincide con estas reglas.",
+    "report": {
+      "title": "Informe",
+      "total": "Mensajes coincidentes",
+      "groups": "Grupos de remitentes",
+      "protected": "Protegidos y omitidos",
+      "categories": "Categorías"
+    },
+    "plan": {
+      "title": "Plan",
+      "category": "Categoría",
+      "destination": "Destino",
+      "messages": "Mensajes",
+      "unsubscribe": "Darse de baja",
+      "unsubscribe_none": "Ninguna",
+      "unsubscribe_manual": "Enlace manual",
+      "unsubscribe_one_click": "Un clic",
+      "protected_note": "Los mensajes protegidos quedan fuera de este plan."
+    },
+    "reviewed": "Revisé este plan y entiendo qué cambia.",
+    "reviewed_required": "Revisa el plan antes de aplicar.",
+    "apply": "Aplicar plan",
+    "apply_limit": "Aplicar como máximo",
+    "apply_limit_suffix": "mensajes",
+    "summary": "{messages} mensajes en {groups} grupos de remitentes.",
+    "zero_moves": "No hay nada que aplicar.",
+    "undo": {
+      "title": "Deshacer",
+      "body": "Cada ejecución guarda un diario. Deshacer restaura los mensajes solo después de comprobar su identidad.",
+      "button": "Deshacer la última ejecución",
+      "confirm": "¿Deshacer la última ejecución y restaurar sus mensajes?",
+      "done": "Se restauraron {count} mensajes.",
+      "empty": "No hay nada que deshacer."
+    },
+    "unsubscribe": {
+      "title": "Darse de baja",
+      "warning": "La baja pide al servidor del remitente que te quite. No se puede deshacer.",
+      "enable": "Enviar también solicitudes de baja",
+      "spam_note": "El spam nunca se da de baja.",
+      "manual_note": "Algunos remitentes solo ofrecen un enlace manual."
+    },
+    "journal": "Diario",
+    "journal_empty": "Aún no hay ejecuciones.",
+    "close": "Cerrar"
+  },
+  "apply": {
+    "title": "Aplicando tu plan",
+    "running": "Moviendo mensajes…",
+    "done": "Listo. Se movieron {count} mensajes.",
+    "failed": "La ejecución se detuvo antes de terminar.",
+    "failed_undo": "Puedes deshacer los mensajes que ya se movieron.",
+    "partial": "Algunos mensajes se omitieron. El diario tiene los detalles.",
+    "id": "Ejecución {run}"
+  },
+  "errors": {
+    "title": "Algo salió mal",
+    "generic": "La app no pudo terminar ese paso.",
+    "cli_missing": "Falta el asistente de CleanYourMail. Reinstala la app.",
+    "cli_failed": "El asistente de CleanYourMail falló.",
+    "config": "No se pudo leer ni escribir la configuración.",
+    "connection": "No se pudo conectar con el servidor de correo.",
+    "auth": "El servidor rechazó el inicio de sesión. Revisa la contraseña de aplicación o vuelve a aprobar el inicio de sesión.",
+    "doctor": "La prueba de conexión no pasó.",
+    "timeout": "El servidor tardó demasiado en responder.",
+    "oauth_blocked": "Microsoft bloqueó el inicio de sesión. Consulta la nota de Outlook.",
+    "secret_write": "No se pudo guardar la contraseña de aplicación. Comprueba que tu perfil de usuario permita escribir.",
+    "invalid_email": "Escribe una dirección de correo completa.",
+    "no_categories": "Elige al menos una categoría.",
+    "review_required": "Revisa el plan antes de aplicar.",
+    "config_missing": "Primero termina de conectar tu buzón.",
+    "unknown": "Error inesperado.",
+    "detail_hint": "Los detalles están en el registro local. Nunca contiene contraseñas ni tokens.",
+    "close": "Cerrar",
+    "retry": "Reintentar"
+  },
+  "installer": {
+    "app_name": "CleanYourMail",
+    "app_comment": "Limpia tu bandeja de entrada, en local.",
+    "shortcut": "CleanYourMail",
+    "no_admin": "Se instala solo para este usuario. No necesita permisos de administrador.",
+    "smartscreen": {
+      "title": "Windows puede mostrar una advertencia",
+      "body": "Esta versión aún no tiene firma de código. Elige «Más información» y luego «Ejecutar de todos modos» solo si la descargaste desde la página oficial de versiones.",
+      "verify": "Verifica el SHA-256 del instalador antes de ejecutarlo."
+    },
+    "data_kept": "Desinstalar solo quita los archivos de la app. Tus ajustes y secretos locales se quedan en este equipo.",
+    "license": "Licencia MIT",
+    "notices": "Avisos de PySide6 y Qt",
+    "version": "Versión {version}",
+    "data_location": "Tus datos se quedan en %APPDATA%\\cleanyourmail-app y %USERPROFILE%\\.secrets.",
+    "language": "Idioma del instalador"
+  }
+}

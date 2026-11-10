@@ -1,0 +1,341 @@
+{
+  "app": {
+    "name": "CleanYourMail",
+    "title": "CleanYourMail",
+    "version": "Version {version}",
+    "tagline": "Your inbox, without the noise.",
+    "window_title": "CleanYourMail — Your inbox, without the noise.",
+    "privacy": "Local only. No account, cloud or telemetry."
+  },
+  "common": {
+    "next": "Continue",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "retry": "Try again",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open",
+    "done": "Done",
+    "skip": "Skip",
+    "learn_more": "Learn more",
+    "advanced": "Advanced",
+    "optional": "Optional",
+    "loading": "Working…",
+    "refresh": "Refresh",
+    "search": "Search",
+    "remove": "Remove",
+    "reset": "Reset",
+    "apply": "Apply",
+    "yes": "Yes",
+    "no": "No",
+    "unknown": "Unknown"
+  },
+  "progress": {
+    "provider": "Provider",
+    "connect": "Connect",
+    "preferences": "Preferences",
+    "review": "Review",
+    "apply": "Apply",
+    "step_of": "{current} of {total}"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "es": "Español"
+  },
+  "provider": {
+    "title": "Which email provider do you use?",
+    "subtitle": "Pick the service that hosts your mailbox. We will guide the connection; you never type your normal password.",
+    "email": {
+      "label": "Email address",
+      "placeholder": "you@example.com",
+      "help": "We only use this to match your provider and connect. It stays on this computer.",
+      "invalid": "Enter a complete email address, like you@example.com.",
+      "detected": "Detected: {provider}"
+    },
+    "continue": "Continue",
+    "choose_hint": "Select a provider to continue.",
+    "selected": "Selected",
+    "status": {
+      "pass": "Tested",
+      "partial": "Limited",
+      "documented": "Documented",
+      "pass_detail": "Validated with CleanYourMail 1.2.2.",
+      "partial_detail": "Works with limits. Read the note before you connect.",
+      "documented_detail": "Follows the provider's documentation; not smoke-tested yet."
+    },
+    "gmail": {
+      "label": "Gmail",
+      "note": "2-Step Verification + App Password."
+    },
+    "outlook": {
+      "label": "Outlook / Microsoft 365",
+      "note": "Microsoft 365 needs admin consent; Outlook.com personal needs a verified publisher."
+    },
+    "yahoo": {
+      "label": "Yahoo",
+      "note": "App password."
+    },
+    "icloud": {
+      "label": "iCloud",
+      "note": "App password."
+    },
+    "fastmail": {
+      "label": "Fastmail",
+      "note": "App password."
+    },
+    "proton": {
+      "label": "Proton Bridge",
+      "note": "Bridge must be running."
+    },
+    "custom": {
+      "label": "Custom IMAP",
+      "note": "Host and port under Advanced."
+    }
+  },
+  "connect": {
+    "title": "Connect your mailbox",
+    "subtitle": "CleanYourMail never asks for your normal password and never stores one in its settings.",
+    "app_password": {
+      "label": "App password",
+      "placeholder": "16-character app password",
+      "help": "Paste the app password from your provider, not your account password.",
+      "invalid": "An app password is 16 characters. Remove the spaces and check it again.",
+      "save": "Save and test",
+      "saving": "Saving…",
+      "saved": "Saved. The field is now cleared.",
+      "cleared": "The password is cleared as soon as it is saved."
+    },
+    "gmail": {
+      "title": "Gmail uses an App Password",
+      "intro": "Google blocks normal passwords for mail apps. Create an App Password instead.",
+      "step_1": "Turn on 2-Step Verification for your Google Account.",
+      "step_2": "Open App Passwords and create a password for “Mail”.",
+      "step_3": "Paste the 16-character password here and save.",
+      "open_security": "Open Google security",
+      "open_app_passwords": "Open App Passwords",
+      "two_factor_missing": "If you do not see App Passwords, 2-Step Verification is still off."
+    },
+    "outlook": {
+      "title": "Connect with Microsoft",
+      "intro": "Microsoft shows a code on this screen. You approve it in your browser; the app never sees your Microsoft password.",
+      "start": "Connect Microsoft",
+      "code": "Code",
+      "url": "Sign-in page",
+      "copy_code": "Copy code",
+      "waiting": "Waiting for approval in your browser…",
+      "approve": "I approved the sign-in",
+      "blocked": {
+        "title": "Microsoft blocked the sign-in",
+        "body": "Microsoft 365 accounts need a tenant administrator to approve this app. Outlook.com personal accounts need a verified publisher. CleanYourMail cannot bypass either rule.",
+        "help": "Ask your administrator, or use a custom IMAP connection if your organization allows it."
+      }
+    },
+    "yahoo": {
+      "title": "Yahoo uses an App Password",
+      "intro": "Create an app password in Yahoo Account Security, then paste it here.",
+      "open_security": "Open Yahoo security"
+    },
+    "icloud": {
+      "title": "iCloud uses an App Password",
+      "intro": "Create an app password at Apple ID, then paste it here. Your Apple ID password will not work.",
+      "open_security": "Open Apple ID"
+    },
+    "fastmail": {
+      "title": "Fastmail uses an App Password",
+      "intro": "Create an app password in Fastmail settings, then paste it here.",
+      "open_security": "Open Fastmail settings"
+    },
+    "proton": {
+      "title": "Proton Bridge must be running",
+      "intro": "Start Proton Bridge on this computer and use the Bridge password it shows, not your Proton password.",
+      "open_help": "Open Proton Bridge help"
+    },
+    "custom": {
+      "title": "Custom IMAP",
+      "intro": "Enter the server details your provider gave you.",
+      "host": "Host",
+      "port": "Port",
+      "tls": "Use TLS",
+      "auth": "Authentication",
+      "auth_password": "Password",
+      "auth_oauth2": "OAuth2"
+    },
+    "advanced": "Advanced server settings",
+    "doctor": {
+      "running": "Testing the connection…",
+      "ok": "Connected. Your mailbox answered correctly.",
+      "failed": "The connection test failed.",
+      "hint": "Check the address, the app password and your provider's IMAP setting."
+    },
+    "back": "Back",
+    "continue": "Continue",
+    "help": "Provider help",
+    "secret_note": "The app password is saved in a local file only you can read. It is never logged or shown again."
+  },
+  "preferences": {
+    "title": "What should we clean?",
+    "subtitle": "These choices become the safety rules for this run. Nothing moves until you review the plan.",
+    "categories": {
+      "title": "Clean"
+    },
+    "category": {
+      "newsletter": {
+        "label": "Newsletters",
+        "help": "Recurring bulk mail you did not ask for."
+      },
+      "promotion": {
+        "label": "Promotions",
+        "help": "Sales and marketing."
+      },
+      "social": {
+        "label": "Social",
+        "help": "Network notifications."
+      },
+      "notification": {
+        "label": "Notifications",
+        "help": "Product and service alerts."
+      },
+      "cold": {
+        "label": "Cold outreach",
+        "help": "Unsolicited sales email."
+      },
+      "spam": {
+        "label": "Spam",
+        "help": "Moved to Junk only. Never unsubscribed."
+      }
+    },
+    "mode": {
+      "title": "How to clean",
+      "folders": "Move to folders",
+      "folders_help": "Reversible: each category gets its own folder.",
+      "archive": "Archive",
+      "archive_help": "Removes the Inbox label. Gmail only."
+    },
+    "protect": {
+      "title": "Protect",
+      "starred": "Starred messages",
+      "answered": "Answered messages",
+      "min_age": "Only mail older than",
+      "min_age_suffix": "days",
+      "help": "Protected mail is never moved, even if it matches a category."
+    },
+    "limits": {
+      "title": "Limits",
+      "max_moves": "Maximum moves per run",
+      "max_per_group": "Maximum messages per sender group",
+      "help": "Small runs are easier to check and undo."
+    },
+    "advanced": {
+      "title": "Advanced",
+      "config_path": "Config file",
+      "state_path": "State folder",
+      "language": "Language",
+      "help": "The app writes the config for you. You never edit it by hand."
+    },
+    "spam_note": "Spam always goes to Junk and is never unsubscribed.",
+    "category_required": "Choose at least one category.",
+    "continue": "Continue",
+    "save": "Save preferences"
+  },
+  "review": {
+    "title": "Review before anything changes",
+    "subtitle": "This is a dry run. Nothing has moved yet.",
+    "scan": "Scan mailbox",
+    "scanning": "Scanning headers only…",
+    "scan_done": "Scan complete.",
+    "scan_empty": "No messages matched these rules.",
+    "report": {
+      "title": "Report",
+      "total": "Matched messages",
+      "groups": "Sender groups",
+      "protected": "Protected and skipped",
+      "categories": "Categories"
+    },
+    "plan": {
+      "title": "Plan",
+      "category": "Category",
+      "destination": "Destination",
+      "messages": "Messages",
+      "unsubscribe": "Unsubscribe",
+      "unsubscribe_none": "None",
+      "unsubscribe_manual": "Manual link",
+      "unsubscribe_one_click": "One-click",
+      "protected_note": "Protected messages are excluded from this plan."
+    },
+    "reviewed": "I reviewed this plan and understand what it changes.",
+    "reviewed_required": "Review the plan before applying.",
+    "apply": "Apply plan",
+    "apply_limit": "Apply at most",
+    "apply_limit_suffix": "messages",
+    "summary": "{messages} messages in {groups} sender groups.",
+    "zero_moves": "There is nothing to apply.",
+    "undo": {
+      "title": "Undo",
+      "body": "Every run writes a journal. Undo restores messages only after checking their identity.",
+      "button": "Undo last run",
+      "confirm": "Undo the last run and restore its messages?",
+      "done": "Restored {count} messages.",
+      "empty": "There is nothing to undo."
+    },
+    "unsubscribe": {
+      "title": "Unsubscribe",
+      "warning": "Unsubscribe asks the sender's server to remove you. It cannot be undone.",
+      "enable": "Also send unsubscribe requests",
+      "spam_note": "Spam is never unsubscribed.",
+      "manual_note": "Some senders only offer a manual link."
+    },
+    "journal": "Journal",
+    "journal_empty": "No runs yet.",
+    "close": "Close"
+  },
+  "apply": {
+    "title": "Applying your plan",
+    "running": "Moving messages…",
+    "done": "Done. {count} messages moved.",
+    "failed": "The run stopped before finishing.",
+    "failed_undo": "You can undo the messages that were already moved.",
+    "partial": "Some messages were skipped. The journal has the details.",
+    "id": "Run {run}"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "generic": "The app could not finish that step.",
+    "cli_missing": "The CleanYourMail helper is missing. Reinstall the app.",
+    "cli_failed": "The CleanYourMail helper failed.",
+    "config": "The configuration could not be read or written.",
+    "connection": "Could not reach the mail server.",
+    "auth": "The server rejected the sign-in. Check the app password or approve the sign-in again.",
+    "doctor": "The connection test did not pass.",
+    "timeout": "The server took too long to answer.",
+    "oauth_blocked": "Microsoft blocked the sign-in. See the Outlook note.",
+    "secret_write": "The app password could not be saved. Check that your user profile is writable.",
+    "invalid_email": "Enter a complete email address.",
+    "no_categories": "Choose at least one category.",
+    "review_required": "Review the plan before applying.",
+    "config_missing": "Finish connecting your mailbox first.",
+    "unknown": "Unexpected error.",
+    "detail_hint": "Details are in the local log. It never contains passwords or tokens.",
+    "close": "Close",
+    "retry": "Try again"
+  },
+  "installer": {
+    "app_name": "CleanYourMail",
+    "app_comment": "Clean your inbox, locally.",
+    "shortcut": "CleanYourMail",
+    "no_admin": "Installs for this user only. No administrator rights needed.",
+    "smartscreen": {
+      "title": "Windows may warn you",
+      "body": "This build is not code-signed yet. Choose “More info” and then “Run anyway” only if you downloaded it from the official release page.",
+      "verify": "Verify the SHA-256 of the installer before you run it."
+    },
+    "data_kept": "Uninstalling removes the app files only. Your settings and local secrets stay on this computer.",
+    "license": "MIT License",
+    "notices": "PySide6 and Qt notices",
+    "version": "Version {version}",
+    "data_location": "Your data stays in %APPDATA%\\cleanyourmail-app and %USERPROFILE%\\.secrets.",
+    "language": "Installer language"
+  }
+}

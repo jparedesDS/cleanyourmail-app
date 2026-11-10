@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">CleanYourMail Spectrum symbol</title>
+  <desc id="desc">Return Fold line-art mark: pastel orange envelope and mint return arrow on a carbon tile.</desc>
+  <rect width="512" height="512" fill="#121316"/>
+  <rect x="40" y="40" width="432" height="432" rx="112" fill="#1B1C21"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M116 276 V168 A28 28 0 0 1 144 140 H368 A28 28 0 0 1 396 168 V320 A28 28 0 0 1 368 348 H184" stroke="#FFB38A" stroke-width="30"/>
+    <path d="M124 152 L240 238 Q256 250 272 238 L388 152" stroke="#FFB38A" stroke-width="30"/>
+    <path d="M224 304 L178 348 L224 392" stroke="#A8E6CF" stroke-width="30"/>
+  </g>
+</svg>

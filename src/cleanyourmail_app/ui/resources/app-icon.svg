@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">CleanYourMail Spectrum app icon</title>
+  <desc id="desc">Carbon app icon with an orange Return Fold envelope and mint return arrow.</desc>
+  <rect x="96" y="96" width="832" height="832" rx="192" fill="#121316"/>
+  <rect x="104" y="104" width="816" height="816" rx="184" fill="#1B1C21" stroke="#2A2C31" stroke-width="8"/>
+  <g transform="translate(96 96) scale(13)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 35 V20 A4 4 0 0 1 16 16 H48 A4 4 0 0 1 52 20 V42 A4 4 0 0 1 48 46 H23" stroke="#FFB38A" stroke-width="4.5"/>
+    <path d="M14 18 L32 31 L50 18" stroke="#FFB38A" stroke-width="4.5"/>
+    <path d="M29 40 L22 46 L29 52" stroke="#A8E6CF" stroke-width="4.5"/>
+  </g>
+</svg>
