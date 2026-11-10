@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cleanyourmail-app"
 dynamic = ["version"]
-description = "Windows desktop app for CleanYourMail. Local only, no cloud, no telemetry."
+description = "Windows desktop app for CleanYourMail. Local by default, opt-in feedback, no telemetry."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

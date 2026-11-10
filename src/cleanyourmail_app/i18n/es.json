@@ -5,7 +5,7 @@
     "version": "Versión {version}",
     "tagline": "Tu bandeja, sin el ruido.",
     "window_title": "CleanYourMail — Tu bandeja, sin el ruido.",
-    "privacy": "Solo local. Sin cuenta, nube ni telemetría."
+    "privacy": "Local por defecto. Feedback opcional. Sin telemetría."
   },
   "common": {
     "next": "Continuar",

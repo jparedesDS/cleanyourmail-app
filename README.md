@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/license-MIT-b9f36a?labelColor=08110d" alt="MIT">
   <img src="https://img.shields.io/badge/python-3.12%2B-b9f36a?labelColor=08110d" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/windows-10%2F11%20x64-b9f36a?labelColor=08110d" alt="Windows 10/11 x64">
-  <img src="https://img.shields.io/badge/local--only-no%20telemetry-b9f36a?labelColor=08110d" alt="Local only">
+  <img src="https://img.shields.io/badge/local--by--default-opt%20in%20feedback-b9f36a?labelColor=08110d" alt="Local by default; opt-in feedback">
 </p>
 
 # CleanYourMail app

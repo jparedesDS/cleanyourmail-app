@@ -5,7 +5,7 @@
     "version": "Version {version}",
     "tagline": "Your inbox, without the noise.",
     "window_title": "CleanYourMail — Your inbox, without the noise.",
-    "privacy": "Local only. No account, cloud or telemetry."
+    "privacy": "Local by default. Opt-in feedback only. No telemetry."
   },
   "common": {
     "next": "Continue",
