@@ -18,8 +18,29 @@ connecting a mailbox, choosing what to clean, reviewing a reversible plan and un
 
 No browser, no local server, no account, no cloud, no telemetry, no bodies, no permanent deletion.
 
-> **Status:** `0.3.0` is in development. This repository currently contains the native app scaffold:
-> versioning, package layout and Windows CI. The wizard arrives in later tasks.
+> **Status:** `0.3.0` is the current Windows early-MVP release. The installer bundles the frozen
+> CleanYourMail CLI `1.2.2` sidecar. Gmail is validated; Outlook depends on Microsoft's consent
+> model. See [Provider status](#provider-status).
+
+## Download
+
+[CleanYourMail app 0.3.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+is a per-user installer that bundles the pinned CleanYourMail CLI `1.2.2` sidecar and needs no
+administrator rights.
+
+The 0.3.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
+warning on first launch: choose **More info**, then **Run anyway**, and compare the SHA-256
+published with the release against `CleanYourMail-Setup-0.3.0.exe`:
+
+```powershell
+Get-FileHash .\CleanYourMail-Setup-0.3.0.exe -Algorithm SHA256
+```
+
+The release also publishes a `.sha256` file in `HASH  filename` format.
+
+Gmail works with an App Password and 2-Step Verification. Outlook / Microsoft 365 does not work
+one-click: Microsoft 365 needs tenant admin consent, and personal Outlook.com accounts need a
+verified publisher. macOS and Linux are out of scope for 0.3.0.
 
 ## Why this app
 
@@ -40,15 +61,10 @@ CleanYourMail CLI sidecar and renders the result, so there is one safety model a
 
 ## Requirements
 
-- Windows 10/11 x64.
-- Python **3.12+** to run from source.
-- The CleanYourMail CLI `1.2.2` sidecar. Release builds bundle it; for development, point `CYM_CLI`
+- Windows 10/11 x64 for the installer.
+- Python **3.12+** only to run from source.
+- The CleanYourMail CLI `1.2.2` sidecar. The installer bundles it; for development, point `CYM_CLI`
   at a local `mail.py` or `cym-cli` build.
-
-The installer is per-user, needs no administrator rights, and is not code-signed in 0.3.0.
-Windows SmartScreen may show an "Unknown publisher" warning on first launch: choose **More info**
-then **Run anyway**, and compare the SHA-256 published with the release against
-`CleanYourMail-Setup-0.3.0.exe`.
 
 ## Development
 
@@ -69,7 +85,7 @@ python -m pytest -q
 
 The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or network access.
 
-## What the app will do
+## What the app does
 
 1. **Welcome / provider.** Gmail, Outlook / Microsoft 365, Yahoo, iCloud, Fastmail, Proton Bridge
    or custom IMAP, plus the email address.
@@ -122,6 +138,7 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 ## Links
 
+- App releases: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill and CLI: <https://github.com/jparedesDS/cleanyourmail>
 - Website: <https://jparedesds.github.io/cleanyourmail-web/>
 - Safety model: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
