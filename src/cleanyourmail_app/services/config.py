@@ -68,17 +68,36 @@ class ConfigService:
         """The TOML path under the app-data directory."""
         return self.app_data / CONFIG_FILENAME
 
-    def ensure(self, provider: Provider, email: str) -> Path:
+    def ensure(
+        self,
+        provider: Provider,
+        email: str,
+        host: str | None = None,
+        port: int = 993,
+        ssl: bool = True,
+    ) -> Path:
         """Create the config through ``init`` once; keep any existing file.
 
         A second call returns the same path without running the sidecar, so a
         config edited by the CLI (or by a later app build) is never clobbered.
+
+        ``host`` lets the wizard pass the provider's IMAP host, which the
+        sidecar cannot guess from the address (its template default is
+        ``imap.example.com``). ``port`` and ``ssl`` exist so a page can state
+        what it wants, but the pinned sidecar's ``init`` has no flag for them:
+        only the template's 993/TLS pair is supported, and any other value is
+        rejected instead of being silently ignored.
         """
         if not isinstance(provider, Provider):
             raise TypeError("ensure() needs a Provider value")
         cleaned = email.strip() if isinstance(email, str) else ""
         if "@" not in cleaned or cleaned.startswith("@") or cleaned.endswith("@"):
             raise ValueError("ensure() needs a valid email address")
+
+        cleaned_host = _clean_host(host)
+        if provider.id == "custom" and cleaned_host is None:
+            raise ValueError("ensure() needs a host for a custom IMAP provider")
+        _require_supported_tls(port, ssl)
 
         path = self.config_path()
         if path.is_dir():
@@ -89,6 +108,8 @@ class ConfigService:
         args = ["init", "--email", cleaned]
         if provider.id == "outlook":
             args.extend(["--host", OUTLOOK_HOST, "--auth", "xoauth2"])
+        elif cleaned_host is not None:
+            args.extend(["--host", cleaned_host])
         args.extend(["--path", str(path), "--secret-file", str(self.secret_path)])
 
         result = self.cli.run(args)
@@ -132,6 +153,47 @@ class ConfigService:
             data.setdefault("ok", False)
             data.setdefault("error", _detail(result))
         return data
+
+
+def _clean_host(host: str | None) -> str | None:
+    """A usable IMAP host name, or ``None`` when the caller passed nothing.
+
+    ``init --host`` takes a bare host: a value with whitespace or a URL scheme
+    would become a broken TOML entry, so it is rejected rather than trimmed
+    into something surprising.
+    """
+    if host is None:
+        return None
+    if not isinstance(host, str):
+        raise ValueError("ensure() needs the IMAP host as text")
+    cleaned = host.strip()
+    if not cleaned:
+        return None
+    if any(character.isspace() for character in cleaned):
+        raise ValueError("ensure() needs a host name without spaces")
+    if "://" in cleaned:
+        raise ValueError("ensure() needs a bare host name, not a URL")
+    return cleaned
+
+
+def _require_supported_tls(port: int, ssl: bool) -> None:
+    """Reject a port/TLS pair the pinned sidecar cannot write."""
+    try:
+        wanted_port = int(port)
+    except (TypeError, ValueError) as exc:
+        raise ConfigServiceError(
+            "The sidecar's init has no --port flag; CleanYourMail writes port 993."
+        ) from exc
+    if wanted_port != 993:
+        raise ConfigServiceError(
+            "The sidecar's init has no --port flag; CleanYourMail writes port 993 "
+            "with TLS. A different port needs a later sidecar release."
+        )
+    if ssl is not True:
+        raise ConfigServiceError(
+            "The sidecar's init has no --ssl flag; CleanYourMail writes TLS on "
+            "port 993. Plain-text IMAP needs a later sidecar release."
+        )
 
 
 def _detail(result: dict[str, Any]) -> str:

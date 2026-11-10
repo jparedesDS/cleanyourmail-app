@@ -81,24 +81,24 @@ def test_the_theme_keeps_touch_targets_at_44_px():
 
 
 def test_the_shell_can_register_and_show_a_later_page(window):
-    window.add_page("connect", QWidget())
+    window.add_page("preferences", QWidget())
 
-    window.show_page("connect")
+    window.show_page("preferences")
 
-    assert window.current_page_key() == "connect"
+    assert window.current_page_key() == "preferences"
     assert window.step_labels["provider"].property("done") is True
-    assert window.step_labels["connect"].property("active") is True
+    assert window.step_labels["preferences"].property("active") is True
     assert window.step_labels["review"].property("active") is False
 
 
-def test_continue_advances_once_the_connect_page_exists(qtbot, window, page):
-    window.add_page("connect", QWidget())
+def test_continue_advances_to_the_registered_connect_page(qtbot, window, page):
     _select(qtbot, page, "gmail")
     page.email_edit.setText("me@gmail.com")
 
     qtbot.mouseClick(page.continue_button, Qt.MouseButton.LeftButton)
 
     assert window.current_page_key() == "connect"
+    assert window.connect_page.provider.id == "gmail"
 
 
 # --- Cards -----------------------------------------------------------------

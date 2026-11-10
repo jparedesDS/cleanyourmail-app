@@ -176,6 +176,60 @@ def test_ensure_outlook_adds_host_and_xoauth2(service: ConfigService, cli: FakeC
     assert args[:3] == ["init", "--email", "me@corp.example"]
 
 
+def test_ensure_passes_a_host_for_a_known_provider(
+    service: ConfigService, cli: FakeCli
+):
+    service.ensure(provider_by_id("gmail"), "me@gmail.com", host="imap.gmail.com")
+
+    args = cli.calls[0]["args"]
+    assert args[args.index("--host") + 1] == "imap.gmail.com"
+
+
+def test_ensure_passes_the_custom_imap_host(
+    service: ConfigService, cli: FakeCli
+):
+    service.ensure(
+        provider_by_id("custom"), "me@example.com", host="imap.example.com"
+    )
+
+    args = cli.calls[0]["args"]
+    assert args[args.index("--host") + 1] == "imap.example.com"
+
+
+def test_ensure_rejects_a_custom_provider_without_a_host(
+    service: ConfigService, cli: FakeCli
+):
+    with pytest.raises(ValueError, match="host"):
+        service.ensure(provider_by_id("custom"), "me@example.com")
+
+    assert cli.calls == []
+
+
+def test_ensure_reports_the_port_limitation_instead_of_inventing_a_flag(
+    service: ConfigService, cli: FakeCli
+):
+    with pytest.raises(ConfigServiceError, match="993"):
+        service.ensure(
+            provider_by_id("custom"),
+            "me@example.com",
+            host="imap.example.com",
+            port=1143,
+        )
+
+    assert cli.calls == []
+
+
+def test_ensure_reports_the_tls_limitation_instead_of_inventing_a_flag(
+    service: ConfigService, cli: FakeCli
+):
+    with pytest.raises(ConfigServiceError, match="TLS"):
+        service.ensure(
+            provider_by_id("custom"), "me@example.com", host="imap.example.com", ssl=False
+        )
+
+    assert cli.calls == []
+
+
 def test_ensure_does_not_touch_an_existing_config(
     service: ConfigService, cli: FakeCli
 ):

@@ -2,8 +2,10 @@
 
 ``MainWindow`` is the only object that knows the step order. Pages report what
 happened through signals; the shell resolves ids, remembers the account it was
-handed and moves the rail forward. Task 7 registers the Connect page through
-:meth:`add_page`, so the shell does not need to change for that step.
+handed and moves the rail forward. The Connect page is registered here and
+receives the provider/email pair from the provider page; a successful
+connection advances only when the next page is registered, because the
+Preferences page lands in a later task.
 
 Language switching is a window-level operation because the theme, the rail and
 every page share one ``Translator``.
@@ -30,6 +32,7 @@ from cleanyourmail_app.domain.providers import Provider, provider_by_id
 from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
 from cleanyourmail_app.services.settings import SettingsStore
+from cleanyourmail_app.ui.pages.connect import ConnectPage
 from cleanyourmail_app.ui.pages.provider import ProviderPage
 from cleanyourmail_app.ui.style import set_dynamic_property, theme_stylesheet
 
@@ -105,6 +108,12 @@ class MainWindow(QMainWindow):
         self.provider_page = ProviderPage(self.settings, self.translator, self)
         self.provider_page.continueRequested.connect(self._on_continue)
         self.add_page("provider", self.provider_page)
+
+        self.connect_page = ConnectPage(self.services, self)
+        self.connect_page.backRequested.connect(self._on_connect_back)
+        self.connect_page.connectionSucceeded.connect(self._on_connected)
+        self.add_page("connect", self.connect_page)
+
         self.show_page("provider")
 
     def _build_rail(self, parent: QWidget) -> QWidget:
@@ -168,16 +177,33 @@ class MainWindow(QMainWindow):
         return ""
 
     def _on_continue(self, provider_id: str, email: str) -> None:
-        """Resolve what the provider page sent and move on when possible.
+        """Resolve what the provider page sent and hand it to Connect.
 
-        Task 6 ships only the first page; Task 7 registers ``connect``. Until
-        then the shell keeps the handoff in ``pending_provider`` and stays put
-        rather than showing a blank step.
+        The pair is kept on the window as well, so a page that is registered
+        later can still read the account the wizard is working on.
         """
         self.pending_provider = provider_by_id(provider_id)
         self.pending_email = email
-        if "connect" in self.pages:
-            self.show_page("connect")
+        if "connect" not in self.pages:
+            return
+        page = self.pages["connect"]
+        set_provider = getattr(page, "set_provider", None)
+        if callable(set_provider) and self.pending_provider is not None:
+            set_provider(self.pending_provider, self.pending_email)
+        self.show_page("connect")
+
+    def _on_connect_back(self) -> None:
+        """Return to the provider page, keeping its selected card and address."""
+        self.show_page("provider")
+
+    def _on_connected(self) -> None:
+        """Advance after a successful doctor, when the next page exists.
+
+        The Preferences page arrives in a later task. Until then the shell
+        leaves the Connect page visible instead of raising a KeyError.
+        """
+        if "preferences" in self.pages:
+            self.show_page("preferences")
 
     # -- language -----------------------------------------------------------
 
