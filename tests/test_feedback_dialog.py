@@ -28,7 +28,6 @@ from cleanyourmail_app.ui.dialogs import feedback as feedback_dialog
 from cleanyourmail_app.ui.dialogs.feedback import FeedbackDialog
 from cleanyourmail_app.ui.main_window import MainWindow
 
-APP_VERSION = "0.3.0"
 SIDECAR_VERSION = "1.2.2"
 WINDOWS_TEXT = "Windows-11-10.0.22631-SP0"
 EMAIL_SENTINEL = "account-sentinel@example.com"
@@ -64,7 +63,7 @@ def dialog(qtbot, monkeypatch, translator, provider, preferences) -> FeedbackDia
         feedback_dialog.platform, "platform", lambda: WINDOWS_TEXT
     )
     dialog = FeedbackDialog(
-        APP_VERSION,
+        version.__version__,
         SIDECAR_VERSION,
         provider,
         preferences,
@@ -293,7 +292,7 @@ def test_the_dialog_is_modal_and_scrollable(dialog):
 def test_the_checklist_contains_only_reviewed_facts(dialog):
     text = dialog.checklist_edit.toPlainText()
 
-    assert f"CleanYourMail app {APP_VERSION}" in text
+    assert f"CleanYourMail app {version.__version__}" in text
     assert f"Sidecar: {SIDECAR_VERSION}" in text
     assert f"Windows: {WINDOWS_TEXT}" in text
     assert "Provider: Gmail" in text
@@ -327,7 +326,7 @@ def test_the_copy_mentions_telemetry_and_what_not_to_include(dialog):
 def test_retranslate_refreshes_every_visible_string(qtbot, provider, preferences):
     translator = Translator("en")
     dialog = FeedbackDialog(
-        APP_VERSION,
+        version.__version__,
         SIDECAR_VERSION,
         provider,
         preferences,
@@ -440,7 +439,7 @@ def test_a_valid_send_runs_off_the_ui_thread_and_shows_sent(
     assert payload.contact == "tester#1234"
     assert (
         payload.app_version
-        == f"CleanYourMail app {APP_VERSION} / sidecar {SIDECAR_VERSION}"
+        == f"CleanYourMail app {version.__version__} / sidecar {SIDECAR_VERSION}"
     )
     assert payload.as_dict()["website"] == ""
     assert worker_threads and worker_threads[0] != threading.get_ident()

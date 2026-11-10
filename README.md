@@ -16,31 +16,33 @@
 for the [CleanYourMail](https://github.com/jparedesDS/cleanyourmail) CLI. It guides you through
 connecting a mailbox, choosing what to clean, reviewing a reversible plan and undoing it.
 
-No browser, no local server, no account, no cloud, no telemetry, no bodies, no permanent deletion.
+No browser, no local server, no account, no telemetry, no bodies, no permanent deletion. The only
+network request the app makes itself is the feedback POST you explicitly send.
 
-> **Status:** `0.3.0` is the current Windows early-MVP release. The installer bundles the frozen
-> CleanYourMail CLI `1.2.2` sidecar. Gmail is validated; Outlook depends on Microsoft's consent
-> model. See [Provider status](#provider-status).
+> **Status:** `0.4.0` is the current Windows early-MVP release. It adds opt-in feedback from the
+> app header and the website. The installer bundles the frozen CleanYourMail CLI `1.2.2` sidecar.
+> Gmail is validated; Outlook depends on Microsoft's consent model. See
+> [Provider status](#provider-status).
 
 ## Download
 
-[CleanYourMail app 0.3.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+[CleanYourMail app 0.4.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
 is a per-user installer that bundles the pinned CleanYourMail CLI `1.2.2` sidecar and needs no
 administrator rights.
 
-The 0.3.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
+The 0.4.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
 warning on first launch: choose **More info**, then **Run anyway**, and compare the SHA-256
-published with the release against `CleanYourMail-Setup-0.3.0.exe`:
+published with the release against `CleanYourMail-Setup-0.4.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.3.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
 ```
 
 The release also publishes a `.sha256` file in `HASH  filename` format.
 
 Gmail works with an App Password and 2-Step Verification. Outlook / Microsoft 365 does not work
 one-click: Microsoft 365 needs tenant admin consent, and personal Outlook.com accounts need a
-verified publisher. macOS and Linux are out of scope for 0.3.0.
+verified publisher. macOS and Linux are out of scope for 0.4.0.
 
 ## Why this app
 
@@ -75,7 +77,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.3.0`.
+`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.4.0`.
 
 Run the tests:
 
@@ -96,6 +98,24 @@ The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or 
    The plan's unsubscribe column is informational only: this build never sends unsubscribe
    requests, and Apply always runs with `--action move`.
 
+## Feedback
+
+Feedback is **opt-in and manual**. Open it with the **Feedback** button in the app header or use the
+[website form](https://jparedesds.github.io/cleanyourmail-web/#feedback). Nothing is collected in
+the background, and the app sends nothing until you press **Send** and accept the consent line.
+
+- The app pre-fills an **editable checklist** with the app and sidecar versions, the Windows
+  version, the provider name, the folder/archive mode, the selected categories and the language.
+- Edit or delete anything you do not want to share. Do **not** include passwords, tokens, email
+  addresses, email subjects, message IDs or file paths in the message or the checklist.
+- The optional contact field is the only place to leave a Discord handle, GitHub username or email
+  address. It is never required.
+- The request goes to a Cloudflare Worker (`cleanyourmail-feedback`), which validates it and
+  forwards it to a private Discord channel. The Discord webhook is a Cloudflare secret and never
+  ships in the app or the website.
+- There is **no account, no telemetry, no analytics and no crash reporting**. The Worker stores no
+  message body and applies a short, salted-IP rate limit.
+
 ## Provider status
 
 | Provider | App path | Status |
@@ -110,7 +130,9 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
 
 ## Security model
 
-- **Local only.** No account, cloud, telemetry or body access.
+- **Local only, except opt-in feedback.** No account, cloud, telemetry or body access. The app
+  makes no background network request; the only request it makes itself is the feedback POST after
+  you press Send and accept the consent line.
 - **CLI only.** The app cannot add capabilities the CLI does not have.
 - **No secret in argv.** App passwords are written to the CLI `password_file`; the app never passes
   them as command-line arguments.
@@ -118,7 +140,7 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
   output.
 - **Review first.** No write without a reviewed plan; undo stays one click away.
 - **No permanent deletion.** Moves and archives are reversible.
-- **No unsubscribe in 0.3.0.** The plan may show unsubscribe modes, but Apply only moves messages.
+- **No unsubscribe in 0.4.0.** The plan may show unsubscribe modes, but Apply only moves messages.
 - **English and Spanish first-class.** Every string lives in `i18n/*.json`.
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
@@ -138,7 +160,7 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 | `scripts/` | Sidecar/app builds and the installer smoke test. |
 | `packaging/` | Inno Setup script and icons. |
 | `tests/` | pytest and pytest-qt suite with fake CLI fixtures. |
-| `docs/superpowers/specs/` | 0.3.0 design. |
+| `docs/superpowers/specs/` | Design docs (0.3.0 app, 0.4.0 feedback). |
 | `docs/superpowers/plans/` | Task-by-task implementation plan. |
 
 ## Links

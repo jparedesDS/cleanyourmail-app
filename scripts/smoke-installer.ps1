@@ -3,7 +3,7 @@
     Silent per-user install/uninstall smoke test for the built CleanYourMail installer.
 
 .DESCRIPTION
-    Installs dist\CleanYourMail-Setup-0.3.0.exe with /CURRENTUSER, runs the
+    Installs dist\CleanYourMail-Setup-0.4.0.exe with /CURRENTUSER, runs the
     installed --version, uninstalls it, and asserts that the app directory and
     Start Menu shortcut are gone while the user-data sentinels survive:
 
@@ -20,7 +20,7 @@
     on the runner.
 
 .PARAMETER SetupPath
-    Installer to smoke. Defaults to dist\CleanYourMail-Setup-0.3.0.exe.
+    Installer to smoke. Defaults to dist\CleanYourMail-Setup-0.4.0.exe.
 #>
 [CmdletBinding()]
 param(
@@ -32,7 +32,7 @@ Set-StrictMode -Version Latest
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($SetupPath)) {
-    $SetupPath = Join-Path $Root "dist\CleanYourMail-Setup-0.3.0.exe"
+    $SetupPath = Join-Path $Root "dist\CleanYourMail-Setup-0.4.0.exe"
 }
 $SetupPath = (Resolve-Path -LiteralPath $SetupPath).Path
 
@@ -187,7 +187,7 @@ try {
     }
     $version = $versionText.Trim()
     Write-Host "installed app version: $version"
-    Assert-True ($version -eq "CleanYourMail app 0.3.0") "unexpected installed version: '$version'"
+    Assert-True ($version -eq "CleanYourMail app 0.4.0") "unexpected installed version: '$version'"
 
     Write-Host "==> Uninstalling per-user (silent)"
     Assert-True (Test-Path -LiteralPath $Uninstaller) "uninstaller missing: $Uninstaller"

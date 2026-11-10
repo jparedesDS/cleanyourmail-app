@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---|---|
-| 0.3.x | Yes |
+| 0.4.x | Yes |
 
 0.2.x and 0.1.x were the retired local-web UI and are no longer supported. This policy covers the
-native CleanYourMail app 0.3.x for Windows 10/11 x64.
+native CleanYourMail app 0.4.x for Windows 10/11 x64.
 
 ## Reporting a vulnerability
 
@@ -35,8 +35,15 @@ The app does not replace the CLI's safety rules and does not add capabilities th
 
 - **No local HTTP server, browser, cookies or CSRF surface.** The UI is a native window. The app
   never opens a web server, never accepts inbound connections and has no web view.
-- **No account, cloud or telemetry.** The app makes no network request of its own; network access
-  belongs to the sidecar and goes only to the mail provider.
+- **No account, background cloud or telemetry.** The app makes no network request at startup or in
+  the background. Network access for mail belongs to the sidecar and goes only to the mail provider.
+  The single exception is the feedback POST, which runs only after the person presses Send and
+  accepts the consent line in the dialog.
+- **Feedback is opt-in and manual.** The dialog sends one JSON payload to the Cloudflare Worker and
+  nothing else. The editable checklist is limited to app/sidecar versions, Windows version, provider
+  label, mode, category names and language; account addresses, config paths, senders, subjects,
+  message IDs, passwords, tokens and logs are never added. The Discord webhook and IP salt are
+  Cloudflare secrets and do not ship in the app or the website. The Worker stores no message body.
 - **App password stays out of argv and settings.** The app writes the app password to the private
   `password_file` named by the CLI config (by default `%USERPROFILE%\.secrets\cleanyourmail.txt`,
   owner-only ACL best-effort). It is never passed as a command-line argument, stored in QSettings,
@@ -49,7 +56,7 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   JSON summaries. The app has no IMAP code and no attachment viewer.
 - **No permanent deletion.** The app exposes moves and archives only. It has no delete action and
   no server-side filter upload.
-- **No unsubscribe in 0.3.0.** The plan may display unsubscribe modes for context, but Apply is
+- **No unsubscribe in 0.4.0.** The plan may display unsubscribe modes for context, but Apply is
   always `--action move`; the app never sends an unsubscribe request.
 - **Review first.** No mailbox change happens without a scanned plan, an explicit review checkbox
   and a confirmation dialog. Apply is limited by policy and by the plan's own move count.
@@ -62,7 +69,7 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   `init --force`.
 - **English and Spanish first-class.** Every visible string lives in `i18n/*.json`.
 
-There is deliberately no local log file in 0.3.0. Errors use localized generic copy so a server
+There is deliberately no local log file in 0.4.0. Errors use localized generic copy so a server
 message or path cannot leak a secret into a log. The trade-off is reduced diagnostics; a redacted
 diagnostics channel is future work.
 
@@ -83,5 +90,5 @@ See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the full analysis.
 - Use a dedicated app password with the narrowest scope the provider allows.
 - Keep Windows and the app updated.
 - Download the installer only from the official release page and verify its published SHA-256.
-- Do not paste real credentials into issues, screenshots or chat.
+- Do not paste real credentials into issues, screenshots, chat or the feedback form.
 - Remember that unsubscribe is not available in this build; it cannot be triggered accidentally.

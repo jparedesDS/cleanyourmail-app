@@ -30,7 +30,7 @@ SMOKE = ROOT / "scripts" / "smoke-installer.ps1"
 SIDECAR_BUILD = ROOT / "scripts" / "build-cli-sidecar.ps1"
 
 SIDECAR_VERSION = "CleanYourMail 1.2.2"
-APP_VERSION = "CleanYourMail app 0.3.0"
+APP_VERSION = "CleanYourMail app 0.4.0"
 
 # Inno Setup writes the literal AppId as "{{GUID}" (the doubled brace escapes
 # the opening brace). Exactly one such line is allowed, and it must be a GUID.
@@ -153,7 +153,9 @@ def test_installer_is_per_user_and_named_for_this_version():
         _single_assignment(text, "DefaultDirName")
         == r"{localappdata}\Programs\CleanYourMail"
     )
-    assert _single_assignment(text, "OutputBaseFilename") == "CleanYourMail-Setup-0.3.0"
+    assert _single_assignment(text, "OutputBaseFilename") == "CleanYourMail-Setup-0.4.0"
+    assert '#define MyAppVersion "0.4.0"' in text
+    assert _single_assignment(text, "VersionInfoVersion") == "0.4.0.0"
     assert _single_assignment(text, "ArchitecturesAllowed") == "x64"
     assert _single_assignment(text, "ArchitecturesInstallIn64BitMode") == "x64"
     assert _single_assignment(text, "Compression") == "lzma2"

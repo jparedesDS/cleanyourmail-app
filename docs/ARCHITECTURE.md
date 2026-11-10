@@ -38,19 +38,21 @@ a native view and a process wrapper around the frozen sidecar.
 |---|---|
 | `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app`; prints `--version` before importing Qt. |
 | `src/cleanyourmail_app/app.py` | Builds `QApplication`, the translator, `SettingsStore`, `AppServices` and `MainWindow`. |
-| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.3.0`). |
-| `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch. |
+| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.4.0`). |
+| `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch and the Feedback button. |
 | `src/cleanyourmail_app/ui/pages/provider.py` | Seven provider cards, email validation, account handoff. |
 | `src/cleanyourmail_app/ui/pages/connect.py` | App-password save, doctor, custom host, Outlook device-code UI, Cancel and sensitive-state clearing. |
 | `src/cleanyourmail_app/ui/pages/preferences.py` | Categories, mode, protections, limits, Advanced paths and language; writes the policy through `ConfigService`. |
 | `src/cleanyourmail_app/ui/pages/review.py` | Scan/report/plan rendering, review gate, apply, journal and undo. |
 | `src/cleanyourmail_app/ui/widgets/` | Provider card widget. |
-| `src/cleanyourmail_app/domain/` | Provider catalog, settings/preferences models and plan constants. |
+| `src/cleanyourmail_app/ui/dialogs/feedback.py` | Opt-in feedback dialog: type, message, editable checklist, optional contact, consent and localized status. |
+| `src/cleanyourmail_app/domain/` | Provider catalog, settings/preferences models, plan constants and the feedback checklist/payload rules. |
 | `src/cleanyourmail_app/services/cli.py` | Locates and runs the sidecar, appends `--json`, parses JSON, verifies the pinned version, supports cancellation. |
 | `src/cleanyourmail_app/services/config.py` | Creates the TOML through `init`, refuses a different account/host, maps `--force`, reads `password_file` and `state_dir`, edits only known policy keys. |
 | `src/cleanyourmail_app/services/secrets.py` | Writes the app password to the private password file with owner-only permissions. |
 | `src/cleanyourmail_app/services/oauth.py` | Runs `connect outlook --no-wait/--wait` and maps known failures; the app never handles a token. |
 | `src/cleanyourmail_app/services/settings.py` | Stores provider, email and app preferences in `%APPDATA%\cleanyourmail-app\settings.json`; no secrets. |
+| `src/cleanyourmail_app/services/feedback.py` | One HTTPS POST to the feedback Worker, only after Send; maps 429/503/network failures to localized keys and never logs the payload. |
 | `src/cleanyourmail_app/i18n/` | English and Spanish catalogs and the `Translator`. |
 | `resources/cli/` (build output) | Staged `cym-cli.exe`, bundled into `dist\CleanYourMail\resources\cli`. |
 | `packaging/` | Inno Setup 6 per-user installer and icon. |
@@ -105,6 +107,37 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 9. Outlook uses the sidecar's device flow. Cancel terminates a running `--wait` child; a late result
    is ignored by the page's epoch guard.
 
+## Feedback flow
+
+Feedback is the only network request the app makes itself. It is never automatic and never runs at
+startup.
+
+```text
+Header Feedback button
+        │ click
+        v
+FeedbackDialog (local form, editable checklist, consent)
+        │ Send + consent
+        v
+services/feedback.py ── HTTPS POST ──→ Cloudflare Worker
+                                          │ validate, honeypot, rate limit
+                                          v
+                                   private Discord webhook
+```
+
+- Clicking the button only reads local settings and asks the sidecar for its local version. The
+  feedback client is constructed inside Send, after validation and consent.
+- The pre-filled checklist is limited to the app version, sidecar version, Windows version, provider
+  display name, folder/archive mode, selected category names and language. It never contains the
+  account address, config or state paths, senders, subjects, message IDs, passwords, tokens or logs.
+- The checklist and message are editable; the optional contact field is the only place for a
+  Discord handle, GitHub username or email address.
+- The Worker holds the Discord webhook and IP salt as secrets, caps the body and fields, rejects a
+  filled honeypot and rate-limits a salted hash of the client IP. It stores no message body.
+- No telemetry, analytics, crash reporting, attachments or background upload exists. Failures show
+  localized copy; the payload and response body are never logged.
+- English and Spanish copy lives in `i18n/*.json`, like the rest of the app.
+
 ## Failure handling
 
 - Sidecar exit 0 + JSON: rendered normally.
@@ -118,6 +151,7 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 ## Testing and packaging
 
 - `pytest` and `pytest-qt` run headless against fake CLI fixtures; no mailbox or network.
+- Feedback tests use a fake `send_feedback`; no test performs an HTTP request.
 - `tests/test_cli_contract.py` pins the frozen sidecar when `CYM_CLI` is set.
 - PyInstaller builds a windowed `--onedir` app and bundles the sidecar.
 - Inno Setup builds a per-user installer; the uninstaller removes app files only.
@@ -128,5 +162,6 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 
 - A sidecar release with configurable IMAP port/TLS and a progress stream.
 - A redacted local diagnostics channel that cannot capture secrets.
+- Cloudflare Turnstile for feedback if the honeypot and rate limit stop being enough.
 - Installer code signing.
 - macOS/Linux packaging, if the product needs it.
