@@ -21,6 +21,8 @@ import json
 import os
 import re
 import subprocess
+import threading
+import time
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,11 @@ from cleanyourmail_app.domain.models import CATEGORIES, MODES
 SIDECAR_ENV = "CYM_CLI"
 SIDECAR_DIR = Path("resources") / "cli"
 SIDECAR_NAMES = ("cym-cli.exe", "cym-cli")
+
+#: The sidecar the app is built and tested against. A different version may
+#: change the JSON contract or the safety rules, so the app verifies this
+#: before it writes a config or asks for mail changes.
+EXPECTED_CLI_VERSION = "CleanYourMail 1.2.2"
 
 #: A header scan of a year's mail can take minutes on a large mailbox. The
 #: page always runs it off the UI thread, so a generous ceiling is safe.
@@ -47,6 +54,10 @@ UNDO_TIMEOUT = 900
 
 class CliError(RuntimeError):
     """The sidecar is missing, cannot be started or did not answer."""
+
+
+class CliVersionMismatch(CliError):
+    """The sidecar answered, but not with the pinned 1.2.2 contract."""
 
 
 def find_sidecar(app_root: Path, explicit: str | None = None) -> Path | None:
@@ -139,6 +150,9 @@ class CliClient:
         self.env = dict(os.environ)
         if env:
             self.env.update({str(key): str(value) for key, value in env.items()})
+        #: A verified version line; success is cached so the wizard runs
+        #: ``--version`` once, while a failure is retried on the next save.
+        self._verified_version: str | None = None
 
     def run(
         self,
@@ -146,21 +160,80 @@ class CliClient:
         *,
         config_path: Path | None = None,
         timeout: int = 120,
+        cancel_event: threading.Event | None = None,
     ) -> dict[str, Any]:
-        """Run ``args`` on the sidecar and return ``{ok, exit_code, data, stdout, stderr}``."""
+        """Run ``args`` on the sidecar and return ``{ok, exit_code, data, stdout, stderr}``.
+
+        Without ``cancel_event`` the existing ``subprocess.run`` path is used
+        unchanged. With an event, the child is polled every 200 ms; setting the
+        event terminates it (and kills it after a short grace) and returns
+        ``{ok: False, cancelled: True, exit_code: -1}`` instead of pretending
+        the command failed on its own.
+        """
         argv = [*self.command, *args, "--json"]
         if config_path is not None:
             argv.extend(["--config", str(config_path)])
 
-        completed = self._execute(argv, timeout)
-        data = _parse_json(completed.stdout)
-        return {
-            "ok": completed.returncode == 0 and data.get("ok", True) is not False,
-            "exit_code": completed.returncode,
+        if cancel_event is None:
+            completed = self._execute(argv, timeout)
+            return self._normalize(completed.returncode, completed.stdout, completed.stderr)
+
+        return self._run_cancellable(argv, timeout, cancel_event)
+
+    @staticmethod
+    def _normalize(
+        returncode: int, stdout: str, stderr: str, *, cancelled: bool = False
+    ) -> dict[str, Any]:
+        data = _parse_json(stdout)
+        result: dict[str, Any] = {
+            "ok": returncode == 0 and data.get("ok", True) is not False,
+            "exit_code": returncode,
             "data": data,
-            "stdout": completed.stdout,
-            "stderr": completed.stderr,
+            "stdout": stdout,
+            "stderr": stderr,
         }
+        if cancelled:
+            result["cancelled"] = True
+        return result
+
+    def _run_cancellable(
+        self, argv: list[str], timeout: int, cancel_event: threading.Event
+    ) -> dict[str, Any]:
+        """Run with a poll loop so Cancel can stop the sidecar promptly."""
+        try:
+            process = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=self.env,
+                **_spawn_flags(),
+            )
+        except FileNotFoundError as exc:
+            raise CliError(
+                f"Cannot start the CleanYourMail sidecar: {self.command[0]}"
+            ) from exc
+        except OSError as exc:
+            raise CliError(f"Cannot start the CleanYourMail sidecar: {exc}") from exc
+
+        deadline = time.monotonic() + timeout
+        while True:
+            if cancel_event.is_set():
+                stdout, stderr = _stop_process(process)
+                return self._normalize(-1, stdout, stderr, cancelled=True)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _stop_process(process)
+                raise CliError(
+                    f"The CleanYourMail sidecar did not answer within {timeout} seconds."
+                )
+            try:
+                stdout, stderr = process.communicate(timeout=min(0.2, remaining))
+            except subprocess.TimeoutExpired:
+                continue
+            return self._normalize(process.returncode, stdout, stderr)
 
     # -- typed helpers ------------------------------------------------------
     #
@@ -291,6 +364,29 @@ class CliClient:
             raise CliError(f"Cannot read the CleanYourMail version: {detail}")
         return text.splitlines()[0].strip()
 
+    def verify_version(
+        self, expected: str = EXPECTED_CLI_VERSION
+    ) -> str:
+        """Fail closed unless the sidecar is the pinned CleanYourMail build.
+
+        A successful check is cached; a failure is raised and not cached, so a
+        missing helper can be fixed and retried without restarting the app.
+        """
+        if self._verified_version == expected:
+            return self._verified_version
+        actual = self.version()
+        if actual != expected:
+            raise CliVersionMismatch(
+                f"The CleanYourMail helper is {actual!r}; this app needs "
+                f"{expected!r}. Reinstall CleanYourMail."
+            )
+        self._verified_version = actual
+        return actual
+
+    def print_version(self) -> str:
+        """Return the raw sidecar version line for diagnostics and smoke tests."""
+        return self.version()
+
     def _execute(self, argv: list[str], timeout: int) -> subprocess.CompletedProcess:
         try:
             return subprocess.run(
@@ -320,3 +416,23 @@ def _spawn_flags() -> dict[str, Any]:
     if os.name != "nt":
         return {}
     return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
+
+
+def _stop_process(process: subprocess.Popen[str]) -> tuple[str, str]:
+    """Terminate a cancelled child, then kill it after a short grace period."""
+    if process.poll() is None:
+        try:
+            process.terminate()
+        except OSError:
+            pass
+        try:
+            return process.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            try:
+                process.kill()
+            except OSError:
+                pass
+    try:
+        return process.communicate(timeout=2)
+    except subprocess.TimeoutExpired:
+        return "", ""

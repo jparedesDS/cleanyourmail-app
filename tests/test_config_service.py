@@ -13,7 +13,11 @@ import pytest
 
 from cleanyourmail_app.domain.models import Preferences
 from cleanyourmail_app.domain.providers import provider_by_id
-from cleanyourmail_app.services.config import ConfigService, ConfigServiceError
+from cleanyourmail_app.services.config import (
+    ConfigMismatchError,
+    ConfigService,
+    ConfigServiceError,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -234,13 +238,91 @@ def test_ensure_does_not_touch_an_existing_config(
     service: ConfigService, cli: FakeCli
 ):
     path = service.ensure(provider_by_id("gmail"), "me@gmail.com")
-    path.write_text("# edited by hand\n", encoding="utf-8")
+    edited = TEMPLATE.format(email="me@gmail.com").replace(
+        "name = \"personal\"", "name = \"edited-by-hand\""
+    )
+    path.write_text(edited, encoding="utf-8")
 
     again = service.ensure(provider_by_id("gmail"), "me@gmail.com")
 
     assert again == path
     assert len(cli.calls) == 1
-    assert path.read_text(encoding="utf-8") == "# edited by hand\n"
+    assert path.read_text(encoding="utf-8") == edited
+
+
+def test_ensure_rejects_a_config_for_a_different_email(
+    service: ConfigService, cli: FakeCli
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(TEMPLATE.format(email="other@example.com"), encoding="utf-8")
+
+    with pytest.raises(ConfigMismatchError) as excinfo:
+        service.ensure(provider_by_id("gmail"), "me@gmail.com")
+
+    assert excinfo.value.existing_email == "other@example.com"
+    assert excinfo.value.existing_host == "imap.gmail.com"
+    assert len(cli.calls) == 0
+    assert "other@example.com" in path.read_text(encoding="utf-8")
+
+
+def test_ensure_treats_email_case_and_whitespace_insensitively(
+    service: ConfigService, cli: FakeCli
+):
+    path = service.ensure(provider_by_id("gmail"), "Me@Gmail.com")
+
+    again = service.ensure(
+        provider_by_id("gmail"), "  me@gmail.com  ", host="imap.gmail.com"
+    )
+
+    assert again == path
+    assert len(cli.calls) == 1
+
+
+def test_ensure_rejects_a_config_for_a_different_imap_host(
+    service: ConfigService, cli: FakeCli
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            'imap_host = "imap.gmail.com"', 'imap_host = "imap.other.example"'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigMismatchError) as excinfo:
+        service.ensure(
+            provider_by_id("gmail"), "me@gmail.com", host="imap.gmail.com"
+        )
+
+    assert excinfo.value.existing_host == "imap.other.example"
+    assert cli.calls == []
+
+
+def test_ensure_replace_forces_a_new_config(service: ConfigService, cli: FakeCli):
+    path = service.ensure(provider_by_id("gmail"), "first@gmail.com")
+    assert path.is_file()
+
+    again = service.ensure(
+        provider_by_id("gmail"), "second@gmail.com", replace=True
+    )
+
+    assert again == path
+    assert len(cli.calls) == 2
+    assert cli.calls[-1]["args"][-1] == "--force"
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    assert data["account"]["email"] == "second@gmail.com"
+
+
+def test_ensure_replace_on_a_matching_config_still_forces(
+    service: ConfigService, cli: FakeCli
+):
+    service.ensure(provider_by_id("gmail"), "me@gmail.com")
+
+    service.ensure(provider_by_id("gmail"), "me@gmail.com", replace=True)
+
+    assert cli.calls[-1]["args"][-1] == "--force"
 
 
 def test_ensure_raises_a_clear_error_when_init_fails(
@@ -374,3 +456,104 @@ def test_validate_marks_a_failed_sidecar(service: ConfigService):
 
     assert result["ok"] is False
     assert "no such file" in result["error"]
+
+def test_password_file_reads_the_configs_absolute_path(service: ConfigService):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    target = Path("C:/Users/me/.secrets/other.txt")
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            'password_file = "C:/Users/me/.secrets/cleanyourmail.txt"',
+            f'password_file = "{target.as_posix()}"',
+        ),
+        encoding="utf-8",
+    )
+
+    assert service.password_file() == target
+
+
+def test_password_file_resolves_a_relative_path_against_the_config(
+    service: ConfigService,
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            'password_file = "C:/Users/me/.secrets/cleanyourmail.txt"',
+            'password_file = "secrets/local.txt"',
+        ),
+        encoding="utf-8",
+    )
+
+    assert service.password_file() == path.parent / "secrets" / "local.txt"
+
+
+def test_password_file_expands_the_user_home(service: ConfigService):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            'password_file = "C:/Users/me/.secrets/cleanyourmail.txt"',
+            'password_file = "~/.secrets/cleanyourmail.txt"',
+        ),
+        encoding="utf-8",
+    )
+
+    assert service.password_file() == Path.home() / ".secrets" / "cleanyourmail.txt"
+
+
+def test_password_file_falls_back_when_the_config_is_missing(
+    service: ConfigService,
+):
+    assert service.password_file() == service.secret_path
+
+
+def test_state_dir_defaults_to_the_cli_local_app_data(
+    service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    monkeypatch.delenv("CYM_STATE_DIR", raising=False)
+    monkeypatch.setattr("cleanyourmail_app.services.config.os.name", "nt")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+
+    assert service.state_dir() == tmp_path / "local" / "CleanYourMail"
+
+
+def test_state_dir_honours_cym_state_dir(
+    service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    monkeypatch.setenv("CYM_STATE_DIR", str(tmp_path / "override"))
+
+    assert service.state_dir() == tmp_path / "override"
+
+
+def test_state_dir_prefers_the_account_value(
+    service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            "imap_starttls = false",
+            f'imap_starttls = false\nstate_dir = "{(tmp_path / "from-config").as_posix()}"',
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CYM_STATE_DIR", str(tmp_path / "override"))
+
+    assert service.state_dir() == tmp_path / "from-config"
+
+def test_state_dir_reads_the_top_level_cli_key(
+    service: ConfigService, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    path = service.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        TEMPLATE.format(email="me@gmail.com").replace(
+            "\n[scan]",
+            f'\nstate_dir = "{(tmp_path / "top-level").as_posix()}"\n\n[scan]',
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("CYM_STATE_DIR", raising=False)
+
+    assert service.state_dir() == tmp_path / "top-level"

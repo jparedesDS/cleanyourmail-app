@@ -5,11 +5,19 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
 
-from cleanyourmail_app.services.cli import CliClient, CliError, find_sidecar
+from cleanyourmail_app.services.cli import (
+    EXPECTED_CLI_VERSION,
+    CliClient,
+    CliError,
+    CliVersionMismatch,
+    find_sidecar,
+)
 
 FAKE_CLI = Path(__file__).parent / "fixtures" / "fake_cli.py"
 
@@ -198,3 +206,59 @@ def test_no_secret_is_passed_in_argv_or_output(fake: FakeCli, tmp_path: Path):
     assert sentinel not in result["stdout"] + result["stderr"]
     # The client forwards the caller's environment and adds no keys of its own.
     assert set(client.env) == set(os.environ) | {"CYM_PASSWORD"}
+
+def test_verify_version_caches_a_success(fake: FakeCli):
+    fake.respond("CleanYourMail 1.2.2\n")
+
+    class CountingClient(CliClient):
+        def __init__(self) -> None:
+            super().__init__([sys.executable, str(FAKE_CLI)])
+            self.version_calls = 0
+
+        def version(self) -> str:
+            self.version_calls += 1
+            return super().version()
+
+    client = CountingClient()
+
+    assert client.verify_version() == EXPECTED_CLI_VERSION
+    assert client.verify_version() == EXPECTED_CLI_VERSION
+    assert client.version_calls == 1
+
+
+def test_verify_version_rejects_a_different_build(fake: FakeCli):
+    fake.respond("CleanYourMail 1.2.1\n")
+
+    with pytest.raises(CliVersionMismatch, match="1.2.1"):
+        fake.client().verify_version()
+
+
+def test_verify_version_propagates_a_missing_sidecar(tmp_path: Path):
+    client = CliClient(["cym-cli-does-not-exist-xyz"])
+
+    with pytest.raises(CliError):
+        client.verify_version()
+
+
+def test_run_cancels_a_slow_sidecar_and_returns_a_normalized_result():
+    event = threading.Event()
+    client = CliClient([sys.executable, "-c", "import time; time.sleep(30)"])
+    result: dict[str, object] = {}
+    started = time.monotonic()
+
+    def work() -> None:
+        result.update(
+            client.run(["connect", "outlook", "--wait"], timeout=60, cancel_event=event)
+        )
+
+    worker = threading.Thread(target=work)
+    worker.start()
+    event.set()
+    worker.join(timeout=10)
+
+    assert not worker.is_alive()
+    assert time.monotonic() - started < 10
+    assert result["ok"] is False
+    assert result["cancelled"] is True
+    assert result["exit_code"] == -1
+    assert result["data"] == {}

@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import tempfile
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +40,26 @@ _ASSIGNMENT_RE = re.compile(
 
 class ConfigServiceError(RuntimeError):
     """The sidecar could not create, read or validate the config."""
+
+
+class ConfigMismatchError(ConfigServiceError):
+    """The existing TOML belongs to another account or IMAP host.
+
+    The app must never write this account's secret into the previous account's
+    ``password_file``. The caller can either stop or explicitly replace the
+    connection with ``ensure(..., replace=True)``.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        existing_email: str = "",
+        existing_host: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.existing_email = existing_email
+        self.existing_host = existing_host
 
 
 def default_secret_path() -> Path:
@@ -75,11 +97,15 @@ class ConfigService:
         host: str | None = None,
         port: int = 993,
         ssl: bool = True,
+        replace: bool = False,
     ) -> Path:
         """Create the config through ``init`` once; keep any existing file.
 
-        A second call returns the same path without running the sidecar, so a
-        config edited by the CLI (or by a later app build) is never clobbered.
+        A second call for the same account returns the same path without
+        running the sidecar, so a config edited by the CLI (or by a later app
+        build) is never clobbered. A file that belongs to another email or IMAP
+        host raises ``ConfigMismatchError`` unless ``replace`` is true; writing
+        a secret into another account's ``password_file`` would be unsafe.
 
         ``host`` is for Custom IMAP, where the sidecar has no preset and its
         template default is ``imap.example.com``. Known domains already get a
@@ -92,6 +118,9 @@ class ConfigService:
         pinned sidecar's ``init`` has no flag for them: the template default is
         993/TLS (a provider preset such as Proton's may differ), so any other
         requested value is rejected instead of being silently ignored.
+
+        ``replace`` maps to ``init --force``: it is only used after the person
+        explicitly confirms replacing a different existing connection.
         """
         if not isinstance(provider, Provider):
             raise TypeError("ensure() needs a Provider value")
@@ -107,7 +136,8 @@ class ConfigService:
         path = self.config_path()
         if path.is_dir():
             raise ConfigServiceError(f"The config path is a directory: {path}")
-        if path.exists():
+        if path.exists() and not replace:
+            self._require_same_account(path, cleaned, provider, cleaned_host)
             return path
 
         args = ["init", "--email", cleaned]
@@ -116,6 +146,8 @@ class ConfigService:
         elif cleaned_host is not None:
             args.extend(["--host", cleaned_host])
         args.extend(["--path", str(path), "--secret-file", str(self.secret_path)])
+        if replace:
+            args.append("--force")
 
         result = self.cli.run(args)
         if not result.get("ok"):
@@ -125,6 +157,115 @@ class ConfigService:
                 f"The sidecar reported success but did not write {path}."
             )
         return path
+
+    def _require_same_account(
+        self,
+        path: Path,
+        email: str,
+        provider: Provider,
+        requested_host: str | None,
+    ) -> None:
+        """Raise ``ConfigMismatchError`` when the TOML is another connection."""
+        existing = self._read_account(path)
+        existing_email = existing.get("existing_email", "")
+        existing_host = existing.get("existing_host", "")
+
+        same_email = existing_email.strip().lower() == email.strip().lower()
+        wanted_host = (
+            OUTLOOK_HOST if provider.id == "outlook" else requested_host
+        )
+        same_host = (
+            wanted_host is None
+            or existing_host.strip().lower() == wanted_host.strip().lower()
+        )
+        if same_email and same_host:
+            return
+
+        reason = "another account" if not same_email else "another IMAP server"
+        raise ConfigMismatchError(
+            f"{path} belongs to {reason} ({existing_email or 'unknown'}).",
+            existing_email=existing_email,
+            existing_host=existing_host,
+        )
+
+    @staticmethod
+    def _read_account(path: Path) -> dict[str, str]:
+        """The account email/host from an existing TOML, best-effort."""
+        try:
+            with path.open("rb") as handle:
+                data = tomllib.load(handle)
+        except (OSError, tomllib.TOMLDecodeError, UnicodeError) as exc:
+            raise ConfigServiceError(f"Cannot read {path}: {exc}") from exc
+        account = data.get("account")
+        if not isinstance(account, dict):
+            raise ConfigServiceError(f"{path} has no [account] table.")
+        return {
+            "existing_email": str(account.get("email") or ""),
+            "existing_host": str(account.get("imap_host") or ""),
+        }
+
+    def password_file(self) -> Path:
+        """The ``password_file`` the existing TOML names.
+
+        Falls back to ``secret_path`` when the config is missing or has no
+        usable value. Relative paths are resolved against the config's parent,
+        and ``~`` is expanded, so the app writes where the sidecar will read.
+        """
+        try:
+            with self.config_path().open("rb") as handle:
+                data = tomllib.load(handle)
+        except (OSError, tomllib.TOMLDecodeError, UnicodeError):
+            return self.secret_path
+        account = data.get("account")
+        if not isinstance(account, dict):
+            return self.secret_path
+        value = account.get("password_file")
+        if not isinstance(value, str) or not value.strip():
+            return self.secret_path
+        candidate = Path(os.path.expanduser(value.strip()))
+        if not candidate.is_absolute():
+            candidate = self.config_path().parent / candidate
+        return candidate
+
+    def state_dir(self) -> Path:
+        """The CLI state folder this config uses, without reading the cache.
+
+        Precedence: a top-level or ``[account] state_dir`` in the TOML, then
+        ``CYM_STATE_DIR``, then the pinned CLI's per-user default
+        (``%LOCALAPPDATA%\\CleanYourMail`` on Windows).
+        """
+        try:
+            with self.config_path().open("rb") as handle:
+                data = tomllib.load(handle)
+        except (OSError, tomllib.TOMLDecodeError, UnicodeError):
+            data = {}
+        value = data.get("state_dir")
+        if isinstance(value, str) and value.strip():
+            return _resolve_state_path(value.strip(), self.config_path().parent)
+        account = data.get("account")
+        if isinstance(account, dict):
+            value = account.get("state_dir")
+            if isinstance(value, str) and value.strip():
+                return _resolve_state_path(value.strip(), self.config_path().parent)
+
+        override = os.environ.get("CYM_STATE_DIR", "").strip()
+        if override:
+            return _resolve_state_path(override, self.config_path().parent)
+
+        if os.name == "nt":
+            base = os.environ.get("LOCALAPPDATA", "")
+            root = Path(os.path.expanduser(base)) if base else (
+                Path.home() / "AppData" / "Local"
+            )
+            return root / "CleanYourMail"
+
+        if sys.platform == "darwin":
+            return Path.home() / "Library" / "Application Support" / "CleanYourMail"
+        base = os.environ.get("XDG_STATE_HOME", "").strip()
+        root = Path(os.path.expanduser(base)) if base else (
+            Path.home() / ".local" / "state"
+        )
+        return root / "CleanYourMail"
 
     def update_preferences(self, preferences: Preferences) -> None:
         """Write the chosen policy into the existing TOML, line by line."""
@@ -158,6 +299,14 @@ class ConfigService:
             data.setdefault("ok", False)
             data.setdefault("error", _detail(result))
         return data
+
+
+def _resolve_state_path(value: str, base: Path) -> Path:
+    """Expand ``~``/environment variables and resolve against ``base``."""
+    candidate = Path(os.path.expanduser(os.path.expandvars(value)))
+    if not candidate.is_absolute():
+        candidate = base / candidate
+    return candidate
 
 
 def _clean_host(host: str | None) -> str | None:
