@@ -61,7 +61,7 @@ jobs:
         env:
           CYM_CLI: resources\cli\cym-cli.exe
         run: |
-          python -m pytest "tests/test_installer_contract.py" -q
+          python -m pytest "tests/test_installer_contract.py" "tests/test_cli_contract.py" -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build app
@@ -70,6 +70,42 @@ jobs:
           New-Item -ItemType Directory -Force -Path "build" | Out-Null
           & "./scripts/build-app.ps1" -SkipSidecar -SkipInstaller *>&1 | Tee-Object -FilePath "build\app-build.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke test the frozen GUI launch
+        shell: pwsh
+        run: |
+          $app = "dist\CleanYourMail\CleanYourMail.exe"
+          if (-not (Test-Path -LiteralPath $app)) {
+            throw "Missing frozen app: $app"
+          }
+          $smokeRoot = Join-Path $env:RUNNER_TEMP "cym-gui-smoke"
+          $smokeAppData = Join-Path $smokeRoot "appdata"
+          $smokeLocalAppData = Join-Path $smokeRoot "localappdata"
+          New-Item -ItemType Directory -Force -Path $smokeAppData, $smokeLocalAppData | Out-Null
+          $previousQt = $env:QT_QPA_PLATFORM
+          $previousAppData = $env:APPDATA
+          $previousLocalAppData = $env:LOCALAPPDATA
+          $process = $null
+          try {
+            $env:QT_QPA_PLATFORM = "offscreen"
+            $env:APPDATA = $smokeAppData
+            $env:LOCALAPPDATA = $smokeLocalAppData
+            $process = Start-Process -FilePath $app -PassThru
+            Start-Sleep -Seconds 6
+            if ($process.HasExited) {
+              throw "The frozen GUI exited during launch (exit $($process.ExitCode))."
+            }
+            Stop-Process -Id $process.Id -Force
+            Write-Host "Frozen GUI launch smoke passed."
+          }
+          finally {
+            if ($null -ne $process -and -not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            }
+            $env:QT_QPA_PLATFORM = $previousQt
+            $env:APPDATA = $previousAppData
+            $env:LOCALAPPDATA = $previousLocalAppData
+          }
 
       - name: Smoke test the frozen sidecar version
         shell: pwsh
@@ -140,6 +176,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path -LiteralPath "dist\CleanYourMail-Setup-0.3.0.exe")) {
             throw "The installer was not created."
+          }
+
+      - name: Smoke test the installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "build" | Out-Null
+          $log = Join-Path (Get-Location) "build\installer-smoke.log"
+          $err = Join-Path (Get-Location) "build\installer-smoke.err.log"
+          $smoke = Start-Process -FilePath "powershell.exe" `
+            -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts\smoke-installer.ps1") `
+            -Wait -PassThru `
+            -RedirectStandardOutput $log `
+            -RedirectStandardError $err
+          Get-Content -LiteralPath $log -ErrorAction SilentlyContinue
+          Get-Content -LiteralPath $err -ErrorAction SilentlyContinue
+          if ($smoke.ExitCode -ne 0) {
+            throw "Installer smoke failed with exit code $($smoke.ExitCode)."
           }
 
       - name: Compute SHA-256
