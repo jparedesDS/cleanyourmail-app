@@ -7,6 +7,7 @@ sends on its own, and never logs the payload or the response body.
 
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.error
 import urllib.request
@@ -60,12 +61,19 @@ def send_feedback(
         with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read(_MAX_RESPONSE_BYTES)
     except urllib.error.HTTPError as error:
+        error.close()
         if error.code == 429:
             raise FeedbackError("feedback.rate_limited") from error
         if error.code == 503:
             raise FeedbackError("feedback.not_configured") from error
         raise FeedbackError("feedback.failed") from error
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        http.client.HTTPException,
+    ) as error:
         raise FeedbackError("feedback.failed") from error
 
     try:

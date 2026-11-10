@@ -5,6 +5,7 @@ No test here opens a socket: every HTTP call patches ``urlopen``.
 
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.error
 from unittest import mock
@@ -14,6 +15,7 @@ import pytest
 from cleanyourmail_app.domain.feedback import (
     FEEDBACK_ENDPOINT,
     FEEDBACK_KINDS,
+    MAX_APP_VERSION,
     MAX_CHECKLIST,
     MAX_CONTACT,
     MAX_MESSAGE,
@@ -73,9 +75,10 @@ def _http_error(code: int) -> urllib.error.HTTPError:
 def test_constants_match_the_worker_contract():
     assert FEEDBACK_ENDPOINT == "https://cleanyourmail-feedback.subtitleme.workers.dev"
     assert FEEDBACK_KINDS == ("feedback", "bug")
-    assert MAX_MESSAGE == 4000
-    assert MAX_CHECKLIST == 6000
+    assert MAX_MESSAGE == 2800
+    assert MAX_CHECKLIST == 2500
     assert MAX_CONTACT == 200
+    assert MAX_APP_VERSION == 80
 
 
 def test_payload_as_dict_has_exact_fields_and_an_empty_honeypot():
@@ -108,6 +111,39 @@ def test_checklist_has_the_allowed_human_readable_lines():
     )
 
 
+def test_checklist_accepts_localized_labels():
+    text = build_checklist(
+        app_version="0.4.0",
+        sidecar_version="1.2.2",
+        provider="Gmail",
+        mode="folders",
+        categories=("newsletter", "promotion"),
+        language="es",
+        windows_version="10.0.19045",
+        labels={
+            "app": "Aplicación CleanYourMail",
+            "sidecar": "Sidecar",
+            "windows": "Windows",
+            "provider": "Proveedor",
+            "mode": "Modo",
+            "categories": "Categorías",
+            "language": "Idioma",
+            "unknown": "desconocido",
+            "none": "ninguno",
+        },
+    )
+
+    assert text.splitlines() == [
+        "Aplicación CleanYourMail 0.4.0",
+        "Sidecar: 1.2.2",
+        "Windows: 10.0.19045",
+        "Proveedor: Gmail",
+        "Modo: folders",
+        "Categorías: newsletter, promotion",
+        "Idioma: es",
+    ]
+
+
 def test_checklist_deduplicates_categories_and_tolerates_missing_values():
     text = build_checklist(
         app_version="",
@@ -130,21 +166,22 @@ def test_checklist_deduplicates_categories_and_tolerates_missing_values():
     ]
 
 
-def test_checklist_never_leaks_account_paths_message_ids_or_tokens(monkeypatch):
-    monkeypatch.setenv("CYM_TEST_EMAIL", "me@example.com")
-    monkeypatch.setenv("CYM_TEST_PATH", r"C:\Users\xht\AppData\Roaming\cleanyourmail-app")
-    monkeypatch.setenv("CYM_TEST_MESSAGE_ID", "<abc@example>")
-    monkeypatch.setenv("CYM_TEST_TOKEN", "token-sentinel-9f3c")
+def test_checklist_has_no_channel_for_account_paths_message_ids_or_tokens():
+    path_sentinel = r"C:\Users\tester\AppData\Roaming\cleanyourmail-app"
+    sensitive = {
+        "email": "me@example.com",
+        "path": path_sentinel,
+        "message_id": "<abc@example>",
+        "token": "token-sentinel-9f3c",
+    }
 
     text = _checklist()
     lowered = text.lower()
 
     assert "me@example.com" not in lowered
-    assert "c:" not in lowered
-    assert "\\users" not in lowered
+    assert path_sentinel.lower() not in lowered
     assert "<abc@example>" not in lowered
     assert "token-sentinel-9f3c" not in lowered
-    assert "token" not in lowered
     assert "password" not in lowered
     assert "cookie" not in lowered
     # An allowlist: every line is one of the seven reviewed facts.
@@ -159,6 +196,21 @@ def test_checklist_never_leaks_account_paths_message_ids_or_tokens(monkeypatch):
     )
     assert len(text.splitlines()) == len(prefixes)
     assert all(line.startswith(prefixes) for line in text.splitlines())
+
+    # The builder has no keyword for any of these values, so a caller cannot
+    # pass one through even by accident.
+    for name, value in sensitive.items():
+        with pytest.raises(TypeError):
+            build_checklist(
+                app_version="0.4.0",
+                sidecar_version="1.2.2",
+                provider="Gmail",
+                mode="folders",
+                categories=("newsletter",),
+                language="en",
+                windows_version="10.0.19045",
+                **{name: value},
+            )
 
 
 def test_validation_accepts_a_normal_feedback():
@@ -244,6 +296,18 @@ def test_feedback_payload_trims_every_field_and_lowercases_the_kind():
         contact="tester",
         app_version="CleanYourMail app 0.4.0",
     )
+
+
+def test_feedback_payload_caps_the_app_version_at_80_characters():
+    payload = feedback_payload(
+        kind="feedback",
+        message="A normal report",
+        checklist="",
+        app_version="  " + "v" * (MAX_APP_VERSION + 40),
+    )
+
+    assert len(payload.app_version) == MAX_APP_VERSION
+    assert payload.app_version == "v" * MAX_APP_VERSION
 
 
 def test_send_posts_the_exact_json_body_and_headers():
@@ -395,9 +459,44 @@ def test_malformed_or_not_ok_responses_fail(body):
     assert raised.value.key == "feedback.failed"
 
 
-def test_serialized_body_has_no_secret_sentinel():
+def test_http_error_is_closed_before_it_is_mapped():
+    error = _http_error(500)
+    closed: list[bool] = []
+    error.close = lambda: closed.append(True)  # type: ignore[method-assign]
+
+    with mock.patch(
+        "cleanyourmail_app.services.feedback.urllib.request.urlopen",
+        side_effect=error,
+    ):
+        with pytest.raises(FeedbackError) as raised:
+            _send(_payload())
+
+    assert raised.value.key == "feedback.failed"
+    assert closed == [True]
+
+
+@pytest.mark.parametrize(
+    "side_effect",
+    [
+        ValueError("unknown url type"),
+        http.client.BadStatusLine("broken status line"),
+        http.client.IncompleteRead(b"partial"),
+    ],
+)
+def test_invalid_urls_and_http_client_errors_fail(side_effect):
+    with mock.patch(
+        "cleanyourmail_app.services.feedback.urllib.request.urlopen",
+        side_effect=side_effect,
+    ):
+        with pytest.raises(FeedbackError) as raised:
+            _send(_payload())
+
+    assert raised.value.key == "feedback.failed"
+
+
+def test_serialized_body_carries_the_typed_text_and_only_declared_fields():
     token = "ghp_secret-sentinel-4d2c"
-    payload = _payload(message="A normal report", checklist="CleanYourMail app 0.4.0")
+    payload = _payload(message=f"A normal report {token}")
 
     with mock.patch(
         "cleanyourmail_app.services.feedback.urllib.request.urlopen",
@@ -405,9 +504,19 @@ def test_serialized_body_has_no_secret_sentinel():
     ) as urlopen:
         _send(payload)
 
-    body = urlopen.call_args.args[0].data.decode("utf-8").lower()
-    assert token.lower() not in body
-    assert "password" not in body
-    assert "token" not in body
-    assert "cookie" not in body
-    assert "authorization" not in body
+    body = urlopen.call_args.args[0].data.decode("utf-8")
+    parsed = json.loads(body)
+    # The text the person actually typed is what gets sent...
+    assert parsed["message"] == f"A normal report {token}"
+    # ...and nothing else is added to the payload.
+    assert set(parsed) == {
+        "kind",
+        "message",
+        "checklist",
+        "contact",
+        "app_version",
+        "website",
+    }
+    lowered = body.lower()
+    for marker in ("password", "cookie", "authorization"):
+        assert marker not in lowered

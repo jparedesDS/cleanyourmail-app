@@ -10,15 +10,29 @@ tokens and logs never enter it.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Mapping
 
 FEEDBACK_ENDPOINT = "https://cleanyourmail-feedback.subtitleme.workers.dev"
 FEEDBACK_KINDS = ("feedback", "bug")
-MAX_MESSAGE = 4000
-MAX_CHECKLIST = 6000
+MAX_MESSAGE = 2800
+MAX_CHECKLIST = 2500
 MAX_CONTACT = 200
+MAX_APP_VERSION = 80
 
-_UNKNOWN = "(unknown)"
+#: English defaults keep this module usable without a translator. The dialog
+#: passes ``translator.t("feedback.checklist.*")`` so the prefilled text is in
+#: the active language.
+_DEFAULT_LABELS: dict[str, str] = {
+    "app": "CleanYourMail app",
+    "sidecar": "Sidecar",
+    "windows": "Windows",
+    "provider": "Provider",
+    "mode": "Mode",
+    "categories": "Categories",
+    "language": "Language",
+    "unknown": "(unknown)",
+    "none": "(none)",
+}
 
 
 @dataclass(frozen=True)
@@ -42,11 +56,11 @@ class FeedbackPayload:
         }
 
 
-def _shown(value: str) -> str:
+def _shown(value: str, unknown: str) -> str:
     """Return a trimmed value, or a placeholder when it is missing."""
     if not isinstance(value, str):
-        return _UNKNOWN
-    return value.strip() or _UNKNOWN
+        return unknown
+    return value.strip() or unknown
 
 
 def build_checklist(
@@ -57,8 +71,18 @@ def build_checklist(
     categories: Iterable[str],
     language: str,
     windows_version: str,
+    labels: Mapping[str, str] | None = None,
 ) -> str:
-    """Return a plain-text checklist with no account or message data."""
+    """Return a plain-text checklist with no account or message data.
+
+    ``labels`` overrides the English defaults by key: ``app``, ``sidecar``,
+    ``windows``, ``provider``, ``mode``, ``categories``, ``language``,
+    ``unknown`` and ``none``. The dialog supplies translated labels; the
+    domain module stays usable on its own with the defaults.
+    """
+    resolved = {**_DEFAULT_LABELS, **(labels or {})}
+    unknown = resolved["unknown"]
+
     selected: list[str] = []
     for category in categories:
         if not isinstance(category, str):
@@ -68,13 +92,15 @@ def build_checklist(
             selected.append(name)
 
     lines = [
-        f"CleanYourMail app {_shown(app_version)}",
-        f"Sidecar: {_shown(sidecar_version)}",
-        f"Windows: {_shown(windows_version)}",
-        f"Provider: {_shown(provider)}",
-        f"Mode: {_shown(mode)}",
-        "Categories: " + (", ".join(selected) if selected else "(none)"),
-        f"Language: {_shown(language)}",
+        f"{resolved['app']} {_shown(app_version, unknown)}",
+        f"{resolved['sidecar']}: {_shown(sidecar_version, unknown)}",
+        f"{resolved['windows']}: {_shown(windows_version, unknown)}",
+        f"{resolved['provider']}: {_shown(provider, unknown)}",
+        f"{resolved['mode']}: {_shown(mode, unknown)}",
+        resolved["categories"]
+        + ": "
+        + (", ".join(selected) if selected else resolved["none"]),
+        f"{resolved['language']}: {_shown(language, unknown)}",
     ]
     return "\n".join(lines)
 
@@ -122,13 +148,14 @@ def feedback_payload(
         message=message.strip(),
         checklist=checklist.strip(),
         contact=contact.strip(),
-        app_version=app_version.strip(),
+        app_version=app_version.strip()[:MAX_APP_VERSION].rstrip(),
     )
 
 
 __all__ = [
     "FEEDBACK_ENDPOINT",
     "FEEDBACK_KINDS",
+    "MAX_APP_VERSION",
     "MAX_CHECKLIST",
     "MAX_CONTACT",
     "MAX_MESSAGE",

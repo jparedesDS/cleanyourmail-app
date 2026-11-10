@@ -132,8 +132,10 @@ subjects, message IDs, passwords, tokens or logs.
 ## Security and privacy
 
 - Webhook and salt live only in Cloudflare secrets.
-- The Worker caps the body at 16 KB, the message at 4000 characters, the
-  checklist at 6000, contact at 200 and app version at 80.
+- The Worker caps the body at 16 KB and accepts up to 4000 message characters
+  and 6000 checklist characters. The clients are stricter: they deliver at most
+  2800 and 2500, so a normal client payload is never silently truncated. Contact
+  is capped at 200 and app version at 80.
 - Discord mentions are disabled and code fences are neutralised.
 - The Worker returns generic errors and does not log or store the body.
 - The rate limiter stores only a hashed key with a five-minute TTL.

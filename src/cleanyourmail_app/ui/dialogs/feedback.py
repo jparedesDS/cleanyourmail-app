@@ -222,6 +222,20 @@ class FeedbackDialog(QDialog):
     def _prefill_checklist(self) -> None:
         """Show only the facts the design reviewed; nothing account-specific."""
         provider_label = self._provider.label if self._provider is not None else ""
+        labels = {
+            key: self._translator.t(f"feedback.checklist.{key}")
+            for key in (
+                "app",
+                "sidecar",
+                "windows",
+                "provider",
+                "mode",
+                "categories",
+                "language",
+                "unknown",
+                "none",
+            )
+        }
         checklist = build_checklist(
             app_version=self._app_version,
             sidecar_version=self._sidecar_version,
@@ -230,6 +244,7 @@ class FeedbackDialog(QDialog):
             categories=self._preferences.categories,
             language=self._translator.language,
             windows_version=platform.platform(),
+            labels=labels,
         )
         self.checklist_edit.setPlainText(checklist)
 
@@ -338,7 +353,7 @@ class FeedbackDialog(QDialog):
         self.kind_combo.setItemText(1, t("feedback.kind_bug"))
         self.message_label.setText(t("feedback.message"))
         self.message_edit.setPlaceholderText(t("feedback.message_placeholder"))
-        self.checklist_label.setText(t("feedback.checklist"))
+        self.checklist_label.setText(t("feedback.checklist_label"))
         self.checklist_help.setText(t("feedback.checklist_help"))
         self.contact_label.setText(t("feedback.contact"))
         self.contact_edit.setPlaceholderText(t("feedback.contact_placeholder"))

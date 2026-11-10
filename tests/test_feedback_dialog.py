@@ -315,6 +315,32 @@ def test_the_checklist_contains_only_reviewed_facts(dialog):
     assert "c:" not in lowered
 
 
+def test_the_checklist_prefill_is_localized_in_spanish(qtbot, provider, preferences):
+    translator = Translator("es")
+    dialog = FeedbackDialog(
+        version.__version__,
+        SIDECAR_VERSION,
+        provider,
+        preferences,
+        translator,
+    )
+    qtbot.addWidget(dialog)
+
+    text = dialog.checklist_edit.toPlainText()
+
+    assert "Proveedor: Gmail" in text
+    assert "Modo: folders" in text
+    assert "Categorías: newsletter, promotion" in text
+    assert "Idioma: es" in text
+    assert "Provider:" not in text
+    assert "Mode:" not in text
+
+
+def test_the_consent_line_names_discord(dialog, translator):
+    assert dialog.consent_checkbox.text() == translator.t("feedback.consent")
+    assert "Discord" in dialog.consent_checkbox.text()
+
+
 def test_the_copy_mentions_telemetry_and_what_not_to_include(dialog):
     body = f"{dialog.body_label.text()} {dialog.checklist_help.text()}".lower()
 
