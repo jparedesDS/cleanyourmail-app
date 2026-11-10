@@ -239,6 +239,7 @@ class ProviderPage(QWidget):
 
         self.email_error.setText(t("provider.email.invalid"))
         self.email_error.setVisible(show_error)
+        self.settings_error.setText(t("errors.settings_write"))
         set_dynamic_property(self.email_edit, "invalid", show_error)
         self.email_hint.setText(self._email_hint(email, valid, selected))
 
