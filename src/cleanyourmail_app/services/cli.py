@@ -35,6 +35,15 @@ SIDECAR_NAMES = ("cym-cli.exe", "cym-cli")
 #: page always runs it off the UI thread, so a generous ceiling is safe.
 SCAN_TIMEOUT = 900
 
+#: An apply may move thousands of messages (``max_moves`` can reach 5000), so
+#: the generic two-minute ceiling is too short. A timeout means the outcome is
+#: unknown: the page closes the gate rather than assuming nothing moved.
+APPLY_TIMEOUT = 1800
+
+#: Undo verifies every message identity before moving it back, which is slower
+#: than the summary calls but bounded by the run being restored.
+UNDO_TIMEOUT = 900
+
 
 class CliError(RuntimeError):
     """The sidecar is missing, cannot be started or did not answer."""
@@ -219,12 +228,15 @@ class CliClient:
         limit: int,
         *,
         config_path: Path | None = None,
+        timeout: int = APPLY_TIMEOUT,
     ) -> dict[str, Any]:
         """Move at most ``limit`` messages from a reviewed plan.
 
         ``--action move`` is always explicit: even a plan that also carries
         unsubscribe actions cannot make this call send one. ``--yes`` is the
-        app's confirmation, which the page asks for before it gets here.
+        app's confirmation, which the page asks for before it gets here. A
+        timeout is not a safe "nothing happened" signal; the caller must close
+        its gate because the sidecar may already have moved messages.
         """
         return self.run(
             [
@@ -237,6 +249,7 @@ class CliClient:
                 str(_positive(limit, "limit")),
             ],
             config_path=config_path,
+            timeout=timeout,
         )
 
     def journal(
@@ -260,11 +273,13 @@ class CliClient:
         run: str,
         *,
         config_path: Path | None = None,
+        timeout: int = UNDO_TIMEOUT,
     ) -> dict[str, Any]:
         """Ask the sidecar to restore one journal run, after its own checks."""
         return self.run(
             ["undo", "--run", _run(run), "--yes"],
             config_path=config_path,
+            timeout=timeout,
         )
 
     def version(self) -> str:

@@ -295,6 +295,7 @@
       "title": "Undo",
       "body": "Every run writes a journal. Undo restores messages only after checking their identity.",
       "button": "Undo last run",
+      "selected": "Undo selected run",
       "confirm": "Undo the last run and restore its messages?",
       "confirm_run": "Undo run {run} and restore its messages?",
       "running": "Restoring messages…",

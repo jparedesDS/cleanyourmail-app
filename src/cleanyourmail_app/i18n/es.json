@@ -295,6 +295,7 @@
       "title": "Deshacer",
       "body": "Cada ejecución guarda un diario. Deshacer restaura los mensajes solo después de comprobar su identidad.",
       "button": "Deshacer la última ejecución",
+      "selected": "Deshacer la ejecución seleccionada",
       "confirm": "¿Deshacer la última ejecución y restaurar sus mensajes?",
       "confirm_run": "¿Deshacer la ejecución {run} y restaurar sus mensajes?",
       "running": "Restaurando mensajes…",

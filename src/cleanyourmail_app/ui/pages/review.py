@@ -313,7 +313,7 @@ class JournalDialog(QDialog):
             else:
                 item.setText(text)
         self.table.setAccessibleName(", ".join(headers))
-        self.undo_button.setText(t("review.undo.button"))
+        self.undo_button.setText(t("review.undo.selected"))
         self.close_button.setText(t("review.close"))
         self._refresh_empty()
 
@@ -345,8 +345,9 @@ class ReviewPage(QWidget):
         self._status_extra_args: dict[str, object] = {}
         self._error_key: str | None = None
         self._error_args: dict[str, object] = {}
-        #: A plan whose messages were (fully or partly) moved must never be
-        #: applied a second time; only a fresh scan or plan clears this.
+        #: A started apply may have moved messages even when its outcome is
+        #: unknown, so this closes the plan's gate as soon as apply begins.
+        #: Only a fresh scan or plan clears it.
         self._applied = False
         #: The newest run the page knows about, for the footer's undo shortcut.
         self._last_run: str | None = None
@@ -496,6 +497,12 @@ class ReviewPage(QWidget):
         if self._busy is not None or self._applied:
             return
 
+        # The moment the worker starts, the outcome is uncertain: a timeout or
+        # a crash can leave messages moved with no result to parse. Close this
+        # plan's gate now and reserve "apply" for a fresh scan or plan.
+        self._applied = True
+        self._refresh_gate()
+
         config_path = self._services.config.config_path()
         self._start(
             "apply",
@@ -625,6 +632,18 @@ class ReviewPage(QWidget):
             self._refresh_actions()
             return
 
+        if (
+            action == "journal"
+            and quiet
+            and (not isinstance(result, Mapping) or result.get("ok") is False)
+        ):
+            # A background refresh after undo must not erase the restored
+            # count or close the journal; keep both as the person left them.
+            if self._journal_dialog is not None:
+                self._journal_dialog.set_busy(False)
+            self._refresh_actions()
+            return
+
         self._refresh_actions()
         if not isinstance(result, Mapping) or result.get("ok") is False:
             self._fail(action)
@@ -710,6 +729,8 @@ class ReviewPage(QWidget):
         if not isinstance(run, str) or not run:
             raise ValueError("apply result needs a run id")
         moved = self._int(payload.get("moved"))
+        # v1.2.2 exits non-zero when `failures` is non-empty, so an ok=True
+        # payload is a complete run; partial runs take `_apply_partial`.
         self._mark_applied(run)
         self._set_status(
             "apply.done",
@@ -760,8 +781,14 @@ class ReviewPage(QWidget):
             # late answer must not pop it back open.
             return
         dialog.set_runs(runs)
+        if not runs:
+            # An empty journal means there is nothing for "Undo last run" to
+            # target, even if an older apply remembered a run.
+            self._last_run = None
         if not quiet:
-            self._last_run = runs[0]["run"] if runs else self._last_run
+            # A generic journal load must not choose the footer's target: the
+            # newest entry may be an undo record or another run this page did
+            # not apply. Only a successful/partial apply sets `_last_run`.
             self._set_status(None)
             self._set_error(None)
             self._sync_feedback()
@@ -801,10 +828,16 @@ class ReviewPage(QWidget):
         self._sync_feedback()
 
     def _is_partial_undo(self, result: object) -> bool:
+        """A failed undo that still restored or attempted something."""
         if not isinstance(result, Mapping) or result.get("ok") is not False:
             return False
-        restored = self._payload(result).get("restored")
-        return isinstance(restored, int) and not isinstance(restored, bool)
+        payload = self._payload(result)
+        restored = payload.get("restored")
+        if isinstance(restored, bool) or not isinstance(restored, int):
+            return False
+        failed = self._int(payload.get("failed"))
+        refused = self._int(payload.get("refused"))
+        return restored > 0 or failed > 0 or refused > 0
 
     def _undo_finished(self, result: object) -> None:
         payload = self._payload(result)
@@ -813,6 +846,8 @@ class ReviewPage(QWidget):
             raise ValueError("undo result needs a restored count")
         failed = self._int(payload.get("failed"))
         refused = self._int(payload.get("refused"))
+        if restored == 0 and failed == 0 and refused == 0:
+            raise ValueError("undo result has no operations")
         # The newest journal entry is now the undo itself, not a useful
         # "undo last run" target; force a fresh choice from the journal.
         self._last_run = None

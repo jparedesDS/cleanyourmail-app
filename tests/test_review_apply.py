@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -32,7 +33,7 @@ from PySide6.QtWidgets import QLabel, QMessageBox, QPushButton, QTableWidget
 
 from cleanyourmail_app.domain.models import AppSettings, Preferences
 from cleanyourmail_app.services.app_services import AppServices
-from cleanyourmail_app.services.cli import CliClient
+from cleanyourmail_app.services.cli import CliClient, CliError
 from cleanyourmail_app.services.config import ConfigService
 from cleanyourmail_app.ui.pages.review import REPORT_TOP, ReviewPage
 
@@ -350,6 +351,22 @@ def test_undo_helper_passes_the_run_and_yes(sidecar):
     ]
 
 
+def test_apply_and_undo_use_timeouts_that_match_their_work(monkeypatch):
+    client = CliClient(["cym-cli"])
+    seen: list[int] = []
+
+    def execute(argv: list[str], timeout: int) -> subprocess.CompletedProcess:
+        seen.append(timeout)
+        return subprocess.CompletedProcess(argv, 0, '{"ok": true}', "")
+
+    monkeypatch.setattr(client, "_execute", execute)
+
+    client.apply("plan.json", 5)
+    client.undo("20261110T120000Z-abc123")
+
+    assert seen == [1800, 900]
+
+
 @pytest.mark.parametrize("limit", [0, -1, True, "5", None])
 def test_apply_and_journal_helpers_refuse_a_bad_limit(sidecar, limit):
     client = sidecar.client()
@@ -506,7 +523,40 @@ def test_a_failed_apply_without_a_run_shows_only_localized_copy(
     assert page.error_label.isHidden() is False
     assert "login refused" not in _labels(page)
     assert page.plan_move_count() == 5
-    assert page.review_checkbox.isEnabled() is True
+    # A started apply may have moved mail before the error: the gate stays
+    # closed until a fresh scan or plan.
+    assert page.review_checkbox.isChecked() is False
+    assert page.review_checkbox.isEnabled() is False
+    assert page.apply_button.isEnabled() is False
+
+    page.apply(5)
+    page.review_checkbox.setChecked(True)
+    page.apply_button.click()
+    qtbot.wait(50)
+
+    assert [call[0] for call in cli.calls] == ["apply"]
+
+
+def test_an_apply_with_no_answer_closes_the_gate_and_blocks_a_second_try(
+    page, cli, qtbot, services, confirm
+):
+    cli.apply_result = CliError("the sidecar did not answer")
+    _ready_to_apply(page)
+
+    page.apply_button.click()
+    _wait(page, qtbot)
+
+    assert page.error_label.text() == services.translator.t("errors.apply")
+    assert page.review_checkbox.isChecked() is False
+    assert page.review_checkbox.isEnabled() is False
+    assert page.apply_button.isEnabled() is False
+
+    page.apply(5)
+    page.review_checkbox.setChecked(True)
+    page.apply_button.click()
+    qtbot.wait(50)
+
+    assert [call[0] for call in cli.calls] == ["apply"]
 
 
 def test_a_partial_apply_with_a_run_keeps_undo_discoverable_and_closes_the_gate(
@@ -573,6 +623,9 @@ def test_the_journal_lists_runs_with_full_ids(page, cli, qtbot, services):
     assert dialog.table.item(0, 2).text() == "5"
     assert dialog.table.item(0, 3).text() == "3"
     assert dialog.undo_button.isEnabled() is False
+    # A generic journal load does not choose the footer's undo target.
+    assert page.last_run is None
+    assert page.undo_button.isEnabled() is False
 
     dialog.table.selectRow(0)
 
@@ -595,6 +648,23 @@ def test_an_empty_journal_shows_the_empty_state(page, cli, qtbot, services):
     assert dialog.empty_label.text() == services.translator.t("review.journal_empty")
     assert dialog.table.isHidden() is True
     assert dialog.undo_button.isEnabled() is False
+
+
+def test_an_empty_journal_clears_the_undo_last_run_target(
+    page, cli, qtbot, confirm
+):
+    _ready_to_apply(page)
+    page.apply_button.click()
+    _wait(page, qtbot)
+    assert page.last_run == APPLY_OK["run"]
+    assert page.undo_button.isEnabled() is True
+
+    cli.journal_result = _result({"runs": []})
+    page.load_journal()
+    _wait(page, qtbot)
+
+    assert page.last_run is None
+    assert page.undo_button.isEnabled() is False
 
 
 def test_the_journal_button_opens_the_journal(page, cli, qtbot):
@@ -661,6 +731,82 @@ def test_undo_without_a_run_points_at_the_journal(page, cli, qtbot, services):
     assert cli.calls == []
 
 
+def test_a_failed_undo_shows_localized_copy_and_keeps_the_target(
+    page, cli, qtbot, services, confirm
+):
+    _ready_to_apply(page)
+    page.apply_button.click()
+    _wait(page, qtbot)
+    cli.undo_result = _result(
+        {"error": "connection lost during undo"}, ok=False, exit_code=2
+    )
+
+    page.undo_button.click()
+    _wait(page, qtbot)
+
+    assert page.error_label.text() == services.translator.t("errors.undo")
+    assert "connection lost" not in _labels(page)
+    assert page.undo_button.isEnabled() is True
+
+
+def test_a_partial_undo_shows_the_restored_count_and_the_failures(
+    page, cli, qtbot, services, confirm
+):
+    _ready_to_apply(page)
+    page.apply_button.click()
+    _wait(page, qtbot)
+    cli.undo_result = _result(
+        {
+            "run": "20261110T130000Z-und002",
+            "source_run": APPLY_OK["run"],
+            "restored": 3,
+            "failed": 1,
+            "refused": 0,
+            "operations": [],
+        },
+        ok=False,
+        exit_code=2,
+    )
+
+    page.undo_button.click()
+    _wait(page, qtbot)
+
+    assert page.status_label.text() == services.translator.t(
+        "review.undo.done", count=3
+    )
+    assert page.error_label.text() == services.translator.t(
+        "review.undo.partial", failed=1, refused=0
+    )
+    assert page.undo_button.isEnabled() is False
+
+
+def test_an_undo_with_nothing_restored_shows_the_error(
+    page, cli, qtbot, services, confirm
+):
+    _ready_to_apply(page)
+    page.apply_button.click()
+    _wait(page, qtbot)
+    cli.undo_result = _result(
+        {
+            "run": "20261110T130000Z-und003",
+            "source_run": APPLY_OK["run"],
+            "restored": 0,
+            "failed": 0,
+            "refused": 0,
+            "operations": [],
+        },
+        ok=False,
+        exit_code=2,
+    )
+
+    page.undo_button.click()
+    _wait(page, qtbot)
+
+    assert page.error_label.text() == services.translator.t("errors.undo")
+    assert page.status_label.isHidden() is True
+    assert services.translator.t("review.undo.done", count=0) not in _labels(page)
+
+
 def test_undo_last_run_after_an_apply_keeps_the_gate_closed(
     page, cli, qtbot, services, confirm
 ):
@@ -697,6 +843,30 @@ def test_undo_refreshes_the_open_journal(page, cli, qtbot, services, confirm):
     assert dialog.table.rowCount() == 1
     assert dialog.table.item(0, 1).text() == JOURNAL_RUNS[0]["run"]
     assert dialog.undo_button.isEnabled() is False
+
+
+def test_a_failed_quiet_refresh_keeps_the_undo_feedback_and_dialog(
+    page, cli, qtbot, services, confirm
+):
+    page.load_journal()
+    _wait(page, qtbot)
+    dialog = page.journal_dialog
+    dialog.table.selectRow(0)
+    # The undo succeeds, but the journal refresh that follows does not.
+    cli.journal_result = _result(
+        {"error": "journal.jsonl is unreadable"}, ok=False, exit_code=2
+    )
+
+    dialog.undo_button.click()
+    _wait(page, qtbot)
+
+    assert page.status_label.text() == services.translator.t(
+        "review.undo.done", count=5
+    )
+    assert page.error_label.isHidden() is True
+    assert page.journal_dialog is dialog
+    assert dialog.isVisible() is True
+    assert dialog.table.rowCount() == len(JOURNAL_RUNS)
 
 
 def test_reload_discards_a_journal_response_from_before_the_new_page(
@@ -787,4 +957,4 @@ def test_the_journal_and_undo_controls_are_translated(qtbot, services):
     dialog = page.journal_dialog
     assert dialog.windowTitle() == t("review.journal")
     assert dialog.table.horizontalHeaderItem(0).text() == t("review.journal_when")
-    assert dialog.undo_button.text() == t("review.undo.button")
+    assert dialog.undo_button.text() == t("review.undo.selected")
