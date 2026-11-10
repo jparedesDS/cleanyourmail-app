@@ -39,6 +39,22 @@ from cleanyourmail_app.services.config import ConfigServiceError
 from cleanyourmail_app.services.secrets import save_app_password
 from cleanyourmail_app.ui.style import set_dynamic_property
 
+#: The documented IMAP host for each app-password provider. The sidecar only
+#: presets a few domains (gmail.com/googlemail.com, yahoo.com, icloud.com/me.com,
+#: fastmail.com), so a catalog address such as a Google Workspace domain,
+#: mac.com, fastmail.fm or yahoo.co.uk would otherwise fall back to
+#: ``imap.example.com``. Passing the host keeps every card working.
+#:
+#: Proton is deliberately absent: its sidecar preset is 127.0.0.1:1143 with
+#: STARTTLS, and an explicit ``--host`` would replace that with the 993/TLS
+#: template. Outlook is handled by ``ConfigService.ensure``.
+IMAP_HOSTS: dict[str, str] = {
+    "gmail": "imap.gmail.com",
+    "yahoo": "imap.mail.yahoo.com",
+    "icloud": "imap.mail.me.com",
+    "fastmail": "imap.fastmail.com",
+}
+
 #: Providers whose connection uses a pasted secret.
 SECRET_KINDS = frozenset({"app_password", "bridge", "custom"})
 
@@ -470,15 +486,18 @@ class ConnectPage(QWidget):
     def _target_host(self) -> str | None:
         """The host ``init`` should write, or ``None`` to keep its preset.
 
-        The sidecar already knows Gmail, Yahoo, iCloud, Fastmail and Proton
-        (including Proton's 1143/STARTTLS); passing ``--host`` would replace
-        that preset with the 993/TLS default. Only Custom IMAP needs a host
-        from the page, and an explicit host there has no preset to protect.
+        Gmail, Yahoo, iCloud and Fastmail pass their documented host because
+        the sidecar only presets a few of their domains. Proton returns ``None``
+        so its 1143/STARTTLS preset survives; Custom uses the field.
         """
         provider = self._provider
-        if provider is not None and provider.auth_kind == "custom":
+        if provider is None:
+            return None
+        if provider.auth_kind == "custom":
             return self.host_edit.text().strip() or None
-        return None
+        if provider.auth_kind == "device_code":
+            return None
+        return IMAP_HOSTS.get(provider.id)
 
     # -- save ---------------------------------------------------------------
 

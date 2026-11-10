@@ -43,6 +43,7 @@ PRESETS: dict[str, tuple[str, int, bool, bool]] = {
     "googlemail.com": ("imap.gmail.com", 993, True, False),
     "yahoo.com": ("imap.mail.yahoo.com", 993, True, False),
     "icloud.com": ("imap.mail.me.com", 993, True, False),
+    "me.com": ("imap.mail.me.com", 993, True, False),
     "fastmail.com": ("imap.fastmail.com", 993, True, False),
     "proton.me": ("127.0.0.1", 1143, False, True),
     "protonmail.com": ("127.0.0.1", 1143, False, True),
@@ -449,20 +450,22 @@ def test_saving_writes_the_secret_runs_doctor_and_clears_the_field(
     assert page.error_label.isHidden() is True
 
 
-def test_saving_leaves_the_gmail_preset_to_the_sidecar(
+def test_gmail_dot_com_keeps_the_preset_values(
     qtbot, page, services, cli
 ):
+    """The explicit host matches the sidecar preset, so .com is unchanged."""
     page.password_edit.setText(SECRET)
 
     _save(qtbot, page, page.connectionSucceeded)
 
     init = cli.calls[0]["args"]
-    assert "--host" not in init
+    assert init[init.index("--host") + 1] == "imap.gmail.com"
     config = tomllib.loads(
         services.config.config_path().read_text(encoding="utf-8")
     )
     assert config["account"]["imap_host"] == "imap.gmail.com"
     assert config["account"]["imap_port"] == 993
+    assert config["account"]["imap_ssl"] is True
     assert config["account"]["email"] == "me@gmail.com"
     assert Path(config["account"]["password_file"]) == services.config.secret_path
 
@@ -475,7 +478,7 @@ def test_saving_leaves_the_gmail_preset_to_the_sidecar(
         ("fastmail", "imap.fastmail.com"),
     ],
 )
-def test_app_password_providers_leave_the_sidecar_preset_alone(
+def test_app_password_providers_write_their_documented_host(
     qtbot, services, cli, provider_id, host
 ):
     page = CONNECT.ConnectPage(services)
@@ -486,11 +489,47 @@ def test_app_password_providers_leave_the_sidecar_preset_alone(
     _save(qtbot, page, page.connectionSucceeded)
 
     init = cli.calls[0]["args"]
-    assert "--host" not in init
+    assert init[init.index("--host") + 1] == host
     config = tomllib.loads(
         services.config.config_path().read_text(encoding="utf-8")
     )
     assert config["account"]["imap_host"] == host
+    assert config["account"]["imap_port"] == 993
+    assert config["account"]["imap_ssl"] is True
+
+
+@pytest.mark.parametrize(
+    ("provider_id", "email", "host"),
+    [
+        # A Google Workspace domain is not in the sidecar's preset table.
+        ("gmail", "me@workspace.example", "imap.gmail.com"),
+        # iCloud presets icloud.com and me.com, not mac.com.
+        ("icloud", "me@mac.com", "imap.mail.me.com"),
+        # Fastmail presets fastmail.com, not fastmail.fm.
+        ("fastmail", "me@fastmail.fm", "imap.fastmail.com"),
+        # Yahoo presets yahoo.com, not the other catalog TLDs.
+        ("yahoo", "me@yahoo.co.uk", "imap.mail.yahoo.com"),
+    ],
+    ids=["google-workspace", "mac-com", "fastmail-fm", "yahoo-co-uk"],
+)
+def test_catalog_domains_outside_the_sidecar_presets_get_a_host(
+    qtbot, services, cli, provider_id, email, host
+):
+    page = CONNECT.ConnectPage(services)
+    qtbot.addWidget(page)
+    page.set_provider(provider_by_id(provider_id), email)
+    page.password_edit.setText(SECRET)
+
+    _save(qtbot, page, page.connectionSucceeded)
+
+    init = cli.calls[0]["args"]
+    assert init[init.index("--host") + 1] == host
+    config = tomllib.loads(
+        services.config.config_path().read_text(encoding="utf-8")
+    )
+    assert config["account"]["imap_host"] == host
+    assert config["account"]["imap_port"] == 993
+    assert config["account"]["imap_ssl"] is True
 
 
 def test_proton_leaves_the_bridge_preset_intact(qtbot, services, cli):
