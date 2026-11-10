@@ -46,6 +46,9 @@ CleanYourMail CLI sidecar and renders the result, so there is one safety model a
   at a local `mail.py` or `cym-cli` build.
 
 The installer is per-user, needs no administrator rights, and is not code-signed in 0.3.0.
+Windows SmartScreen may show an "Unknown publisher" warning on first launch: choose **More info**
+then **Run anyway**, and compare the SHA-256 published with the release against
+`CleanYourMail-Setup-0.3.0.exe`.
 
 ## Development
 
