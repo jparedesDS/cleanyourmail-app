@@ -4,9 +4,9 @@
 happened through signals; the shell resolves ids, remembers the account it was
 handed and moves the rail forward. The Connect page receives the provider/email
 pair from the provider page; a successful connection advances to Preferences,
-which writes the policy before asking for the Review page. That last page is
-registered by a later task, so the shell advances only when it exists instead
-of raising a ``KeyError``.
+which writes the policy before asking for the Review page. Review reloads on
+arrival so it never shows a plan built from stale preferences; a page that is
+registered later is skipped instead of raising a ``KeyError``.
 
 Language switching is a window-level operation because the theme, the rail and
 every page share one ``Translator``.
@@ -36,6 +36,7 @@ from cleanyourmail_app.services.settings import SettingsStore
 from cleanyourmail_app.ui.pages.connect import ConnectPage
 from cleanyourmail_app.ui.pages.preferences import PreferencesPage
 from cleanyourmail_app.ui.pages.provider import ProviderPage
+from cleanyourmail_app.ui.pages.review import ReviewPage
 from cleanyourmail_app.ui.style import set_dynamic_property, theme_stylesheet
 
 #: The wizard order, used for the rail and the page keys.
@@ -120,6 +121,9 @@ class MainWindow(QMainWindow):
         self.preferences_page.continueRequested.connect(self._on_preferences_continue)
         self.preferences_page.languageChanged.connect(self.set_language)
         self.add_page("preferences", self.preferences_page)
+
+        self.review_page = ReviewPage(self.services, self)
+        self.add_page("review", self.review_page)
 
         self.show_page("provider")
 
@@ -217,9 +221,14 @@ class MainWindow(QMainWindow):
             self.show_page("preferences")
 
     def _on_preferences_continue(self) -> None:
-        """Advance after the policy is written; Review is a later task."""
-        if "review" in self.pages:
-            self.show_page("review")
+        """Advance to Review with a clean page, when it exists."""
+        if "review" not in self.pages:
+            return
+        page = self.pages["review"]
+        reload_page = getattr(page, "reload", None)
+        if callable(reload_page):
+            reload_page()
+        self.show_page("review")
 
     # -- language -----------------------------------------------------------
 

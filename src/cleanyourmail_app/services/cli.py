@@ -20,12 +20,19 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+
+from cleanyourmail_app.domain.models import CATEGORIES, MODES
 
 SIDECAR_ENV = "CYM_CLI"
 SIDECAR_DIR = Path("resources") / "cli"
 SIDECAR_NAMES = ("cym-cli.exe", "cym-cli")
+
+#: A header scan of a year's mail can take minutes on a large mailbox. The
+#: page always runs it off the UI thread, so a generous ceiling is safe.
+SCAN_TIMEOUT = 900
 
 
 class CliError(RuntimeError):
@@ -79,6 +86,13 @@ def _parse_json(text: str) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _positive(value: object, name: str) -> int:
+    """A whole number of at least one, or ``ValueError`` for a bad call."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
 class CliClient:
     """Run one sidecar executable and normalize its JSON contract."""
 
@@ -113,6 +127,66 @@ class CliClient:
             "stdout": completed.stdout,
             "stderr": completed.stderr,
         }
+
+    # -- typed helpers ------------------------------------------------------
+    #
+    # The wizard never builds argv itself. These three helpers mirror the
+    # frozen 1.2.2 commands and keep the ``--json`` flag in one place; each
+    # returns the same ``{ok, exit_code, data, stdout, stderr}`` shape as
+    # ``run`` and never raises for a failed command.
+
+    def scan(
+        self,
+        days: int,
+        *,
+        config_path: Path | None = None,
+        timeout: int = SCAN_TIMEOUT,
+    ) -> dict[str, Any]:
+        """Cache headers from the last ``days`` days (read-only)."""
+        return self.run(
+            ["scan", "--days", str(_positive(days, "days"))],
+            config_path=config_path,
+            timeout=timeout,
+        )
+
+    def report(
+        self,
+        top: int = 30,
+        *,
+        config_path: Path | None = None,
+    ) -> dict[str, Any]:
+        """Summarize the cache: categories, totals and sender groups."""
+        return self.run(
+            ["report", "--top", str(_positive(top, "top"))],
+            config_path=config_path,
+        )
+
+    def plan(
+        self,
+        mode: str,
+        categories: Iterable[str] = CATEGORIES,
+        *,
+        config_path: Path | None = None,
+    ) -> dict[str, Any]:
+        """Write ``plan.json`` from the cache without changing any message.
+
+        ``mode`` is ``folders`` (the reversible move) or ``archive`` (Gmail's
+        Inbox label). Every accepted category becomes one ``--category`` flag;
+        duplicates are dropped so the sidecar sees each class once.
+        """
+        if mode not in MODES:
+            raise ValueError(f"mode must be one of: {', '.join(MODES)}")
+        selected: list[str] = []
+        for category in categories:
+            if category not in CATEGORIES:
+                raise ValueError(f"categories must be a subset of: {', '.join(CATEGORIES)}")
+            if category not in selected:
+                selected.append(category)
+
+        args = ["plan", "--mode", mode]
+        for category in selected:
+            args.extend(["--category", category])
+        return self.run(args, config_path=config_path)
 
     def version(self) -> str:
         """Return the sidecar's version line, e.g. ``CleanYourMail 1.2.2``."""

@@ -428,7 +428,7 @@ def test_a_successful_connection_reaches_the_preferences_page(qtbot, window):
     assert window.step_labels["preferences"].property("active") is True
 
 
-def test_continue_without_a_review_page_does_not_crash(qtbot, window, services):
+def test_continue_reaches_the_review_page(qtbot, window, services):
     _select(window, "gmail", "me@gmail.com")
     window.connect_page.password_edit.setText(SECRET)
     with qtbot.waitSignal(
@@ -445,4 +445,4 @@ def test_continue_without_a_review_page_does_not_crash(qtbot, window, services):
             window.preferences_page.continue_button, Qt.MouseButton.LeftButton
         )
 
-    assert window.current_page_key() == "preferences"
+    assert window.current_page_key() == "review"

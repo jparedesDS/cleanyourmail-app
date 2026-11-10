@@ -15,7 +15,6 @@ import re
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget
 
 from cleanyourmail_app.domain.models import AppSettings, Preferences
 from cleanyourmail_app.domain.providers import PROVIDERS
@@ -80,9 +79,9 @@ def test_the_theme_keeps_touch_targets_at_44_px():
     assert "min-height: 44px;" in block("QCheckBox")
 
 
-def test_the_shell_can_register_and_show_a_later_page(window):
-    window.add_page("review", QWidget())
-
+def test_the_shell_can_show_a_later_page(window):
+    # Review is registered by the shell itself; showing it marks the earlier
+    # steps done and moves the rail without needing a second registration.
     window.show_page("review")
 
     assert window.current_page_key() == "review"
