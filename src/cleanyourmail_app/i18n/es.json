@@ -233,6 +233,7 @@
       "title": "Límites",
       "max_moves": "Máximo de movimientos por ejecución",
       "max_per_group": "Máximo de mensajes por grupo de remitente",
+      "out_of_range": "Revisa los límites: edad 0–3650 días, movimientos y grupos 1–5000.",
       "help": "Las ejecuciones pequeñas son más fáciles de revisar y deshacer."
     },
     "advanced": {

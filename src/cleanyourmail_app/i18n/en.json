@@ -233,6 +233,7 @@
       "title": "Limits",
       "max_moves": "Maximum moves per run",
       "max_per_group": "Maximum messages per sender group",
+      "out_of_range": "Check the limits: age 0–3650 days, moves and groups 1–5000.",
       "help": "Small runs are easier to check and undo."
     },
     "advanced": {

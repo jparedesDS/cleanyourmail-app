@@ -754,7 +754,6 @@ def test_continue_from_the_provider_page_reaches_the_connect_page(window, servic
 def test_a_successful_connection_advances_to_the_next_page(
     qtbot, window, services
 ):
-    window.add_page("preferences", QWidget())
     _select(window, "gmail", "me@gmail.com")
     window.connect_page.password_edit.setText(SECRET)
 
@@ -763,15 +762,9 @@ def test_a_successful_connection_advances_to_the_next_page(
     assert window.current_page_key() == "preferences"
 
 
-def test_a_successful_connection_without_a_preferences_page_does_not_crash(
-    qtbot, window, services
-):
-    _select(window, "gmail", "me@gmail.com")
-    window.connect_page.password_edit.setText(SECRET)
-
-    _save(qtbot, window.connect_page, window.connect_page.connectionSucceeded)
-
-    assert window.current_page_key() == "connect"
+def test_the_shell_owns_the_real_preferences_page(window, services):
+    """Task 9 registers the page, so Connect always has somewhere to advance."""
+    assert window.pages["preferences"] is window.preferences_page
 
 
 def test_back_returns_to_the_provider_page_without_losing_the_account(

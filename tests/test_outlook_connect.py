@@ -432,7 +432,6 @@ def test_the_signin_button_opens_the_verification_uri(qtbot, page):
 def test_approving_waits_then_runs_doctor_and_advances(
     qtbot, window, services, cli
 ):
-    window.add_page("preferences", QWidget())
     _select(window, "outlook", "me@outlook.com")
     page = window.connect_page
     _start(qtbot, page)
@@ -469,7 +468,6 @@ def test_a_doctor_failure_after_approval_stays_on_the_connect_page(
     qtbot, window, services, cli
 ):
     t = services.translator.t
-    window.add_page("preferences", QWidget())
     _select(window, "outlook", "me@outlook.com")
     page = window.connect_page
     cli.doctor_ok = False
@@ -528,7 +526,6 @@ def test_a_blocked_sign_in_shows_localized_copy_and_stays(
     qtbot, window, services, cli, message, error_key, hint_key
 ):
     t = services.translator.t
-    window.add_page("preferences", QWidget())
     _select(window, "outlook", "me@outlook.com")
     page = window.connect_page
     cli.wait_ok = False
@@ -661,7 +658,6 @@ def test_no_token_or_refresh_value_is_rendered_logged_or_stored(
 ):
     caplog.set_level(logging.DEBUG)
     services.settings.save(AppSettings(provider="outlook", email="me@outlook.com"))
-    window.add_page("preferences", QWidget())
     _select(window, "outlook", "me@outlook.com")
     page = window.connect_page
     _start(qtbot, page)

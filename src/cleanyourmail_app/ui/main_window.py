@@ -2,10 +2,11 @@
 
 ``MainWindow`` is the only object that knows the step order. Pages report what
 happened through signals; the shell resolves ids, remembers the account it was
-handed and moves the rail forward. The Connect page is registered here and
-receives the provider/email pair from the provider page; a successful
-connection advances only when the next page is registered, because the
-Preferences page lands in a later task.
+handed and moves the rail forward. The Connect page receives the provider/email
+pair from the provider page; a successful connection advances to Preferences,
+which writes the policy before asking for the Review page. That last page is
+registered by a later task, so the shell advances only when it exists instead
+of raising a ``KeyError``.
 
 Language switching is a window-level operation because the theme, the rail and
 every page share one ``Translator``.
@@ -33,6 +34,7 @@ from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
 from cleanyourmail_app.services.settings import SettingsStore
 from cleanyourmail_app.ui.pages.connect import ConnectPage
+from cleanyourmail_app.ui.pages.preferences import PreferencesPage
 from cleanyourmail_app.ui.pages.provider import ProviderPage
 from cleanyourmail_app.ui.style import set_dynamic_property, theme_stylesheet
 
@@ -113,6 +115,11 @@ class MainWindow(QMainWindow):
         self.connect_page.backRequested.connect(self._on_connect_back)
         self.connect_page.connectionSucceeded.connect(self._on_connected)
         self.add_page("connect", self.connect_page)
+
+        self.preferences_page = PreferencesPage(self.services, self)
+        self.preferences_page.continueRequested.connect(self._on_preferences_continue)
+        self.preferences_page.languageChanged.connect(self.set_language)
+        self.add_page("preferences", self.preferences_page)
 
         self.show_page("provider")
 
@@ -199,11 +206,20 @@ class MainWindow(QMainWindow):
     def _on_connected(self) -> None:
         """Advance after a successful doctor, when the next page exists.
 
-        The Preferences page arrives in a later task. Until then the shell
-        leaves the Connect page visible instead of raising a KeyError.
+        The Preferences page reloads first, so it always reflects the settings
+        file the connection may have just touched.
         """
         if "preferences" in self.pages:
+            page = self.pages["preferences"]
+            reload_page = getattr(page, "reload", None)
+            if callable(reload_page):
+                reload_page()
             self.show_page("preferences")
+
+    def _on_preferences_continue(self) -> None:
+        """Advance after the policy is written; Review is a later task."""
+        if "review" in self.pages:
+            self.show_page("review")
 
     # -- language -----------------------------------------------------------
 
