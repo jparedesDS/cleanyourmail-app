@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
                 reload_page()
             self.show_page("preferences")
 
-    # -- language -----------------------------------------------------------
+    # -- header language control -------------------------------------------
 
     def _build_header_languages(self) -> None:
         """The header language control, available on every wizard page."""
@@ -300,6 +300,7 @@ class MainWindow(QMainWindow):
         self.translator.set_language(language)
         self.retranslate()
         self._remember_language()
+
     def _remember_language(self) -> None:
         """Persist the choice best-effort; a read-only profile is not fatal."""
         try:

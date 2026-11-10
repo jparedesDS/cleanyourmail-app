@@ -413,6 +413,7 @@ def test_other_providers_accept_any_non_empty_password(qtbot, services):
 
     page.password_edit.setText("app-specific password")
     assert page.save_button.isEnabled() is True
+    assert page.password_edit.placeholderText() == ""
 
 
 # --- Saving ----------------------------------------------------------------

@@ -589,11 +589,11 @@ class ConnectPage(QWidget):
             help_key = "connect.app_password.help"
         self.password_label.setText(t(password_key))
         self.password_edit.setAccessibleName(t(password_key))
-        # "16-character app password" would be wrong for a Bridge/Custom
-        # password, so only the app-password providers get that placeholder.
+        # "16-character app password" is a Gmail rule; other providers keep an
+        # empty placeholder so the copy does not overpromise a length.
         self.password_edit.setPlaceholderText(
             t("connect.app_password.placeholder")
-            if provider is not None and provider.auth_kind == "app_password"
+            if provider is not None and provider.id == "gmail"
             else ""
         )
         self.help_label.setText(t(help_key))
