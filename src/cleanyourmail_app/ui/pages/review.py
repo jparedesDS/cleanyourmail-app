@@ -1,23 +1,29 @@
-"""The fourth wizard page: scan, report and a plan to review.
+"""The fourth wizard page: scan, report, plan, apply, journal and undo.
 
-The page is a *view* of the sidecar's dry run. It never implements IMAP,
-classification or planning; it asks ``CliClient`` for ``scan``, ``report`` and
-``plan`` in worker threads and renders the JSON into three stat cards and two
-tables. Nothing here changes a mailbox: the Review page stops at the gate, and
-apply, the journal and unsubscribe arrive with a later task.
+The page is a *view* of the sidecar. It never implements IMAP, classification,
+planning, moves or undo; it asks ``CliClient`` for ``scan``, ``report``,
+``plan``, ``apply``, ``journal`` and ``undo`` in worker threads and renders the
+JSON. No mailbox change happens before the person reviews the plan and confirms
+the apply dialog, and only the sidecar touches a mailbox.
 
 Filing is the decisions the person made on the Preferences page: the plan call
 receives the stored ``categories`` and ``mode`` (``folders`` or ``archive``)
-verbatim, so the app cannot silently plan something else. The review checkbox
-is enabled only by a plan with at least one move, and Apply follows that
-checkbox; a zero-move or unsubscribe-only plan keeps Apply disabled because
-there is nothing to review and move.
+verbatim, and apply's limit is clamped to ``max_moves`` and the plan's own move
+count, so the UI cannot exceed policy. The review checkbox is enabled only by a
+plan with at least one move; Apply follows that checkbox. A successful or
+partial apply closes that plan's gate for good, and only a new scan or plan
+reopens it.
+
+The journal is a modal list of recent runs. Undo always asks for confirmation
+and passes the full run id the sidecar printed; it never guesses. Apply never
+unsubscribes: ``--action move`` is explicit in the typed helper and unsubscribe
+stays a separate future action.
 
 Language is a window-level concern: payloads are kept so ``retranslate`` can
-re-render category names and unsubscribe modes in the new catalog without
-asking the sidecar again. A plan is cleared whenever a new scan starts or a
-new plan fails, and every error is localized copy, never the sidecar's raw
-output.
+re-render category names, unsubscribe modes, status counts and the journal in
+the new catalog without asking the sidecar again. A plan is cleared whenever a
+new scan starts or a new plan fails, and every error is localized copy, never
+the sidecar's raw output.
 """
 
 from __future__ import annotations
@@ -29,11 +35,13 @@ from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
+    QDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QTableWidget,
@@ -44,6 +52,7 @@ from PySide6.QtWidgets import (
 )
 
 from cleanyourmail_app.domain.models import CATEGORIES, Preferences
+from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
 
 #: The app has no scan-window preference; one year is the documented default.
@@ -52,16 +61,25 @@ SCAN_DAYS = 365
 #: How many sender groups the report shows, matching the CLI's own default.
 REPORT_TOP = 30
 
+#: How many recent runs the journal dialog asks for.
+JOURNAL_LIMIT = 20
+
 #: Localized status and error keys per command.
 _RUNNING_KEYS = {
     "scan": "review.scanning",
     "report": "review.report.running",
     "plan": "review.plan.running",
+    "apply": "apply.running",
+    "journal": "review.journal_loading",
+    "undo": "review.undo.running",
 }
 _ERROR_KEYS = {
     "scan": "errors.scan",
     "report": "errors.report",
     "plan": "errors.plan",
+    "apply": "errors.apply",
+    "journal": "errors.journal",
+    "undo": "errors.undo",
 }
 
 #: Sidecar unsubscribe modes to catalog keys.
@@ -121,6 +139,185 @@ class _CommandJob(QRunnable):
             pass
 
 
+class JournalDialog(QDialog):
+    """A modal list of journal runs with an Undo action for the selected row.
+
+    The table never shortens the run id that is passed back to the sidecar: a
+    display-only id would make undo ambiguous. Selecting one row is the only
+    way to enable its Undo button; the page owns the confirmation and the
+    worker, so this dialog stays a view.
+    """
+
+    undoRequested = Signal(str)
+
+    def __init__(
+        self,
+        translator: Translator,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._translator = translator
+        self._runs: list[dict[str, Any]] = []
+        self._state = "loading"
+        self._busy = False
+        self.setModal(True)
+        self.setMinimumSize(620, 380)
+        self.setObjectName("journalDialog")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        self.table = QTableWidget(0, 4, self)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setAlternatingRowColors(True)
+        self.table.setWordWrap(False)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setVisible(True)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setMinimumHeight(220)
+        self.table.setVisible(False)
+        self.table.itemSelectionChanged.connect(self._selection_changed)
+
+        self.empty_label = QLabel(self)
+        self.empty_label.setObjectName("muted")
+        self.empty_label.setWordWrap(True)
+
+        self.undo_button = QPushButton(self)
+        self.undo_button.setObjectName("primary")
+        self.undo_button.setMinimumWidth(170)
+        self.undo_button.setEnabled(False)
+        self.undo_button.clicked.connect(self._emit_undo)
+
+        self.close_button = QPushButton(self)
+        self.close_button.setObjectName("secondary")
+        self.close_button.clicked.connect(self.reject)
+
+        buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.setSpacing(8)
+        buttons.addStretch(1)
+        buttons.addWidget(self.undo_button)
+        buttons.addWidget(self.close_button)
+
+        layout.addWidget(self.table, 1)
+        layout.addWidget(self.empty_label, 1)
+        layout.addLayout(buttons)
+
+        self.retranslate()
+
+    # -- state --------------------------------------------------------------
+
+    def set_loading(self) -> None:
+        """Show the loading copy until the worker hands over the runs."""
+        self._state = "loading"
+        self._runs = []
+        self._busy = False
+        self.table.setRowCount(0)
+        self.table.setVisible(False)
+        self.empty_label.setVisible(True)
+        self._refresh_empty()
+        self.undo_button.setEnabled(False)
+
+    def set_runs(self, runs: list[dict[str, Any]]) -> None:
+        """Render the runs; an empty list is a real, explained state."""
+        self._runs = runs
+        self._state = "runs" if runs else "empty"
+        self.table.setRowCount(len(runs))
+        for row, run in enumerate(runs):
+            run_id = str(run.get("run") or "")
+            self._set_cell(row, 0, self._when(run.get("ts")))
+            self._set_cell(row, 1, run_id)
+            self._set_cell(row, 2, str(self._int(run.get("messages"))))
+            self._set_cell(row, 3, str(self._int(run.get("ops"))))
+        self.table.clearSelection()
+        self.table.setCurrentCell(-1, -1)
+        self.table.setVisible(bool(runs))
+        self.empty_label.setVisible(not runs)
+        self._refresh_empty()
+        self.undo_button.setEnabled(False)
+
+    def set_busy(self, busy: bool) -> None:
+        """Disable selection and Undo while a sidecar command owns the page."""
+        self._busy = busy
+        self.table.setEnabled(not busy)
+        self.undo_button.setEnabled(not busy and self.selected_run() is not None)
+
+    def selected_run(self) -> str | None:
+        """The full run id of the selected row, or ``None``."""
+        selection = self.table.selectionModel()
+        if selection is None or not selection.hasSelection():
+            return None
+        row = self.table.currentRow()
+        if 0 <= row < len(self._runs):
+            run = self._runs[row].get("run")
+            return str(run) if isinstance(run, str) and run else None
+        return None
+
+    # -- slots --------------------------------------------------------------
+
+    def _selection_changed(self) -> None:
+        self.undo_button.setEnabled(not self._busy and self.selected_run() is not None)
+
+    def _emit_undo(self) -> None:
+        run = self.selected_run()
+        if run and not self._busy:
+            self.undoRequested.emit(run)
+
+    # -- rendering ----------------------------------------------------------
+
+    def _set_cell(self, row: int, column: int, text: str) -> None:
+        item = QTableWidgetItem(text)
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.table.setItem(row, column, item)
+
+    @staticmethod
+    def _int(value: object) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return 0
+        return value
+
+    @staticmethod
+    def _when(value: object) -> str:
+        """A compact local-looking stamp; the sidecar's ISO text is kept."""
+        text = str(value or "")
+        if "T" in text:
+            text = text.replace("T", " ", 1)
+        return text[:19]
+
+    def _refresh_empty(self) -> None:
+        if self._state == "loading":
+            self.empty_label.setText(self._translator.t("review.journal_loading"))
+        else:
+            self.empty_label.setText(self._translator.t("review.journal_empty"))
+
+    def retranslate(self) -> None:
+        """Refresh the title, headers and buttons in the active language."""
+        t = self._translator.t
+        self.setWindowTitle(t("review.journal"))
+        headers = (
+            t("review.journal_when"),
+            t("review.journal_run"),
+            t("review.journal_messages"),
+            t("review.journal_ops"),
+        )
+        for column, text in enumerate(headers):
+            item = self.table.horizontalHeaderItem(column)
+            if item is None:
+                self.table.setHorizontalHeaderItem(column, QTableWidgetItem(text))
+            else:
+                item.setText(text)
+        self.table.setAccessibleName(", ".join(headers))
+        self.undo_button.setText(t("review.undo.button"))
+        self.close_button.setText(t("review.close"))
+        self._refresh_empty()
+
+
 class ReviewPage(QWidget):
     """Scan cards, a report table, a plan table and the review gate."""
 
@@ -143,7 +340,18 @@ class ReviewPage(QWidget):
         self._plan_path: str | None = None
         self._report_top = REPORT_TOP
         self._status_key: str | None = None
+        self._status_args: dict[str, object] = {}
+        self._status_extra_key: str | None = None
+        self._status_extra_args: dict[str, object] = {}
         self._error_key: str | None = None
+        self._error_args: dict[str, object] = {}
+        #: A plan whose messages were (fully or partly) moved must never be
+        #: applied a second time; only a fresh scan or plan clears this.
+        self._applied = False
+        #: The newest run the page knows about, for the footer's undo shortcut.
+        self._last_run: str | None = None
+        self._journal_dialog: JournalDialog | None = None
+        self._journal_quiet = False
         # Unparented on purpose, like the Connect page: a job that outlives the
         # page keeps its emitter alive and Qt drops the receiver instead of
         # raising when the window closes mid-scan.
@@ -165,8 +373,11 @@ class ReviewPage(QWidget):
         """
         self._token += 1
         self._busy = None
-        self._status_key = None
-        self._error_key = None
+        self._journal_quiet = False
+        self._close_journal_dialog()
+        self._applied = False
+        self._set_status(None)
+        self._set_error(None)
         self._reset_answers()
         self._refresh_actions()
         self._sync_feedback()
@@ -194,6 +405,16 @@ class ReviewPage(QWidget):
     def plan_path(self) -> str | None:
         """Where the last successful plan was written, for a later apply."""
         return self._plan_path
+
+    @property
+    def last_run(self) -> str | None:
+        """The newest run the page knows, used by the Undo last run action."""
+        return self._last_run
+
+    @property
+    def journal_dialog(self) -> JournalDialog | None:
+        """The open journal dialog, if any; None once it is closed."""
+        return self._journal_dialog
 
     def plan_move_count(self) -> int:
         """How many messages the current plan would move."""
@@ -242,17 +463,141 @@ class ReviewPage(QWidget):
         """Build a dry-run plan in the background, never applying it."""
         self._start("plan", lambda: self.build_plan(preferences))
 
-    def _start(self, action: str, work: object) -> None:
+    def apply(self, limit: int = 0) -> None:
+        """Apply the reviewed plan after confirmation.
+
+        ``limit`` defaults to the stored ``max_moves`` and is then clamped to
+        the policy and to the plan's own move count. The button is only enabled
+        after the review checkbox; this method also refuses while busy, after
+        an apply, and without a move-bearing plan, so a stale call cannot run
+        the same plan twice.
+        """
+        if self._busy is not None or self._applied:
+            return
+        path = self._plan_path
+        moves = self.plan_move_count()
+        if not path or moves <= 0:
+            return
+
+        preferences = self._settings.load().preferences
+        requested = (
+            limit
+            if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0
+            else preferences.max_moves
+        )
+        effective = min(requested, preferences.max_moves, moves)
+        if effective <= 0:
+            return
+
+        if not self._confirm_apply(effective):
+            return
+        # The modal dialog can only be dismissed by the event loop, but keep
+        # the guard here so a callback that starts another command wins.
+        if self._busy is not None or self._applied:
+            return
+
+        config_path = self._services.config.config_path()
+        self._start(
+            "apply",
+            lambda: self._services.cli.apply(
+                path, effective, config_path=config_path
+            ),
+        )
+
+    def _apply_clicked(self) -> None:
+        """The button route: never apply while the review box is not checked."""
+        if not self.review_checkbox.isChecked():
+            return
+        self.apply()
+
+    def load_journal(self) -> None:
+        """Fetch the newest runs and show them in the modal journal."""
+        self._request_journal(quiet=False)
+
+    def undo(self, run: str = "") -> None:
+        """Restore one journal run after an explicit confirmation."""
+        if self._busy is not None:
+            return
+        run_id = run.strip() if isinstance(run, str) else ""
+        if not run_id:
+            self._set_status("review.undo.empty")
+            self._set_error(None)
+            self._sync_feedback()
+            return
+        if not self._confirm_undo(run_id):
+            return
+        if self._busy is not None:
+            return
+        config_path = self._services.config.config_path()
+        self._start(
+            "undo",
+            lambda: self._services.cli.undo(run_id, config_path=config_path),
+        )
+
+    def _request_journal(self, *, quiet: bool) -> None:
+        """Load the journal; a quiet refresh never disturbs visible feedback."""
+        if self._busy is not None:
+            return
+        if quiet and self._journal_dialog is None:
+            return
+        dialog = self._journal_dialog
+        if not quiet:
+            dialog = self._ensure_journal_dialog()
+            dialog.set_loading()
+            dialog.show()
+            dialog.raise_()
+        if dialog is not None:
+            dialog.set_busy(True)
+        config_path = self._services.config.config_path()
+
+        def work() -> dict[str, Any]:
+            return self._services.cli.journal(
+                JOURNAL_LIMIT, config_path=config_path
+            )
+
+        self._start("journal", work, quiet=quiet)
+
+    # -- confirmation -------------------------------------------------------
+
+    def _confirm_apply(self, count: int) -> bool:
+        return self._ask(
+            self._translator.t("review.apply"),
+            self._translator.t("apply.confirm", count=count),
+        )
+
+    def _confirm_undo(self, run: str) -> bool:
+        return self._ask(
+            self._translator.t("review.undo.title"),
+            self._translator.t("review.undo.confirm_run", run=run),
+        )
+
+    def _ask(self, title: str, text: str) -> bool:
+        """A Yes/No question; No is the default and the safe answer."""
+        answer = QMessageBox.question(
+            self,
+            title,
+            text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    # -- worker plumbing ----------------------------------------------------
+
+    def _start(self, action: str, work: object, *, quiet: bool = False) -> None:
         if self._busy is not None:
             return
         self._token += 1
         self._busy = action
-        self._error_key = None
-        if action == "scan":
-            # New headers make every old answer stale, including a plan whose
-            # UIDs the cache may have pruned. Re-plan before applying.
-            self._reset_answers()
-        self._status_key = _RUNNING_KEYS[action]
+        if action == "journal":
+            self._journal_quiet = quiet
+        if not quiet:
+            self._set_error(None)
+            if action == "scan":
+                # New headers make every old answer stale, including a plan
+                # whose UIDs the cache may have pruned. Re-plan before apply.
+                self._reset_answers()
+            self._set_status(_RUNNING_KEYS[action])
         self._refresh_actions()
         self._sync_feedback()
         self._pool.start(_CommandJob(action, work, self._token, self._signals))
@@ -261,6 +606,25 @@ class ReviewPage(QWidget):
         if token != self._token:
             return
         self._busy = None
+        quiet = self._journal_quiet if action == "journal" else False
+        if action == "journal":
+            self._journal_quiet = False
+
+        if action == "apply" and self._is_partial_apply(result):
+            try:
+                self._apply_partial(result)
+            except Exception:
+                self._fail(action)
+            self._refresh_actions()
+            return
+        if action == "undo" and self._is_partial_undo(result):
+            try:
+                self._undo_finished(result)
+            except Exception:
+                self._fail(action)
+            self._refresh_actions()
+            return
+
         self._refresh_actions()
         if not isinstance(result, Mapping) or result.get("ok") is False:
             self._fail(action)
@@ -272,6 +636,12 @@ class ReviewPage(QWidget):
                 self.set_report(result)
             elif action == "plan":
                 self.set_plan(result)
+            elif action == "apply":
+                self._apply_succeeded(result)
+            elif action == "journal":
+                self._journal_finished(result, quiet=quiet)
+            elif action == "undo":
+                self._undo_finished(result)
         except Exception:
             # A malformed payload is a failed command, not a page crash; the
             # person gets the same localized copy as any other failure.
@@ -281,13 +651,23 @@ class ReviewPage(QWidget):
         if token != self._token:
             return
         self._busy = None
+        quiet = self._journal_quiet if action == "journal" else False
+        if action == "journal":
+            self._journal_quiet = False
+        if action == "journal" and quiet:
+            # A background refresh after undo must not erase the restored
+            # count; leave the dialog as it was and keep the feedback.
+            if self._journal_dialog is not None:
+                self._journal_dialog.set_busy(False)
+            self._refresh_actions()
+            return
         self._refresh_actions()
         self._fail(action)
 
     def _fail(self, action: str) -> None:
-        """Close the gate, drop the failed answer and show localized copy."""
-        self._status_key = None
-        self._error_key = _ERROR_KEYS[action]
+        """Drop the failed answer and show localized copy, never raw output."""
+        self._set_status(None)
+        self._set_error(_ERROR_KEYS[action])
         if action == "scan":
             self._scan = None
             self.scan_total_label.setText("0")
@@ -303,11 +683,155 @@ class ReviewPage(QWidget):
             self.report_table.setRowCount(0)
         elif action == "plan":
             self._clear_plan()
+        elif action == "journal":
+            self._close_journal_dialog()
         self._sync_feedback()
+
+    # -- apply results ------------------------------------------------------
+
+    def _is_partial_apply(self, result: object) -> bool:
+        """A failed call that still moved messages and printed its run id."""
+        if not isinstance(result, Mapping) or result.get("ok") is not False:
+            return False
+        payload = self._payload(result)
+        run = payload.get("run")
+        moved = payload.get("moved")
+        return (
+            isinstance(run, str)
+            and bool(run)
+            and isinstance(moved, int)
+            and not isinstance(moved, bool)
+            and moved > 0
+        )
+
+    def _apply_succeeded(self, result: object) -> None:
+        payload = self._payload(result)
+        run = payload.get("run")
+        if not isinstance(run, str) or not run:
+            raise ValueError("apply result needs a run id")
+        moved = self._int(payload.get("moved"))
+        self._mark_applied(run)
+        self._set_status(
+            "apply.done",
+            extra=("apply.id", {"run": run}),
+            count=moved,
+        )
+        self._set_error(None)
+        self._sync_feedback()
+
+    def _apply_partial(self, result: object) -> None:
+        payload = self._payload(result)
+        run = payload.get("run")
+        if not isinstance(run, str) or not run:
+            raise ValueError("partial apply result needs a run id")
+        self._mark_applied(run)
+        # The run is real and undoable, but it stopped early: show both facts
+        # and never pass the sidecar's raw error text through.
+        self._set_status(
+            "apply.failed",
+            extra=("apply.id", {"run": run}),
+        )
+        self._set_error("apply.partial")
+        self._sync_feedback()
+
+    def _mark_applied(self, run: str) -> None:
+        """Close this plan's gate permanently and remember the run to undo."""
+        self._applied = True
+        self._last_run = run
+        self._refresh_actions()
+
+    # -- journal and undo results ------------------------------------------
+
+    def _journal_finished(self, result: object, *, quiet: bool) -> None:
+        payload = self._payload(result)
+        runs: list[dict[str, Any]] = []
+        raw = payload.get("runs")
+        if isinstance(raw, list):
+            for item in raw:
+                if not isinstance(item, Mapping):
+                    continue
+                run = item.get("run")
+                if isinstance(run, str) and run:
+                    runs.append(dict(item))
+
+        dialog = self._journal_dialog
+        if dialog is None:
+            # The person closed the dialog while the worker was running; a
+            # late answer must not pop it back open.
+            return
+        dialog.set_runs(runs)
+        if not quiet:
+            self._last_run = runs[0]["run"] if runs else self._last_run
+            self._set_status(None)
+            self._set_error(None)
+            self._sync_feedback()
+        self._refresh_actions()
+
+    def _ensure_journal_dialog(self) -> JournalDialog:
+        if self._journal_dialog is None:
+            dialog = JournalDialog(self._translator, self)
+            dialog.undoRequested.connect(self.undo)
+            dialog.finished.connect(self._journal_closed)
+            self._journal_dialog = dialog
+        return self._journal_dialog
+
+    def _close_journal_dialog(self) -> None:
+        dialog = self._journal_dialog
+        self._journal_dialog = None
+        if dialog is not None:
+            dialog.set_busy(False)
+            dialog.close()
+
+    def _journal_closed(self, _result: int) -> None:
+        """A closed dialog invalidates an in-flight journal answer."""
+        dialog = self._journal_dialog or self.sender()
+        self._journal_dialog = None
+        if isinstance(dialog, JournalDialog):
+            dialog.deleteLater()
+        if self._busy != "journal":
+            return
+        quiet = self._journal_quiet
+        self._journal_quiet = False
+        self._token += 1
+        self._busy = None
+        if not quiet:
+            self._set_status(None)
+            self._set_error(None)
+        self._refresh_actions()
+        self._sync_feedback()
+
+    def _is_partial_undo(self, result: object) -> bool:
+        if not isinstance(result, Mapping) or result.get("ok") is not False:
+            return False
+        restored = self._payload(result).get("restored")
+        return isinstance(restored, int) and not isinstance(restored, bool)
+
+    def _undo_finished(self, result: object) -> None:
+        payload = self._payload(result)
+        restored = payload.get("restored")
+        if isinstance(restored, bool) or not isinstance(restored, int):
+            raise ValueError("undo result needs a restored count")
+        failed = self._int(payload.get("failed"))
+        refused = self._int(payload.get("refused"))
+        # The newest journal entry is now the undo itself, not a useful
+        # "undo last run" target; force a fresh choice from the journal.
+        self._last_run = None
+        self._set_status("review.undo.done", count=restored)
+        if failed or refused:
+            self._set_error(
+                "review.undo.partial", failed=failed, refused=refused
+            )
+        else:
+            self._set_error(None)
+        self._sync_feedback()
+        self._refresh_actions()
+        if self._journal_dialog is not None:
+            self._request_journal(quiet=True)
 
     def _clear_plan(self) -> None:
         self._plan = None
         self._plan_path = None
+        self._applied = False
         self.plan_table.setRowCount(0)
         self.plan_summary_label.setText("")
         self.plan_note.setVisible(False)
@@ -323,8 +847,8 @@ class ReviewPage(QWidget):
         self.scan_total_label.setText(str(total))
         self.scan_mailboxes_label.setText(str(len(payload.get("mailboxes") or {})))
         self.scan_categories_label.setText(self._category_counts(payload.get("categories")))
-        self._error_key = None
-        self._status_key = "review.scan_done" if total else "review.scan_empty"
+        self._set_error(None)
+        self._set_status("review.scan_done" if total else "review.scan_empty")
         self._sync_feedback()
 
     def set_report(self, result: object) -> None:
@@ -342,8 +866,8 @@ class ReviewPage(QWidget):
         self.report_groups_label.setText(str(groups))
         self.report_protected_label.setText(str(self._int(totals.get("protected"))))
         self._render_report(payload)
-        self._error_key = None
-        self._status_key = "review.report.done"
+        self._set_error(None)
+        self._set_status("review.report.done")
         self._sync_feedback()
 
     def set_plan(self, result: object) -> None:
@@ -355,9 +879,12 @@ class ReviewPage(QWidget):
         if isinstance(nested, Mapping):
             payload = dict(nested)
         self._plan = payload or None
+        # A new plan is a new review: its gate starts closed even if the
+        # previous plan was already applied.
+        self._applied = False
         self._render_plan()
-        self._error_key = None
-        self._status_key = (
+        self._set_error(None)
+        self._set_status(
             "review.plan.done" if self.plan_move_count() else "review.zero_moves"
         )
         self._sync_feedback()
@@ -502,7 +1029,11 @@ class ReviewPage(QWidget):
         self._refresh_gate()
 
     def _refresh_gate(self) -> None:
-        enabled = self.plan_move_count() > 0 and self._busy is None
+        enabled = (
+            not self._applied
+            and self.plan_move_count() > 0
+            and self._busy is None
+        )
         if not enabled and self.review_checkbox.isChecked():
             self._gate_updating = True
             try:
@@ -514,18 +1045,56 @@ class ReviewPage(QWidget):
 
     def _refresh_actions(self) -> None:
         busy = self._busy is not None
-        for button in (self.scan_button, self.report_button, self.plan_button):
+        for button in (
+            self.scan_button,
+            self.report_button,
+            self.plan_button,
+            self.journal_button,
+        ):
             button.setEnabled(not busy)
+        self.undo_button.setEnabled(not busy and self._last_run is not None)
         self._refresh_gate()
+        if self._journal_dialog is not None:
+            self._journal_dialog.set_busy(busy)
 
     # -- feedback -----------------------------------------------------------
 
+    def _set_status(
+        self,
+        key: str | None,
+        *,
+        extra: tuple[str, dict[str, object]] | None = None,
+        **args: object,
+    ) -> None:
+        """Remember a status key (plus one appended key) for retranslation."""
+        self._status_key = key
+        self._status_args = dict(args)
+        self._status_extra_key = extra[0] if extra else None
+        self._status_extra_args = dict(extra[1]) if extra else {}
+
+    def _set_error(self, key: str | None, **args: object) -> None:
+        self._error_key = key
+        self._error_args = dict(args)
+
     def _sync_feedback(self) -> None:
         t = self._translator.t
-        self.status_label.setText(t(self._status_key) if self._status_key else "")
-        self.status_label.setVisible(bool(self._status_key))
-        self.error_label.setText(t(self._error_key) if self._error_key else "")
-        self.error_label.setVisible(bool(self._error_key))
+        status = (
+            t(self._status_key, **self._status_args) if self._status_key else ""
+        )
+        if self._status_extra_key:
+            status = " ".join(
+                part
+                for part in (
+                    status,
+                    t(self._status_extra_key, **self._status_extra_args),
+                )
+                if part
+            )
+        self.status_label.setText(status)
+        self.status_label.setVisible(bool(status))
+        error = t(self._error_key, **self._error_args) if self._error_key else ""
+        self.error_label.setText(error)
+        self.error_label.setVisible(bool(error))
 
     # -- layout -------------------------------------------------------------
 
@@ -567,6 +1136,10 @@ class ReviewPage(QWidget):
         self.plan_button.setObjectName("primary")
         self.plan_button.setMinimumWidth(150)
         self.plan_button.clicked.connect(lambda: self.start_plan())
+        self.journal_button = QPushButton(body)
+        self.journal_button.setObjectName("secondary")
+        self.journal_button.setMinimumWidth(150)
+        self.journal_button.clicked.connect(self.load_journal)
 
         actions = QHBoxLayout()
         actions.setContentsMargins(0, 0, 0, 0)
@@ -574,6 +1147,7 @@ class ReviewPage(QWidget):
         actions.addWidget(self.scan_button)
         actions.addWidget(self.report_button)
         actions.addWidget(self.plan_button)
+        actions.addWidget(self.journal_button)
         actions.addStretch(1)
 
         self.status_label = QLabel(body)
@@ -682,14 +1256,22 @@ class ReviewPage(QWidget):
         unsubscribe_layout.addWidget(self.unsubscribe_spam)
         self.unsubscribe_panel.setVisible(False)
 
+        self.undo_button = QPushButton(self)
+        self.undo_button.setObjectName("secondary")
+        self.undo_button.setMinimumWidth(180)
+        self.undo_button.setEnabled(False)
+        self.undo_button.clicked.connect(lambda: self.undo(self._last_run or ""))
+
         self.apply_button = QPushButton(self)
         self.apply_button.setObjectName("primary")
         self.apply_button.setMinimumWidth(180)
         self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self._apply_clicked)
 
         footer = QHBoxLayout()
         footer.setContentsMargins(32, 12, 32, 24)
         footer.addStretch(1)
+        footer.addWidget(self.undo_button)
         footer.addWidget(self.apply_button)
 
         root.addWidget(self.title_label)
@@ -813,6 +1395,8 @@ class ReviewPage(QWidget):
         self.plan_note.setText(t("review.plan.protected_note"))
         self.review_checkbox.setText(t("review.reviewed"))
         self.apply_button.setText(t("review.apply"))
+        self.journal_button.setText(t("review.journal"))
+        self.undo_button.setText(t("review.undo.button"))
         self.unsubscribe_toggle.setText(t("review.unsubscribe.title"))
         self.unsubscribe_warning.setText(t("review.unsubscribe.warning"))
         self.unsubscribe_check.setText(t("review.unsubscribe.enable"))
@@ -828,6 +1412,8 @@ class ReviewPage(QWidget):
             self._render_report(self._report)
         if self._plan is not None:
             self._render_plan()
+        if self._journal_dialog is not None:
+            self._journal_dialog.retranslate()
         self._sync_feedback()
 
     def _category_label(self, category: str) -> str:

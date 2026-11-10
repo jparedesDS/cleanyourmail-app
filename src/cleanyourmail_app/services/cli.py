@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
@@ -93,6 +94,30 @@ def _positive(value: object, name: str) -> int:
     return value
 
 
+#: A journal run id is opaque, but it is one argv word: letters, digits and a
+#: small punctuation set. Rejecting spaces and a leading dash keeps a value from
+#: turning into an option the sidecar would parse instead of an id.
+_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
+
+
+def _plan_path(value: object) -> str:
+    """A non-empty plan path as one argv word, or ``ValueError``."""
+    if isinstance(value, (str, os.PathLike)) and not isinstance(value, bytes):
+        text = os.fspath(value)
+    else:
+        raise ValueError("plan_path must be a path")
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("plan_path must not be empty")
+    return text
+
+
+def _run(value: object) -> str:
+    """A journal run id that cannot be mistaken for a flag."""
+    if not isinstance(value, str) or not _RUN_ID.fullmatch(value.strip()):
+        raise ValueError("run must be a journal run id")
+    return value.strip()
+
+
 class CliClient:
     """Run one sidecar executable and normalize its JSON contract."""
 
@@ -130,10 +155,10 @@ class CliClient:
 
     # -- typed helpers ------------------------------------------------------
     #
-    # The wizard never builds argv itself. These three helpers mirror the
-    # frozen 1.2.2 commands and keep the ``--json`` flag in one place; each
-    # returns the same ``{ok, exit_code, data, stdout, stderr}`` shape as
-    # ``run`` and never raises for a failed command.
+    # The wizard never builds argv itself. These helpers mirror the frozen
+    # 1.2.2 commands and keep the ``--json`` flag in one place; each returns
+    # the same ``{ok, exit_code, data, stdout, stderr}`` shape as ``run`` and
+    # never raises for a failed command.
 
     def scan(
         self,
@@ -187,6 +212,60 @@ class CliClient:
         for category in selected:
             args.extend(["--category", category])
         return self.run(args, config_path=config_path)
+
+    def apply(
+        self,
+        plan_path: str | Path,
+        limit: int,
+        *,
+        config_path: Path | None = None,
+    ) -> dict[str, Any]:
+        """Move at most ``limit`` messages from a reviewed plan.
+
+        ``--action move`` is always explicit: even a plan that also carries
+        unsubscribe actions cannot make this call send one. ``--yes`` is the
+        app's confirmation, which the page asks for before it gets here.
+        """
+        return self.run(
+            [
+                "apply",
+                _plan_path(plan_path),
+                "--yes",
+                "--action",
+                "move",
+                "--limit",
+                str(_positive(limit, "limit")),
+            ],
+            config_path=config_path,
+        )
+
+    def journal(
+        self,
+        limit: int = 20,
+        *,
+        config_path: Path | None = None,
+    ) -> dict[str, Any]:
+        """Read the newest ``limit`` journal runs.
+
+        The summary carries a run id, timestamp, counts and the account; it
+        never contains message ids, so no redaction is needed for the dialog.
+        """
+        return self.run(
+            ["journal", "--limit", str(_positive(limit, "limit"))],
+            config_path=config_path,
+        )
+
+    def undo(
+        self,
+        run: str,
+        *,
+        config_path: Path | None = None,
+    ) -> dict[str, Any]:
+        """Ask the sidecar to restore one journal run, after its own checks."""
+        return self.run(
+            ["undo", "--run", _run(run), "--yes"],
+            config_path=config_path,
+        )
 
     def version(self) -> str:
         """Return the sidecar's version line, e.g. ``CleanYourMail 1.2.2``."""

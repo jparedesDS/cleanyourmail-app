@@ -296,7 +296,10 @@
       "body": "Cada ejecución guarda un diario. Deshacer restaura los mensajes solo después de comprobar su identidad.",
       "button": "Deshacer la última ejecución",
       "confirm": "¿Deshacer la última ejecución y restaurar sus mensajes?",
+      "confirm_run": "¿Deshacer la ejecución {run} y restaurar sus mensajes?",
+      "running": "Restaurando mensajes…",
       "done": "Se restauraron {count} mensajes.",
+      "partial": "No se pudieron restaurar todos los mensajes: {failed} no encontrados y {refused} rechazados.",
       "empty": "No hay nada que deshacer."
     },
     "unsubscribe": {
@@ -308,6 +311,11 @@
     },
     "journal": "Diario",
     "journal_empty": "Aún no hay ejecuciones.",
+    "journal_loading": "Cargando el diario…",
+    "journal_when": "Cuándo",
+    "journal_run": "Ejecución",
+    "journal_messages": "Mensajes",
+    "journal_ops": "Operaciones",
     "close": "Cerrar"
   },
   "apply": {
@@ -317,6 +325,7 @@
     "failed": "La ejecución se detuvo antes de terminar.",
     "failed_undo": "Puedes deshacer los mensajes que ya se movieron.",
     "partial": "Algunos mensajes se omitieron. El diario tiene los detalles.",
+    "confirm": "¿Aplicar este plan y mover hasta {count} mensajes? Después podrás deshacer la ejecución.",
     "id": "Ejecución {run}"
   },
   "errors": {
@@ -337,6 +346,9 @@
     "scan": "No se pudo escanear el buzón. Revisa la conexión e inténtalo de nuevo.",
     "report": "No se pudo crear el informe. Ejecuta un escaneo primero.",
     "plan": "No se pudo crear el plan. Ejecuta un escaneo y un informe primero.",
+    "apply": "No se pudo aplicar el plan. Revisa la conexión e inténtalo de nuevo.",
+    "journal": "No se pudo leer el diario.",
+    "undo": "No se pudo deshacer la ejecución. Revisa la conexión e inténtalo de nuevo.",
     "config_missing": "Primero termina de conectar tu buzón.",
     "unknown": "Error inesperado.",
     "detail_hint": "Los detalles están en el registro local. Nunca contiene contraseñas ni tokens.",

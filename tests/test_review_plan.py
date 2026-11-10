@@ -16,8 +16,8 @@ What these tests pin down:
 * The review checkbox is enabled only by a plan with at least one move; Apply
   follows the checkbox and refuses zero-move or unsubscribe-only plans.
 * A sidecar failure shows localized copy and leaves the gate closed.
-* Preferences Continue reaches the page, and nothing here applies or
-  unsubscribes: Task 11 owns that.
+* Preferences Continue reaches the page. Apply, the journal and undo are
+  covered separately in ``test_review_apply.py``.
 """
 
 from __future__ import annotations
@@ -685,13 +685,3 @@ def test_preferences_continue_reaches_the_review_page(window):
     assert window.current_page_key() == "review"
     assert window.step_labels["review"].property("active") is True
     assert window.step_labels["preferences"].property("done") is True
-
-
-def test_no_apply_journal_or_unsubscribe_command_runs_here(page, cli, qtbot):
-    """Task 10 stops at the gate: checking review never calls the sidecar."""
-    page.set_plan(_plan_result(PLAN_MOVES))
-    page.review_checkbox.setChecked(True)
-    page.apply_button.click()
-    qtbot.wait(50)
-
-    assert [call[0] for call in cli.calls] == []

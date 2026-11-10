@@ -296,7 +296,10 @@
       "body": "Every run writes a journal. Undo restores messages only after checking their identity.",
       "button": "Undo last run",
       "confirm": "Undo the last run and restore its messages?",
+      "confirm_run": "Undo run {run} and restore its messages?",
+      "running": "Restoring messages…",
       "done": "Restored {count} messages.",
+      "partial": "Some messages could not be restored: {failed} missing and {refused} refused.",
       "empty": "There is nothing to undo."
     },
     "unsubscribe": {
@@ -308,6 +311,11 @@
     },
     "journal": "Journal",
     "journal_empty": "No runs yet.",
+    "journal_loading": "Loading the journal…",
+    "journal_when": "When",
+    "journal_run": "Run",
+    "journal_messages": "Messages",
+    "journal_ops": "Ops",
     "close": "Close"
   },
   "apply": {
@@ -317,6 +325,7 @@
     "failed": "The run stopped before finishing.",
     "failed_undo": "You can undo the messages that were already moved.",
     "partial": "Some messages were skipped. The journal has the details.",
+    "confirm": "Apply this plan and move up to {count} messages? You can undo the run afterwards.",
     "id": "Run {run}"
   },
   "errors": {
@@ -337,6 +346,9 @@
     "scan": "The mailbox could not be scanned. Check the connection and try again.",
     "report": "The report could not be built. Run a scan first.",
     "plan": "The plan could not be built. Run a scan and a report first.",
+    "apply": "The plan could not be applied. Check the connection and try again.",
+    "journal": "The journal could not be read.",
+    "undo": "The run could not be undone. Check the connection and try again.",
     "config_missing": "Finish connecting your mailbox first.",
     "unknown": "Unexpected error.",
     "detail_hint": "Details are in the local log. It never contains passwords or tokens.",
