@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -13,6 +14,7 @@ import pytest
 
 from cleanyourmail_app.services.cli import (
     EXPECTED_CLI_VERSION,
+    VERSION_TIMEOUT,
     CliClient,
     CliError,
     CliVersionMismatch,
@@ -150,6 +152,35 @@ def test_version_raises_when_the_sidecar_fails(fake: FakeCli):
 
     with pytest.raises(CliError):
         fake.client().version()
+
+
+def test_version_uses_a_short_local_timeout(monkeypatch: pytest.MonkeyPatch):
+    client = CliClient(["cym-cli"])
+    seen: dict[str, object] = {}
+
+    def fake_execute(argv, timeout):
+        seen["argv"] = argv
+        seen["timeout"] = timeout
+        return subprocess.CompletedProcess(
+            argv, 0, "CleanYourMail 1.2.2\n", ""
+        )
+
+    monkeypatch.setattr(client, "_execute", fake_execute)
+
+    assert client.version() == "CleanYourMail 1.2.2"
+    assert seen["argv"] == ["cym-cli", "--version"]
+    assert seen["timeout"] == VERSION_TIMEOUT
+    assert VERSION_TIMEOUT <= 5
+
+
+def test_cached_version_appears_after_a_verified_read(fake: FakeCli):
+    fake.respond("CleanYourMail 1.2.2\n")
+    client = fake.client()
+
+    assert client.cached_version is None
+    client.verify_version()
+
+    assert client.cached_version == EXPECTED_CLI_VERSION
 
 
 def test_missing_executable_raises_cli_error(tmp_path: Path):

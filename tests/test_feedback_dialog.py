@@ -12,10 +12,11 @@ reach the checklist, a label or a status line.
 from __future__ import annotations
 
 import threading
+import time
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QWidget
+from PySide6.QtWidgets import QComboBox, QDialog, QWidget
 
 from cleanyourmail_app import version
 from cleanyourmail_app.domain.models import AppSettings, Preferences
@@ -149,6 +150,12 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
             captured["executed"] = True
             return 1
 
+        def setAttribute(self, *args) -> None:
+            captured["delete_on_close"] = args
+
+        def deleteLater(self) -> None:
+            captured["deleted"] = True
+
     monkeypatch.setattr(
         "cleanyourmail_app.ui.main_window.FeedbackDialog", FakeDialog
     )
@@ -169,6 +176,8 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
     assert captured["translator"] is window.translator
     assert captured["parent"] is window
     assert EMAIL_SENTINEL not in repr(captured)
+    assert captured["delete_on_close"][0] == Qt.WidgetAttribute.WA_DeleteOnClose
+    assert captured["deleted"] is True
 
 
 def test_opening_feedback_handles_a_missing_sidecar(
@@ -183,6 +192,12 @@ def test_opening_feedback_handles_a_missing_sidecar(
         def exec(self) -> int:
             return 1
 
+        def setAttribute(self, *args) -> None:
+            return None
+
+        def deleteLater(self) -> None:
+            return None
+
     def missing() -> str:
         raise CliError("sidecar not found")
 
@@ -194,6 +209,51 @@ def test_opening_feedback_handles_a_missing_sidecar(
     qtbot.mouseClick(window.feedback_button, Qt.MouseButton.LeftButton)
 
     assert captured["sidecar_version"] == "unknown"
+
+
+def test_repeated_opens_do_not_accumulate_dialogs(
+    qtbot, window, app_services, monkeypatch
+):
+    class FakeDialog(QDialog):
+        created: list[FakeDialog] = []
+
+        def __init__(
+            self,
+            app_version,
+            sidecar_version,
+            provider,
+            preferences,
+            translator,
+            parent=None,
+        ):
+            super().__init__(parent)
+            type(self).created.append(self)
+
+        def exec(self) -> int:
+            return 0
+
+    version_calls: list[str] = []
+
+    def read_version() -> str:
+        version_calls.append("read")
+        return "CleanYourMail 1.2.2"
+
+    monkeypatch.setattr(
+        "cleanyourmail_app.ui.main_window.FeedbackDialog", FakeDialog
+    )
+    monkeypatch.setattr(app_services.cli, "version", read_version)
+
+    for _ in range(2):
+        qtbot.mouseClick(window.feedback_button, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(
+            lambda: not window.findChildren(FakeDialog),
+            timeout=2000,
+        )
+
+    assert len(FakeDialog.created) == 2
+    assert window.findChildren(FakeDialog) == []
+    # The first successful read is reused; the second open starts no sidecar.
+    assert version_calls == ["read"]
 
 
 # --- Dialog shape and prefill ---------------------------------------------
@@ -343,6 +403,7 @@ def test_a_valid_send_runs_off_the_ui_thread_and_shows_sent(
         assert dialog.kind_combo.isEnabled() is False
         assert dialog.consent_checkbox.isEnabled() is False
         assert dialog.status_label.text() == translator.t("feedback.sending")
+        assert dialog.status_label.property("role") == "muted"
     finally:
         release.set()
 
@@ -365,10 +426,45 @@ def test_a_valid_send_runs_off_the_ui_thread_and_shows_sent(
     assert dialog.send_button.isEnabled() is True
     assert dialog.message_edit.isEnabled() is True
     assert dialog.consent_checkbox.isEnabled() is True
+    assert dialog.status_label.property("role") == "success"
     # The text is kept after a successful send so nothing has to be retyped.
     assert dialog.message_edit.toPlainText() == (
         "The review screen could explain what moves."
     )
+
+
+def test_closing_while_sending_waits_briefly_and_worker_finishes_cleanly(
+    qtbot, dialog, monkeypatch, translator
+):
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+
+    def fake_send(payload) -> None:
+        started.set()
+        release.wait(5)
+        finished.set()
+
+    monkeypatch.setattr(feedback_dialog, "send_feedback", fake_send)
+    dialog.message_edit.setPlainText("Please close this while it is sending.")
+    dialog.consent_checkbox.setChecked(True)
+    qtbot.mouseClick(dialog.send_button, Qt.MouseButton.LeftButton)
+    assert started.wait(3)
+
+    began = time.monotonic()
+    try:
+        # The Close button calls reject(), which never emits a QCloseEvent.
+        qtbot.mouseClick(dialog.close_button, Qt.MouseButton.LeftButton)
+        elapsed = time.monotonic() - began
+        assert elapsed < 2
+        assert dialog.isVisible() is False
+    finally:
+        release.set()
+
+    qtbot.waitUntil(finished.is_set, timeout=5000)
+    # The late signal is delivered to a hidden but live dialog without error.
+    qtbot.waitUntil(lambda: dialog.send_button.isEnabled(), timeout=5000)
+    assert dialog.status_label.text() == translator.t("feedback.sent")
 
 
 @pytest.mark.parametrize(
@@ -391,6 +487,7 @@ def test_a_failed_send_shows_the_localized_error(
         lambda: dialog.status_label.text() == translator.t(key), timeout=5000
     )
     assert dialog.status_label.text() == translator.t(key)
+    assert dialog.status_label.property("role") == "error"
     assert dialog.send_button.isEnabled() is True
 
 

@@ -97,7 +97,8 @@ class FeedbackDialog(QDialog):
         self._translator = translator
         self._busy = False
         self._status_key: str | None = None
-        self._status_is_error = False
+        self._status_role = "muted"
+        self._worker_waited = False
         self._pool = QThreadPool.globalInstance()
         self._signals = _FeedbackSignals()
         self._signals.finished.connect(self._on_finished)
@@ -251,10 +252,10 @@ class FeedbackDialog(QDialog):
             contact=contact,
         )
         if key is not None:
-            self._show_status(key, error=True)
+            self._show_status(key, role="error")
             return
         if not self.consent_checkbox.isChecked():
-            self._show_status("feedback.consent_required", error=True)
+            self._show_status("feedback.consent_required", role="error")
             return
 
         payload = feedback_payload(
@@ -268,20 +269,20 @@ class FeedbackDialog(QDialog):
             ),
         )
         self._set_busy(True)
-        self._show_status("feedback.sending")
+        self._show_status("feedback.sending", role="muted")
         try:
             self._pool.start(_FeedbackJob(payload, self._signals))
         except RuntimeError:
             # The pool is shutting down with the application.
             self._set_busy(False)
-            self._show_status("feedback.failed", error=True)
+            self._show_status("feedback.failed", role="error")
 
     def _on_finished(self, key: str) -> None:
         self._set_busy(False)
         if key:
-            self._show_status(key, error=True)
+            self._show_status(key, role="error")
         else:
-            self._show_status("feedback.sent")
+            self._show_status("feedback.sent", role="success")
 
     def _set_busy(self, busy: bool) -> None:
         """Disable the form while the request is in flight."""
@@ -299,18 +300,29 @@ class FeedbackDialog(QDialog):
             self._translator.t("feedback.sending" if busy else "feedback.send")
         )
 
-    def _show_status(self, key: str, *, error: bool = False) -> None:
+    def _show_status(self, key: str, *, role: str = "success") -> None:
+        """Show one localized status line; ``sending`` stays muted, not green."""
         self._status_key = key
-        self._status_is_error = error
+        self._status_role = role
         self.status_label.setText(self._translator.t(key))
-        set_dynamic_property(
-            self.status_label, "role", "error" if error else "success"
-        )
+        set_dynamic_property(self.status_label, "role", role)
         self.status_label.show()
 
-    def closeEvent(self, event) -> None:  # noqa: N802 - Qt's contract
-        """Give the worker a short grace period, then stop blocking."""
+    def _wait_for_worker(self) -> None:
+        """Give an in-flight request one bounded grace period, once."""
+        if self._worker_waited or not self._busy:
+            return
+        self._worker_waited = True
         self._pool.waitForDone(500)
+
+    def done(self, result: int) -> None:  # noqa: N802 - Qt's contract
+        """Cover Close, Esc and ``reject()``; they never fire a close event."""
+        self._wait_for_worker()
+        super().done(result)
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt's contract
+        """A window close waits through ``done``; do not wait twice."""
+        self._wait_for_worker()
         super().closeEvent(event)
 
     # -- translation --------------------------------------------------------
@@ -341,7 +353,7 @@ class FeedbackDialog(QDialog):
             set_dynamic_property(
                 self.status_label,
                 "role",
-                "error" if self._status_is_error else "success",
+                self._status_role,
             )
 
         self.title_label.setAccessibleName(self.title_label.text())

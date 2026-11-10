@@ -76,6 +76,9 @@ class MainWindow(QMainWindow):
         #: Guards the header language combo against re-entering its handler
         #: while ``retranslate`` rewrites the item texts.
         self._syncing_language = False
+        #: The first successful sidecar read is enough for this run; opening the
+        #: feedback dialog again must not start the sidecar a second time.
+        self._sidecar_version_cache: str | None = None
 
         self.setMinimumSize(900, 620)
         self.resize(1040, 820)
@@ -324,18 +327,48 @@ class MainWindow(QMainWindow):
             self.translator,
             self,
         )
-        dialog.exec()
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        try:
+            dialog.exec()
+        finally:
+            # ``WA_DeleteOnClose`` covers a window close; ``exec`` can also
+            # return through Accept/Reject, so schedule deletion explicitly.
+            dialog.deleteLater()
 
     def _sidecar_version(self) -> str:
-        """Bare sidecar version, or ``unknown`` when it cannot be read."""
+        """Bare sidecar version, or ``unknown`` when it cannot be read.
+
+        A successful read is cached for the life of the window, and the
+        client's verified version is reused after a connection test. The
+        local ``version()`` call itself is capped by ``VERSION_TIMEOUT``.
+        """
+        if self._sidecar_version_cache is not None:
+            return self._sidecar_version_cache
+
+        cached = getattr(self.services.cli, "cached_version", None)
+        if isinstance(cached, str) and cached.strip():
+            bare = self._bare_version(cached)
+            if bare != "unknown":
+                self._sidecar_version_cache = bare
+                return bare
+
         try:
-            line = self.services.cli.version().strip()
+            line = self.services.cli.version()
         except CliError:
             return "unknown"
+        bare = self._bare_version(line)
+        if bare != "unknown":
+            self._sidecar_version_cache = bare
+        return bare
+
+    @staticmethod
+    def _bare_version(line: str) -> str:
+        """Strip the product prefix (``CleanYourMail 1.2.2`` → ``1.2.2``)."""
+        text = line.strip()
         prefix = "CleanYourMail "
-        if line.lower().startswith(prefix.lower()):
-            line = line[len(prefix) :].strip()
-        return line or "unknown"
+        if text.lower().startswith(prefix.lower()):
+            text = text[len(prefix) :].strip()
+        return text or "unknown"
 
     # -- language -----------------------------------------------------------
 

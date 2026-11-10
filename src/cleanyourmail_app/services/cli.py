@@ -33,6 +33,10 @@ SIDECAR_ENV = "CYM_CLI"
 SIDECAR_DIR = Path("resources") / "cli"
 SIDECAR_NAMES = ("cym-cli.exe", "cym-cli")
 
+#: A local ``--version`` must answer almost instantly. A hung sidecar must not
+#: freeze the header for the generic 30-second command ceiling.
+VERSION_TIMEOUT = 5
+
 #: The sidecar the app is built and tested against. A different version may
 #: change the JSON contract or the safety rules, so the app verifies this
 #: before it writes a config or asks for mail changes.
@@ -357,12 +361,17 @@ class CliClient:
 
     def version(self) -> str:
         """Return the sidecar's version line, e.g. ``CleanYourMail 1.2.2``."""
-        completed = self._execute([*self.command, "--version"], 30)
+        completed = self._execute([*self.command, "--version"], VERSION_TIMEOUT)
         text = completed.stdout.lstrip("\ufeff").strip()
         if completed.returncode != 0 or not text:
             detail = (completed.stderr or completed.stdout).strip() or "no output"
             raise CliError(f"Cannot read the CleanYourMail version: {detail}")
         return text.splitlines()[0].strip()
+
+    @property
+    def cached_version(self) -> str | None:
+        """The verified version, when a connection test already read it."""
+        return self._verified_version
 
     def verify_version(
         self, expected: str = EXPECTED_CLI_VERSION
