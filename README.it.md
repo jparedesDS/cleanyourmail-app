@@ -85,6 +85,8 @@ sicurezza e un solo insieme di regole.
   <img src="docs/images/app-review.png" alt="Rivedi il piano prima di applicarlo" width="49%">
 </p>
 
+<p align="center"><em>Dati demo sintetici. Scegli un provider e controlla il piano prima di applicare qualsiasi cosa.</em></p>
+
 ## Requisiti
 
 - Windows 10/11 x64 per l'installer.

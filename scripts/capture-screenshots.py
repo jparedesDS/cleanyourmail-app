@@ -153,7 +153,7 @@ def main() -> int:
             translator=Translator("en"),
         )
         window = MainWindow(settings, services.translator, services)
-        window.resize(1040, 820)
+        window.resize(1040, 980)
         window.show()
         app.processEvents()
 
@@ -179,7 +179,7 @@ def main() -> int:
             }
         )
         app.processEvents()
-        review.scroll.ensureWidgetVisible(review.plan_group)
+        review.scroll.ensureWidgetVisible(review.review_checkbox, 0, 40)
         app.processEvents()
         window.grab().save(str(OUTPUT / "app-review.png"))
 

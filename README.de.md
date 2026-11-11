@@ -88,6 +88,8 @@ Sicherheitsmodell und einen Satz von Regeln gibt.
   <img src="docs/images/app-review.png" alt="Den Plan vor dem Anwenden prüfen" width="49%">
 </p>
 
+<p align="center"><em>Synthetische Demodaten. Anbieter wählen und den Plan prüfen, bevor du etwas anwendest.</em></p>
+
 ## Voraussetzungen
 
 - Windows 10/11 x64 für den Installer.

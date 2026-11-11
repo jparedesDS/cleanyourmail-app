@@ -85,6 +85,8 @@ modèle de sécurité et un seul ensemble de règles.
   <img src="docs/images/app-review.png" alt="Relire le plan avant de l’appliquer" width="49%">
 </p>
 
+<p align="center"><em>Données de démonstration synthétiques. Choisissez un fournisseur, puis vérifiez le plan avant d'appliquer quoi que ce soit.</em></p>
+
 ## Prérequis
 
 - Windows 10/11 x64 pour l’installateur.

@@ -66,6 +66,8 @@ CleanYourMail CLI はエンジンであり、唯一の正となる情報源で�
   <img src="docs/images/app-review.png" alt="適用前にプランを確認" width="49%">
 </p>
 
+<p align="center"><em>合成デモデータです。プロバイダーを選び、適用する前にプランを確認してください。</em></p>
+
 ## 要件
 
 - インストーラーは Windows 10/11 x64 向けです。

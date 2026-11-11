@@ -85,6 +85,8 @@ há um único modelo de segurança e um único conjunto de regras.
   <img src="docs/images/app-review.png" alt="Revise o plano antes de aplicá-lo" width="49%">
 </p>
 
+<p align="center"><em>Dados de demonstração sintéticos. Escolha um provedor e revise o plano antes de aplicar qualquer coisa.</em></p>
+
 ## Requisitos
 
 - Windows 10/11 x64 para o instalador.

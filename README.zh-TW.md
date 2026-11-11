@@ -66,6 +66,8 @@ CleanYourMail CLI 是引擎，也是唯一的真實來源。它已負責 IMAP �
   <img src="docs/images/app-review.png" alt="在套用前檢視計畫" width="49%">
 </p>
 
+<p align="center"><em>合成示範資料。選擇服務商，並在套用前檢視計畫。</em></p>
+
 ## 需求
 
 - 安裝程式需要 Windows 10/11 x64。

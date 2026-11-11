@@ -84,6 +84,8 @@ resultado, así que hay un solo modelo de seguridad y un solo conjunto de reglas
   <img src="docs/images/app-review.png" alt="Revisa el plan antes de aplicarlo" width="49%">
 </p>
 
+<p align="center"><em>Datos de demostración sintéticos. Elige un proveedor y revisa el plan antes de aplicar nada.</em></p>
+
 ## Requisitos
 
 - Windows 10/11 x64 para el instalador.

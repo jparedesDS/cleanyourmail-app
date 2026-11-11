@@ -81,6 +81,8 @@ CleanYourMail CLI 사이드카를 호출해 결과를 표시하므로, 안전 �
   <img src="docs/images/app-review.png" alt="적용 전에 계획을 검토하는 화면" width="49%">
 </p>
 
+<p align="center"><em>합성 데모 데이터입니다. 제공자를 선택하고 적용하기 전에 계획을 검토하세요.</em></p>
+
 ## 요구 사항
 
 - 설치 프로그램은 Windows 10/11 x64에서 실행됩니다.

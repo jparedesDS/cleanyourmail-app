@@ -81,6 +81,8 @@ CleanYourMail CLI sidecar and renders the result, so there is one safety model a
   <img src="docs/images/app-review.png" alt="Review the plan before applying it" width="49%">
 </p>
 
+<p align="center"><em>Synthetic demo data. Choose a provider, then review the plan before applying anything.</em></p>
+
 ## Requirements
 
 - Windows 10/11 x64 for the installer.
