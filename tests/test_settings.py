@@ -49,6 +49,7 @@ def test_save_writes_json_and_load_round_trips(tmp_path):
         provider="fastmail",
         email="me@fastmail.com",
         preferences=Preferences(categories=["newsletter"], mode="archive", language="es"),
+        last_update_check=1_760_000_000,
     )
 
     store.save(expected)
@@ -167,16 +168,23 @@ def test_load_preferences_without_a_file_returns_defaults(tmp_path):
     assert SettingsStore(tmp_path / "settings.json").load_preferences() == Preferences()
 
 
-def test_update_preferences_keeps_provider_and_email(tmp_path):
+def test_update_preferences_keeps_provider_email_and_last_update_check(tmp_path):
     target = tmp_path / "settings.json"
     store = SettingsStore(target)
-    store.save(AppSettings(provider="icloud", email="me@icloud.com"))
+    store.save(
+        AppSettings(
+            provider="icloud",
+            email="me@icloud.com",
+            last_update_check=1_760_000_000,
+        )
+    )
 
     store.update_preferences(Preferences(mode="archive", max_moves=10, language="es"))
 
     loaded = store.load()
     assert loaded.provider == "icloud"
     assert loaded.email == "me@icloud.com"
+    assert loaded.last_update_check == 1_760_000_000
     assert loaded.preferences == Preferences(mode="archive", max_moves=10, language="es")
 
 

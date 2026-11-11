@@ -1,9 +1,10 @@
 """Local, non-secret application settings.
 
 The store is one JSON file in ``%APPDATA%\\cleanyourmail-app\\settings.json``.
-It holds the chosen provider, the email address and ``Preferences`` only:
-never a password, token or refresh token. The app passwords and the Outlook
-refresh token belong to the sidecar (see ``services/cli.py``).
+It holds the chosen provider, the email address, ``Preferences`` and the time
+of the last automatic update check only: never a password, token or refresh
+token. The app passwords and the Outlook refresh token belong to the sidecar
+(see ``services/cli.py``).
 
 Writes are atomic: the new JSON is written to a temporary file next to the
 target, flushed to disk, then ``os.replace``d over it. A crash therefore leaves
@@ -101,7 +102,7 @@ class SettingsStore:
         return self.load().preferences
 
     def update_preferences(self, preferences: Preferences) -> None:
-        """Replace the preferences, leaving provider and email untouched."""
+        """Replace the preferences, leaving the other stored fields untouched."""
         if not isinstance(preferences, Preferences):
             raise TypeError("update_preferences() needs a Preferences value")
         current = self.load()
@@ -110,6 +111,7 @@ class SettingsStore:
                 provider=current.provider,
                 email=current.email,
                 preferences=preferences,
+                last_update_check=current.last_update_check,
             )
         )
 

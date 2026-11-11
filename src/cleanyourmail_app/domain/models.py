@@ -135,14 +135,16 @@ class Preferences:
 class AppSettings:
     """The non-secret state the app remembers between runs.
 
-    The provider id and the email address live here, not inside
-    ``Preferences``: they belong to the account step, while ``Preferences`` is
-    what the person chose to clean.
+    The provider id, the email address and the last automatic update check
+    (Unix seconds) live here, not inside ``Preferences``: they belong to the
+    account and update steps, while ``Preferences`` is what the person chose to
+    clean.
     """
 
     provider: str = "custom"
     email: str = ""
     preferences: Preferences = field(default_factory=Preferences)
+    last_update_check: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider, str) or not self.provider.strip():
@@ -153,6 +155,12 @@ class AppSettings:
         self.email = self.email.strip()
         if not isinstance(self.preferences, Preferences):
             raise ValueError("preferences must be a Preferences value")
+        if (
+            isinstance(self.last_update_check, bool)
+            or not isinstance(self.last_update_check, int)
+            or self.last_update_check < 0
+        ):
+            raise ValueError("last_update_check must be a non-negative integer")
 
     def to_dict(self) -> dict[str, Any]:
         """Return only the stored fields; a secret key cannot slip in."""
@@ -160,6 +168,7 @@ class AppSettings:
             "provider": self.provider,
             "email": self.email,
             "preferences": self.preferences.to_dict(),
+            "last_update_check": self.last_update_check,
         }
 
     @classmethod
@@ -169,4 +178,5 @@ class AppSettings:
             provider=payload.get("provider", "custom"),
             email=payload.get("email", ""),
             preferences=Preferences.from_dict(payload.get("preferences", {})),
+            last_update_check=payload.get("last_update_check", 0),
         )

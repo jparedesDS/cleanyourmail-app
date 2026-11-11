@@ -212,12 +212,30 @@ def test_app_settings_round_trip_preserves_everything():
         provider="outlook",
         email="me@outlook.es",
         preferences=Preferences(mode="archive", language="es"),
+        last_update_check=1_760_000_000,
     )
     restored = AppSettings.from_dict(settings.to_dict())
     assert restored == settings
     assert restored.provider == "outlook"
     assert restored.email == "me@outlook.es"
     assert restored.preferences.language == "es"
+    assert restored.last_update_check == 1_760_000_000
+
+
+def test_app_settings_last_update_check_defaults_to_zero():
+    assert AppSettings().last_update_check == 0
+    assert AppSettings.from_dict({}).last_update_check == 0
+
+
+@pytest.mark.parametrize("value", [-1, True, False, "1760000000", 1.5, None])
+def test_app_settings_rejects_a_bad_last_update_check(value):
+    with pytest.raises(ValueError):
+        AppSettings(last_update_check=value)
+
+
+def test_app_settings_from_dict_rejects_a_bad_last_update_check():
+    with pytest.raises(ValueError):
+        AppSettings.from_dict({"provider": "gmail", "last_update_check": -5})
 
 
 def test_app_settings_default_preferences():
