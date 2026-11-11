@@ -30,34 +30,54 @@ interfaz PySide6 para la CLI de [CleanYourMail](https://github.com/jparedesDS/cl
 guía para conectar un buzón, elegir qué limpiar, revisar un plan reversible y deshacerlo.
 
 Sin navegador, sin servidor local, sin cuenta, sin telemetría, sin cuerpos de mensaje y sin borrado
-permanente. La única petición de red que hace la app por sí misma es el POST de feedback que envías
-tú explícitamente.
+permanente. La app solo contacta la fuente pública de releases de GitHub (para actualizaciones) y el
+Worker de feedback (solo tras pulsar Enviar y aceptar el consentimiento).
 
-> **Estado:** `0.5.0` es la versión early-MVP actual para Windows. Añade feedback opcional desde la
-> cabecera de la app y la web. El instalador incluye el sidecar congelado de la CLI de CleanYourMail
+> **Estado:** `0.6.0` es la versión early-MVP actual para Windows. Añade actualizaciones automáticas:
+> la app instalada consulta la release pública de GitHub, verifica el SHA-256 del instalador e instala
+> tras una confirmación. El instalador incluye el sidecar congelado de la CLI de CleanYourMail
 > `1.3.0`. Gmail está validado; Outlook depende del modelo de consentimiento de Microsoft. Consulta
 > el [estado de los proveedores](#provider-status).
 
 ## Descarga
 
-[CleanYourMail app 0.5.0 para Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+[CleanYourMail app 0.6.0 para Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
 es un instalador por usuario que incluye el sidecar fijado de la CLI de CleanYourMail `1.3.0` y no
 necesita permisos de administrador.
 
-El instalador 0.5.0 no tiene firma de código. Es posible que Windows SmartScreen muestre un aviso
+El instalador 0.6.0 no tiene firma de código. Es posible que Windows SmartScreen muestre un aviso
 de «Editor desconocido» al iniciarlo por primera vez: elige **Más información** y luego **Ejecutar de
-todas formas**, y compara el SHA-256 publicado en la versión con el de `CleanYourMail-Setup-0.5.0.exe`:
+todas formas**, y compara el SHA-256 publicado en la versión con el de `CleanYourMail-Setup-0.6.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
 ```
 
 La versión también publica un archivo `.sha256` con el formato `HASH  filename`.
 
+## Actualizaciones automáticas
+
+La app instalada consulta la [release pública de GitHub](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+como máximo cada seis horas, y el botón **Actualizaciones** de la cabecera consulta a demanda. La
+petición identifica la versión de la app y tu IP ante GitHub; no envía datos de cuenta, del buzón ni
+tokens.
+
+Cuando hay una versión nueva, un aviso ofrece **Instalar actualización** y **Más tarde**. **Instalar
+actualización** pide una confirmación. Después la app descarga el `CleanYourMail-Setup-<version>.exe`
+exacto y su `.sha256` por HTTPS, verifica el SHA-256 antes de ejecutar nada, se cierra, ejecuta el
+instalador en silencio para el usuario actual y vuelve a abrir la nueva versión. Si falla la consulta,
+la descarga, el hash o la instalación, la app sigue usable y ofrece la página de la release.
+
+El instalador 0.6.0 no tiene firma de código, así que SmartScreen puede avisar durante la
+actualización igual que al ejecutarlo a mano: elige **Más información** y luego **Ejecutar de todas
+formas**. El SHA-256 demuestra que la descarga está íntegra, no quién la publicó; la firma de código
+es el siguiente paso de seguridad. Si la instalación automática no está disponible (por ejemplo, al
+ejecutar desde el código fuente), el mismo flujo ofrece la página de la release para instalar a mano.
+
 Gmail funciona con una contraseña de aplicación y la verificación en dos pasos. Outlook / Microsoft
 365 no funciona con un solo clic: Microsoft 365 necesita el consentimiento del administrador del
 inquilino, y las cuentas personales de Outlook.com necesitan un editor verificado. macOS y Linux
-quedan fuera del alcance de 0.5.0.
+quedan fuera del alcance de 0.6.0.
 
 ## Por qué esta app
 
@@ -103,7 +123,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` imprime `CleanYourMail app 0.5.0`.
+`python -m cleanyourmail_app --version` imprime `CleanYourMail app 0.6.0`.
 
 Ejecuta las pruebas:
 
@@ -163,9 +183,14 @@ La app informa de estos estados con honestidad. No afirma que Outlook funcione c
 
 ## Modelo de seguridad
 
-- **Solo local, salvo el feedback opcional.** Sin cuenta, nube, telemetría ni acceso al cuerpo de los
-  mensajes. La app no hace ninguna petición de red en segundo plano; la única que hace por sí misma
-  es el POST de feedback después de que pulses Enviar y aceptes la línea de consentimiento.
+- **Local por defecto, salvo el feedback opcional.** Sin cuenta, nube ni telemetría, y sin acceso al
+  cuerpo de los mensajes. La app hace dos peticiones propias: la consulta pública de releases de
+  GitHub (solo versión e IP; como máximo cada seis horas o al pulsar **Actualizaciones**) y el POST
+  de feedback tras pulsar Enviar y aceptar el consentimiento. El acceso de red al correo pertenece al
+  sidecar.
+- **Actualizaciones verificadas.** El instalador se descarga por HTTPS desde la release de GitHub, se
+  comprueba con el SHA-256 publicado y solo se ejecuta tras una confirmación. El instalador 0.6.0 no
+  tiene firma de código, así que SmartScreen puede avisar; el SHA-256 demuestra integridad, no autoría.
 - **Solo la CLI.** La app no puede añadir capacidades que la CLI no tenga.
 - **Ningún secreto en argv.** Las contraseñas de aplicación se escriben en el `password_file` de la
   CLI; la app nunca las pasa como argumentos de línea de comandos.
@@ -173,7 +198,7 @@ La app informa de estos estados con honestidad. No afirma que Outlook funcione c
   registros, los diálogos de error ni la salida de las pruebas.
 - **Revisar primero.** Ninguna escritura sin un plan revisado; deshacer queda a un clic.
 - **Sin borrado permanente.** Los movimientos y el archivado son reversibles.
-- **Sin cancelación de suscripción en 0.5.0.** El plan puede mostrar modos de cancelación, pero
+- **Sin cancelación de suscripción en 0.6.0.** El plan puede mostrar modos de cancelación, pero
   Aplicar solo mueve mensajes.
 - **Inglés y español de primera clase.** Cada cadena vive en `i18n/*.json`.
 

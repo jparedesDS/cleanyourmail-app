@@ -29,33 +29,54 @@
 for the [CleanYourMail](https://github.com/jparedesDS/cleanyourmail) CLI. It guides you through
 connecting a mailbox, choosing what to clean, reviewing a reversible plan and undoing it.
 
-No browser, no local server, no account, no telemetry, no bodies, no permanent deletion. The only
-network request the app makes itself is the feedback POST you explicitly send.
+No browser, no local server, no account, no telemetry, no bodies, no permanent deletion. The app
+itself only calls the public GitHub release feed (for updates) and the feedback Worker (only after
+you press Send and accept the consent line).
 
-> **Status:** `0.5.0` is the current Windows early-MVP release. It adds a three-step Review wizard
-> with message previews before Apply, plus opt-in feedback from the app header and the website.
-> The installer bundles the frozen CleanYourMail CLI `1.3.0` sidecar. Gmail is validated; Outlook
-> depends on Microsoft's consent model. See [Provider status](#provider-status).
+> **Status:** `0.6.0` is the current Windows early-MVP release. It adds automatic updates: the
+> installed app checks the public GitHub release, verifies the installer's SHA-256 and installs it
+> after one confirmation. The installer bundles the frozen CleanYourMail CLI `1.3.0` sidecar. Gmail
+> is validated; Outlook depends on Microsoft's consent model. See
+> [Provider status](#provider-status).
 
 ## Download
 
-[CleanYourMail app 0.5.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+[CleanYourMail app 0.6.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
 is a per-user installer that bundles the pinned CleanYourMail CLI `1.3.0` sidecar and needs no
 administrator rights.
 
-The 0.5.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
+The 0.6.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
 warning on first launch: choose **More info**, then **Run anyway**, and compare the SHA-256
-published with the release against `CleanYourMail-Setup-0.5.0.exe`:
+published with the release against `CleanYourMail-Setup-0.6.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
 ```
 
 The release also publishes a `.sha256` file in `HASH  filename` format.
 
 Gmail works with an App Password and 2-Step Verification. Outlook / Microsoft 365 does not work
 one-click: Microsoft 365 needs tenant admin consent, and personal Outlook.com accounts need a
-verified publisher. macOS and Linux are out of scope for 0.5.0.
+verified publisher. macOS and Linux are out of scope for 0.6.0.
+
+## Automatic updates
+
+The installed app checks the public
+[GitHub release feed](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) at most once
+every six hours, and the **Updates** button in the header checks on demand. The request identifies
+the app version and your IP address to GitHub; it sends no account data, mailbox data or tokens.
+
+When a newer version exists, a banner offers **Install update** and **Later**. **Install update**
+asks for one confirmation. The app then downloads the exact `CleanYourMail-Setup-<version>.exe` asset
+and its published `.sha256` file over HTTPS, verifies the SHA-256 before running anything, closes,
+runs the installer silently for the current user and reopens the new version. If the check, the
+download, the hash or the install fails, the app stays usable and offers the release page instead.
+
+The installer is unsigned in 0.6.0, so Windows SmartScreen may warn during an update just as it does
+when you run the installer by hand: choose **More info**, then **Run anyway**. SHA-256 proves the
+download is intact, not who published it; code signing is the next security step. If automatic
+installation is unavailable (for example, when running from source), the same flow offers the
+release page so you can install manually.
 
 ## Why this app
 
@@ -99,7 +120,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.5.0`.
+`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.6.0`.
 
 Run the tests:
 
@@ -154,9 +175,13 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
 
 ## Security model
 
-- **Local only, except opt-in feedback.** No account, cloud, telemetry or body access. The app
-  makes no background network request; the only request it makes itself is the feedback POST after
-  you press Send and accept the consent line.
+- **Local by default, no account or telemetry.** The app makes two kinds of network request itself:
+  a public GitHub release check (app version and IP only; at most every six hours or when you press
+  **Updates**) and the feedback POST after you press Send and accept the consent line. Mailbox
+  network access belongs to the sidecar and goes only to your mail provider.
+- **Verified updates.** The installer is downloaded over HTTPS from the GitHub release, must match
+  the published SHA-256, and runs only after one confirmation. The 0.6.0 installer is unsigned, so
+  SmartScreen may warn; SHA-256 proves integrity, not the publisher.
 - **CLI only.** The app cannot add capabilities the CLI does not have.
 - **No secret in argv.** App passwords are written to the CLI `password_file`; the app never passes
   them as command-line arguments.
@@ -164,7 +189,7 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
   output.
 - **Review first.** No write without a reviewed plan; undo stays one click away.
 - **No permanent deletion.** Moves and archives are reversible.
-- **No unsubscribe in 0.5.0.** The plan may show unsubscribe modes, but Apply only moves messages.
+- **No unsubscribe in 0.6.0.** The plan may show unsubscribe modes, but Apply only moves messages.
 - **English and Spanish first-class.** Every string lives in `i18n/*.json`.
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
@@ -179,7 +204,7 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 | `src/cleanyourmail_app/app.py` | Builds the local services and opens the wizard. |
 | `src/cleanyourmail_app/ui/` | PySide6 window, pages, widgets, theme and resources. |
 | `src/cleanyourmail_app/domain/` | Provider catalog, settings, preferences and plan models. |
-| `src/cleanyourmail_app/services/` | Sidecar client (`cli.py`), config (`config.py`), secrets (`secrets.py`), OAuth (`oauth.py`) and settings (`settings.py`). |
+| `src/cleanyourmail_app/services/` | Sidecar client (`cli.py`), config (`config.py`), secrets (`secrets.py`), OAuth (`oauth.py`), settings (`settings.py`), update check and download (`updates.py`) and the installer helper (`installer.py`). |
 | `src/cleanyourmail_app/i18n/` | English and Spanish strings. |
 | `scripts/` | Sidecar/app builds and the installer smoke test. |
 | `packaging/` | Inno Setup script and icons. |

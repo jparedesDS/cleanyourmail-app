@@ -38,8 +38,8 @@ a native view and a process wrapper around the frozen sidecar.
 |---|---|
 | `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app`; prints `--version` before importing Qt. |
 | `src/cleanyourmail_app/app.py` | Builds `QApplication`, the translator, `SettingsStore`, `AppServices` and `MainWindow`. |
-| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.5.0`). |
-| `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch and the Feedback button. |
+| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.6.0`). |
+| `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch, the Feedback button and the Updates button/banner. |
 | `src/cleanyourmail_app/ui/pages/provider.py` | Seven provider cards, email validation, account handoff. |
 | `src/cleanyourmail_app/ui/pages/connect.py` | App-password save, doctor, custom host, Outlook device-code UI, Cancel and sensitive-state clearing. |
 | `src/cleanyourmail_app/ui/pages/preferences.py` | Categories, mode, protections, limits, Advanced paths and language; writes the policy through `ConfigService`. |
@@ -53,6 +53,8 @@ a native view and a process wrapper around the frozen sidecar.
 | `src/cleanyourmail_app/services/oauth.py` | Runs `connect outlook --no-wait/--wait` and maps known failures; the app never handles a token. |
 | `src/cleanyourmail_app/services/settings.py` | Stores provider, email and app preferences in `%APPDATA%\cleanyourmail-app\settings.json`; no secrets. |
 | `src/cleanyourmail_app/services/feedback.py` | One HTTPS POST to the feedback Worker, only after Send; maps 429/503/network failures to localized keys and never logs the payload. |
+| `src/cleanyourmail_app/services/updates.py` | Reads the public GitHub release, compares versions, and downloads the installer plus its `.sha256`; verifies the hash and never executes anything. |
+| `src/cleanyourmail_app/services/installer.py` | Writes and starts the temporary silent per-user installer helper; it never downloads or installs without the window's confirmation. |
 | `src/cleanyourmail_app/i18n/` | English and Spanish catalogs and the `Translator`. |
 | `resources/cli/` (build output) | Staged `cym-cli.exe`, bundled into `dist\CleanYourMail\resources\cli`. |
 | `packaging/` | Inno Setup 6 per-user installer and icon. |
@@ -109,8 +111,8 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 
 ## Feedback flow
 
-Feedback is the only network request the app makes itself. It is never automatic and never runs at
-startup.
+Feedback is the only network request that carries anything the person writes. The only other request
+the app makes itself is the public GitHub release check, which sends no account data.
 
 ```text
 Header Feedback button
@@ -138,6 +140,40 @@ services/feedback.py ── HTTPS POST ──→ Cloudflare Worker
   localized copy; the payload and response body are never logged.
 - English and Spanish copy lives in `i18n/*.json`, like the rest of the app.
 
+## Update flow
+
+The installed app checks the public GitHub release feed at most once every six hours, and whenever
+the person presses **Updates** in the header. The check sends the app version in its `User-Agent` and
+nothing else.
+
+```text
+Startup timer / Updates button
+  → GitHub Releases API (latest)
+  → UpdateInfo(version, installer_url, checksum_url, notes)
+  → banner: Install update / Later
+  → one confirmation
+  → download installer + .sha256 over HTTPS
+  → SHA-256 verification
+  → temporary .cmd helper waits for the app PID
+  → silent per-user installer (/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER)
+  → relaunch the installed app
+```
+
+- `services/updates.py` is network-only. It accepts HTTPS assets only from `github.com` and GitHub's
+  release CDN, requires the `CleanYourMail-Setup-<version>.exe` name, caps the download at 200 MB and
+  checks the installer against the downloaded `.sha256` before anything runs. It never executes an
+  installer.
+- A missing or malformed asset, a hash mismatch or a redirect to another host refuses automatic
+  installation and offers the release page instead.
+- `services/installer.py` builds the helper command. The helper waits for the app PID, quotes every
+  path, deletes the installer only after a successful install and reopens the app. It leaves the
+  installer for diagnosis if the install fails.
+- The installer is unsigned in 0.6.0. SHA-256 is integrity, not publisher authentication; code
+  signing is the next security step, and Windows SmartScreen may warn.
+- The automatic check never installs anything. Only **Install update** plus the confirmation starts
+  the download and verification; the helper runs only after both succeed. A failed check is silent
+  on the automatic path and visible on the manual path.
+
 ## Failure handling
 
 - Sidecar exit 0 + JSON: rendered normally.
@@ -152,6 +188,8 @@ services/feedback.py ── HTTPS POST ──→ Cloudflare Worker
 
 - `pytest` and `pytest-qt` run headless against fake CLI fixtures; no mailbox or network.
 - Feedback tests use a fake `send_feedback`; no test performs an HTTP request.
+- Update tests inject a fake opener and a fake launcher; no test downloads or executes a real
+  installer.
 - `tests/test_cli_contract.py` pins the frozen sidecar when `CYM_CLI` is set.
 - PyInstaller builds a windowed `--onedir` app and bundles the sidecar.
 - Inno Setup builds a per-user installer; the uninstaller removes app files only.

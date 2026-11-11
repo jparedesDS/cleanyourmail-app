@@ -29,33 +29,41 @@
 CleanYourMail CLI를 위한 PySide6 프런트엔드입니다. 사서함 연결부터 정리할 항목 선택,
 되돌릴 수 있는 계획 검토, 실행 취소까지 차근차근 안내합니다.
 
-브라우저도, 로컬 서버도, 계정도, 텔레메트리도, 본문 접근도, 영구 삭제도 없습니다. 앱 자체가
-보내는 유일한 네트워크 요청은 사용자가 직접 보내는 피드백 POST뿐입니다.
+브라우저도, 로컬 서버도, 계정도, 텔레메트리도, 본문 접근도, 영구 삭제도 없습니다. 앱 자체가 연결하는 곳은 공개 GitHub 릴리스 피드(업데이트용)와 피드백 Worker(보내기를 누르고 동의한 경우에만)뿐입니다.
 
-> **상태:** `0.5.0`은 현재 Windows용 초기 MVP 릴리스입니다. 앱 헤더와 웹사이트에서
-> 선택형 피드백을 보낼 수 있는 기능이 추가되었습니다. 설치 프로그램에는 동결된
-> CleanYourMail CLI `1.3.0` 사이드카가 포함됩니다. Gmail은 검증되었고, Outlook은
-> Microsoft의 동의 모델에 따라 달라집니다. [제공자 상태](#provider-status)를 참고하세요.
+> **상태:** `0.6.0`은 현재 Windows용 초기 MVP 릴리스입니다. 자동 업데이트가 추가되었습니다.
+> 설치된 앱이 공개 GitHub 릴리스를 확인하고 설치 프로그램의 SHA-256을 검증한 뒤 한 번의 확인으로
+> 설치합니다. 설치 프로그램에는 동결된 CleanYourMail CLI `1.3.0` 사이드카가 포함됩니다. Gmail은
+> 검증되었고, Outlook은 Microsoft의 동의 모델에 따라 달라집니다. [제공자 상태](#provider-status)를
+> 참고하세요.
 
 ## 다운로드
 
-[Windows 10/11 x64용 CleanYourMail 앱 0.5.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)은
+[Windows 10/11 x64용 CleanYourMail 앱 0.6.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)은
 사용자 단위 설치 프로그램으로, 고정된 CleanYourMail CLI `1.3.0` 사이드카를 포함하며 관리자
 권한이 필요하지 않습니다.
 
-0.5.0 설치 프로그램은 코드 서명이 되어 있지 않습니다. 처음 실행할 때 Windows SmartScreen에
+0.6.0 설치 프로그램은 코드 서명이 되어 있지 않습니다. 처음 실행할 때 Windows SmartScreen에
 "알 수 없는 게시자" 경고가 표시될 수 있습니다. **추가 정보**를 선택한 다음 **실행**을 누르고,
-릴리스와 함께 게시된 SHA-256을 `CleanYourMail-Setup-0.5.0.exe`와 비교하세요.
+릴리스와 함께 게시된 SHA-256을 `CleanYourMail-Setup-0.6.0.exe`와 비교하세요.
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
 ```
 
 릴리스에는 `HASH  filename` 형식의 `.sha256` 파일도 함께 게시됩니다.
 
+## 자동 업데이트
+
+설치된 앱은 [공개 GitHub 릴리스](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)를 최대 6시간마다 확인하며, 헤더의 **Updates** 버튼으로 언제든 확인할 수 있습니다. 이 요청은 앱 버전과 IP를 GitHub에 알리지만 계정, 사서함, 토큰 데이터는 보내지 않습니다.
+
+새 버전이 있으면 배너에 **Install update**와 **Later**가 표시됩니다. **Install update**를 누르면 한 번 확인합니다. 그다음 앱이 정확한 `CleanYourMail-Setup-<version>.exe`와 공개된 `.sha256`을 HTTPS로 내려받고, 무엇이든 실행하기 전에 SHA-256을 검증한 뒤 종료하며, 설치 프로그램을 현재 사용자용으로 조용히 실행하고 새 버전을 다시 엽니다. 확인, 다운로드, 해시 또는 설치가 실패하면 앱은 계속 사용할 수 있고 릴리스 페이지를 대신 안내합니다.
+
+0.6.0 설치 프로그램은 코드 서명이 되어 있지 않아 업데이트 중에도 수동 실행 때와 같이 SmartScreen 경고가 표시될 수 있습니다. **추가 정보**를 선택한 다음 **실행**을 누르세요. SHA-256은 다운로드의 무결성을 증명할 뿐 게시자를 증명하지 않습니다. 코드 서명이 다음 보안 단계입니다. 자동 설치를 사용할 수 없으면(예: 소스에서 실행) 같은 흐름에서 릴리스 페이지를 안내하여 수동으로 설치할 수 있습니다.
+
 Gmail은 앱 비밀번호와 2단계 인증으로 작동합니다. Outlook / Microsoft 365는 클릭 한 번으로
 연결되지 않습니다. Microsoft 365는 테넌트 관리자 동의가 필요하고, 개인 Outlook.com 계정은
-확인된 게시자가 필요합니다. 0.5.0에서는 macOS와 Linux를 지원하지 않습니다.
+확인된 게시자가 필요합니다. 0.6.0에서는 macOS와 Linux를 지원하지 않습니다.
 
 ## 이 앱이 필요한 이유
 
@@ -100,7 +108,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version`을 실행하면 `CleanYourMail app 0.5.0`이 출력됩니다.
+`python -m cleanyourmail_app --version`을 실행하면 `CleanYourMail app 0.6.0`이 출력됩니다.
 
 테스트를 실행하세요.
 
@@ -158,9 +166,13 @@ python -m pytest -q
 
 ## 보안 모델
 
-- **선택형 피드백을 제외하면 로컬 전용입니다.** 계정도 클라우드도 텔레메트리도 본문 접근도
-  없습니다. 앱은 백그라운드 네트워크 요청을 하지 않으며, 앱 자체가 보내는 유일한 요청은
-  보내기를 누르고 동의 문구를 확인한 뒤의 피드백 POST입니다.
+- **선택형 피드백을 제외하면 기본은 로컬입니다.** 계정, 클라우드, 텔레메트리, 본문 접근이 없습니다.
+  앱 자체 요청은 두 가지뿐입니다. 공개 GitHub 릴리스 확인(버전과 IP만, 최대 6시간마다 또는
+  **Updates**를 누를 때)과 보내기를 누르고 동의한 뒤의 피드백 POST입니다. 메일 네트워크 접근은
+  사이드카가 담당합니다.
+- **업데이트는 검증됩니다.** 설치 프로그램은 GitHub 릴리스에서 HTTPS로 내려받고, 공개된 SHA-256으로
+  검증하며, 한 번의 확인 후에만 실행합니다. 0.6.0 설치 프로그램은 코드 서명이 되어 있지 않아
+  SmartScreen 경고가 표시될 수 있습니다. SHA-256은 무결성을 증명할 뿐 게시자를 증명하지 않습니다.
 - **CLI만 사용합니다.** 앱은 CLI에 없는 기능을 추가할 수 없습니다.
 - **명령줄 인수에 비밀 정보가 없습니다.** 앱 비밀번호는 CLI의 `password_file`에 기록되며,
   앱은 이를 명령줄 인수로 전달하지 않습니다.
@@ -169,7 +181,7 @@ python -m pytest -q
 - **검토 먼저.** 검토된 계획 없이는 아무것도 변경하지 않으며, 실행 취소는 언제나 한 번의
   클릭으로 가능합니다.
 - **영구 삭제가 없습니다.** 이동과 보관은 되돌릴 수 있습니다.
-- **0.5.0에는 수신 거부가 없습니다.** 계획에 수신 거부 모드가 표시될 수 있지만, 적용은
+- **0.6.0에는 수신 거부가 없습니다.** 계획에 수신 거부 모드가 표시될 수 있지만, 적용은
   메시지를 이동할 뿐입니다.
 - **영어와 스페인어를 정식 지원합니다.** 모든 문자열은 `i18n/*.json`에 있습니다.
 
