@@ -49,7 +49,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -98,25 +97,48 @@ _UNSUBSCRIBE_KEYS = {
 }
 
 
-class _StepStack(QStackedWidget):
-    """A stack that reserves height only for the visible step.
+class _StepStack(QWidget):
+    """A one-visible-panel stack; hidden steps do not reserve height.
 
-    ``QStackedWidget`` reports the largest size hint of every page. A long
-    plan would then leave blank space under the scan step, so the step stack
-    asks the current page instead; ``show_step`` calls ``updateGeometry``.
+    ``QStackedWidget`` reports the largest size hint of every page, so a long
+    plan would leave blank space and a stale scroll range under the scan step
+    after Back. Keeping only the current panel visible lets the layout shrink
+    to the page the person is actually reading.
     """
 
-    def sizeHint(self):  # noqa: N802 - Qt's naming
-        current = self.currentWidget()
-        return current.sizeHint() if current is not None else super().sizeHint()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+        self._pages: list[QWidget] = []
+        self._index = 0
 
-    def minimumSizeHint(self):  # noqa: N802 - Qt's naming
-        current = self.currentWidget()
-        return (
-            current.minimumSizeHint()
-            if current is not None
-            else super().minimumSizeHint()
-        )
+    def addWidget(self, page: QWidget) -> None:  # noqa: N802 - Qt's naming
+        self._pages.append(page)
+        self._layout.addWidget(page)
+        page.setVisible(len(self._pages) == 1)
+
+    def setCurrentIndex(self, index: int) -> None:  # noqa: N802 - Qt's naming
+        if not self._pages:
+            self._index = int(index)
+            return
+        self._index = max(0, min(int(index), len(self._pages) - 1))
+        for position, page in enumerate(self._pages):
+            page.setVisible(position == self._index)
+        self._layout.activate()
+        self.updateGeometry()
+
+    def currentIndex(self) -> int:  # noqa: N802 - Qt's naming
+        return self._index
+
+    def currentWidget(self) -> QWidget | None:  # noqa: N802 - Qt's naming
+        if 0 <= self._index < len(self._pages):
+            return self._pages[self._index]
+        return None
+
+    def count(self) -> int:
+        return len(self._pages)
 
 
 class _ReviewSignals(QObject):
@@ -1067,7 +1089,13 @@ class ReviewPage(QWidget):
             part
             for part in (
                 category,
-                t("review.wizard.report.group", count=count, unread=unread),
+                t(
+                    "review.wizard.report.group_one"
+                    if count == 1
+                    else "review.wizard.report.group",
+                    count=count,
+                    unread=unread,
+                ),
             )
             if part
         )
@@ -1349,6 +1377,8 @@ class ReviewPage(QWidget):
             samples = group.get("samples")
             if isinstance(samples, list):
                 for sample in samples:
+                    if len(items) >= len(uid_set):
+                        break
                     if isinstance(sample, str) and sample.strip():
                         items.append(self._preview({"subject": sample}))
             more = max(0, len(uid_set) - len(items))
@@ -1430,8 +1460,20 @@ class ReviewPage(QWidget):
             return
         self._refresh_gate()
 
+    def _apply_count(self) -> int:
+        """The move count shown in the Apply label, after the policy clamp."""
+        moves = self.plan_move_count()
+        if moves <= 0:
+            return 0
+        try:
+            maximum = self._settings.load().preferences.max_moves
+        except (OSError, ValueError, TypeError):
+            return moves
+        return min(moves, maximum)
+
     def _refresh_gate(self) -> None:
         moves = self.plan_move_count()
+        effective = self._apply_count()
         enabled = not self._applied and moves > 0 and self._busy is None
         if not enabled and self.review_checkbox.isChecked():
             self._gate_updating = True
@@ -1441,9 +1483,13 @@ class ReviewPage(QWidget):
                 self._gate_updating = False
         self.review_checkbox.setEnabled(enabled)
         self.apply_button.setEnabled(enabled and self.review_checkbox.isChecked())
+        if effective == 1:
+            key = "review.apply_count_one"
+        else:
+            key = "review.apply_count"
         self.apply_button.setText(
-            self._translator.t("review.apply_count", count=moves)
-            if moves
+            self._translator.t(key, count=effective)
+            if effective
             else self._translator.t("review.apply")
         )
 

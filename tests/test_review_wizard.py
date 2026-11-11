@@ -228,6 +228,32 @@ PLAN_SAMPLES_ONLY = {
     ],
 }
 
+PLAN_SAMPLES_OVER = {
+    "version": 1,
+    "mode": "folders",
+    "stats": {"messages": 3, "groups": 1, "protected": 0},
+    "actions": [
+        {
+            "id": "a1",
+            "type": "move",
+            "group": "old-style",
+            "category": "newsletter",
+            "mailbox": "INBOX",
+            "uids": [1],
+            "dest": "CleanYourMail/Newsletters",
+        }
+    ],
+    "groups": [
+        {
+            "key": "old-style",
+            "category": "newsletter",
+            "domain": "old.example",
+            "count": 3,
+            "samples": ["Old digest", "Old arrivals", "Old picks"],
+        }
+    ],
+}
+
 PLAN_ZERO = {
     "version": 1,
     "mode": "folders",
@@ -415,6 +441,21 @@ def test_back_preserves_the_scan_and_the_report(page):
     assert page.scan_total_label.text() == "10"
     assert page.scan_continue_button.isHidden() is False
     assert page.step_back_button.isHidden() is True
+
+
+def test_back_from_a_long_plan_shrinks_the_step_stack(qtbot, page):
+    page.set_scan(_result(SCAN))
+    page.set_report(_result(REPORT))
+    page.set_plan(_plan_result(PLAN_MESSAGES))
+    page.show_step(2)
+    qtbot.wait(30)
+    tall = page.step_stack.height()
+
+    page.show_step(0)
+    qtbot.wait(30)
+
+    assert page.step_stack.height() < tall
+    assert page.step_stack.height() <= page.scan_step.sizeHint().height() + 60
 
 
 def test_the_step_bar_marks_active_and_done_steps(page):
@@ -629,6 +670,16 @@ def test_a_plan_without_messages_falls_back_to_samples(page, services):
     assert services.translator.t("review.wizard.plan.more", count=2) in card
     assert page.plan_move_count() == 4
     assert page.review_checkbox.isEnabled() is True
+
+
+def test_samples_fallback_does_not_show_more_subjects_than_uids(page):
+    page.set_plan(_plan_result(PLAN_SAMPLES_OVER))
+
+    card = _texts(_plan_card(page, 0))
+    assert "Old digest" in card
+    assert "Old arrivals" not in card
+    assert "Old picks" not in card
+    assert page.plan_move_count() == 1
 
 
 def test_zero_move_and_unsubscribe_only_plans_keep_the_gate_closed(page, services):

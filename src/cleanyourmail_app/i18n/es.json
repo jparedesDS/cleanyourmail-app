@@ -319,6 +319,7 @@
         "result": "Encontramos {messages} mensajes en {groups} grupos de remitentes; {protected} están protegidos.",
         "continue": "Preparar el plan",
         "group": "{count} mensajes · {unread} sin leer",
+        "group_one": "1 mensaje · {unread} sin leer",
         "no_samples": "No hay vista previa de asuntos."
       },
       "plan": {
@@ -373,6 +374,7 @@
     "reviewed_required": "Revisa el plan antes de aplicar.",
     "apply": "Aplicar plan",
     "apply_count": "Aplicar {count} movimientos",
+    "apply_count_one": "Aplicar 1 movimiento",
     "summary": "{messages} mensajes en {groups} grupos de remitentes.",
     "zero_moves": "No hay nada que aplicar.",
     "undo": {

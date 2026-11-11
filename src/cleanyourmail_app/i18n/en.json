@@ -319,6 +319,7 @@
         "result": "We found {messages} messages in {groups} sender groups; {protected} are protected.",
         "continue": "Prepare the plan",
         "group": "{count} messages · {unread} unread",
+        "group_one": "1 message · {unread} unread",
         "no_samples": "No subject preview available."
       },
       "plan": {
@@ -373,6 +374,7 @@
     "reviewed_required": "Review the plan before applying.",
     "apply": "Apply plan",
     "apply_count": "Apply {count} moves",
+    "apply_count_one": "Apply 1 move",
     "summary": "{messages} messages in {groups} sender groups.",
     "zero_moves": "There is nothing to apply.",
     "undo": {
