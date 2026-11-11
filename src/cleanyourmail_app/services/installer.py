@@ -61,7 +61,7 @@ def install_update(
     pid: int,
     *,
     launcher: Launcher | None = None,
-    frozen: bool = True,
+    frozen: bool = False,
 ) -> Path:
     """Write and start the temporary installer helper; return its script path.
 
@@ -70,8 +70,9 @@ def install_update(
         app_exe: The executable to start after the installer finishes.
         pid: The running app's process id; the helper waits for it to exit.
         launcher: Injection point for tests. Defaults to ``subprocess.Popen``.
-        frozen: Must be true. An unpackaged development app must never replace
-            itself, so this raises :class:`InstallerUnavailable` when false.
+        frozen: Callers must opt in with a true value. An unpackaged development
+            app must never replace itself, so the default refuses with
+            :class:`InstallerUnavailable`.
 
     Raises:
         InstallerUnavailable: The app is not frozen (not an installed build).
@@ -95,11 +96,18 @@ def install_update(
         raise UpdateError("The app executable is missing.")
 
     script_path = _write_script(installer_path, app_path, pid)
-    command = ["cmd.exe", "/c", str(script_path)]
+    # ``cmd.exe /c`` reparses its command line. Pass only the generated
+    # basename and set the parent as cwd so a temp directory containing ``&``
+    # or ``|`` cannot become a second command.
+    command = ["cmd.exe", "/d", "/c", script_path.name]
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     start = launcher if launcher is not None else subprocess.Popen
     try:
-        start(command, creationflags=creationflags)
+        start(
+            command,
+            creationflags=creationflags,
+            cwd=str(script_path.parent),
+        )
     except Exception as error:  # noqa: BLE001 - surfaced as an update failure
         _remove_file(script_path)
         raise UpdateError("The update helper could not be started.") from error

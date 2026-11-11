@@ -486,12 +486,14 @@ class MainWindow(QMainWindow):
         if checker is None or self._updates_busy():
             return
         self._update_check_manual = manual
-        self._record_update_check(stored)
+        if not manual:
+            self._record_update_check(stored)
         started = self._update_check_worker.start(
             lambda: checker(version.__version__)
         )
         if not started:
             self._update_check_manual = False
+        self._refresh_update_banner()
 
     def _record_update_check(self, stored: object | None = None) -> None:
         """Stamp the check before it starts; a read-only profile is not fatal."""
@@ -502,6 +504,8 @@ class MainWindow(QMainWindow):
             return
 
     def _on_update_check_succeeded(self, info: object) -> None:
+        if self._update_transition_in_progress():
+            return
         manual = self._update_check_manual
         if info is None:
             if manual:
@@ -524,6 +528,8 @@ class MainWindow(QMainWindow):
         self._refresh_update_banner()
 
     def _on_update_check_failed(self, error: object) -> None:
+        if self._update_transition_in_progress():
+            return
         if not self._update_check_manual:
             return
         self._show_update_message("update.check_failed", allow_github=True)
@@ -533,6 +539,14 @@ class MainWindow(QMainWindow):
         # do not clear the newer check's manual/automatic marker in that case.
         if not self._update_check_worker.active:
             self._update_check_manual = False
+        self._refresh_update_banner()
+
+    def _update_transition_in_progress(self) -> bool:
+        """True while a confirmed download or install owns the update flow."""
+        return (
+            self._update_state in {"downloading", "installing"}
+            or self._update_download_worker.active
+        )
 
     def _auto_install_available(self, info: object) -> bool:
         installer_url = getattr(info, "installer_url", "")
@@ -540,6 +554,7 @@ class MainWindow(QMainWindow):
         return bool(
             installer_url
             and checksum_url
+            and callable(self.update_downloader)
             and callable(self.update_installer)
         )
 
@@ -580,6 +595,7 @@ class MainWindow(QMainWindow):
                 else t("update.open_github")
             )
             primary_visible = True
+            primary_enabled = not self._update_check_worker.active
         elif state == "downloading":
             label = t("update.downloading")
             primary = (
@@ -641,6 +657,11 @@ class MainWindow(QMainWindow):
     def _confirm_and_install_update(self) -> None:
         info = self._update_info
         if info is None:
+            return
+        if self.review_page.is_busy():
+            self._update_state = "available"
+            self._update_error_key = "update.review_busy"
+            self._refresh_update_banner()
             return
         t = self.translator.t
         answer = QMessageBox.question(
@@ -734,6 +755,12 @@ class MainWindow(QMainWindow):
     def _quit_for_update(self) -> None:
         """Close the app after the helper is running; tests replace this."""
         QApplication.quit()
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt's contract
+        """Stop update workers before the window goes away."""
+        self._update_check_worker.shutdown()
+        self._update_download_worker.shutdown()
+        super().closeEvent(event)
 
     # -- language -----------------------------------------------------------
 

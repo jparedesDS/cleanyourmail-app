@@ -60,6 +60,7 @@
     "up_to_date": "You're up to date.",
     "check_failed": "Could not check for updates. Check your connection.",
     "download_failed": "The update could not be downloaded. Check your connection and try again.",
+    "review_busy": "Wait for the current mailbox action to finish before updating.",
     "install_failed": "The update could not be started. Open GitHub to install it manually.",
     "dev_unavailable": "Automatic updates are available in the installed app. Open GitHub instead."
   },
