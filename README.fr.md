@@ -66,8 +66,14 @@ Quand une version plus récente existe, une bannière propose **Install update**
 **Install update** demande une confirmation. L’app télécharge ensuite l’exécutable exact
 `CleanYourMail-Setup-<version>.exe` et son `.sha256` en HTTPS, vérifie le SHA-256 avant d’exécuter
 quoi que ce soit, se ferme, exécute l’installateur silencieusement pour l’utilisateur courant et
-rouvre la nouvelle version. Si la vérification, le téléchargement, le hachage ou l’installation
-échoue, l’app reste utilisable et propose la page de la version.
+rouvre la nouvelle version.
+
+Les échecs ne bloquent pas l’app. Un contrôle automatique qui échoue reste silencieux ; cliquez sur
+**Updates** pour réessayer à la main. Un contrôle manuel en échec affiche un message localisé avec
+**Open GitHub**. Si la release n’a pas d’installateur ou de checksum valide, la bannière propose
+**Open GitHub** au lieu de **Install update**. Un échec de téléchargement ou de hachage affiche une
+erreur localisée et garde la bannière pour que **Install update** réessaie. Si l’installateur
+n’aboutit pas, l’ancienne app se rouvre et la bannière propose **Open GitHub**.
 
 L’installateur 0.6.0 n’est pas signé, donc SmartScreen peut avertir pendant la mise à jour comme lors
 d’une exécution manuelle : choisissez **Informations complémentaires**, puis **Exécuter quand même**.
@@ -152,9 +158,10 @@ d’identifiants ni d’accès réseau.
 ## Feedback
 
 Les retours sont **facultatifs et manuels**. Ouvrez-les avec le bouton **Feedback** dans l’en-tête de
-l’app ou utilisez le [formulaire du site](https://cleanyourmail.org/#feedback).
-Rien n’est collecté en arrière-plan, et l’app n’envoie rien tant que vous n’avez pas cliqué sur
-**Envoyer** et accepté la ligne de consentement.
+l’app ou utilisez le [formulaire du site](https://cleanyourmail.org/#feedback). Aucune donnée de
+retour n’est collectée en arrière-plan, et le formulaire n’envoie rien tant que vous n’avez pas
+cliqué sur **Envoyer** et accepté la ligne de consentement. La seule requête réseau automatique est
+la vérification des mises à jour décrite plus haut.
 
 - L’app préremplit une **liste de vérification modifiable** avec les versions de l’app et du
   sidecar, la version de Windows, le nom du fournisseur, le mode dossier/archivage, les catégories

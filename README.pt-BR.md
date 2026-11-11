@@ -66,8 +66,14 @@ tokens.
 Quando há uma versão mais nova, um banner oferece **Install update** e **Later**. **Install update**
 pede uma confirmação. Depois o app baixa o `CleanYourMail-Setup-<version>.exe` exato e seu `.sha256`
 por HTTPS, verifica o SHA-256 antes de executar qualquer coisa, fecha, executa o instalador em
-silêncio para o usuário atual e reabre a nova versão. Se a consulta, o download, o hash ou a
-instalação falhar, o app continua utilizável e oferece a página da release.
+silêncio para o usuário atual e reabre a nova versão.
+
+Falhas não bloqueiam o app. Se uma verificação automática falhar, nada é exibido; pressione
+**Updates** para tentar manualmente. Se uma verificação manual falhar, aparece uma mensagem
+localizada com **Open GitHub**. Se a release não tiver um instalador ou checksum válido, o banner
+oferece **Open GitHub** em vez de **Install update**. Se o download ou o hash falhar, aparece um erro
+localizado e o banner permanece para **Install update** tentar de novo. Se o instalador não concluir,
+o app antigo reabre e o banner oferece **Open GitHub**.
 
 O instalador 0.6.0 não tem assinatura de código, então o SmartScreen pode avisar durante a
 atualização como avisa ao executá-lo manualmente: escolha **Mais informações** e depois **Executar
@@ -151,8 +157,9 @@ acesso à rede.
 ## Feedback
 
 O feedback é **opcional e manual**. Abra-o com o botão **Feedback** no cabeçalho do app ou use o
-[formulário do site](https://cleanyourmail.org/#feedback). Nada é coletado em
-segundo plano, e o app não envia nada até você apertar **Enviar** e aceitar a linha de consentimento.
+[formulário do site](https://cleanyourmail.org/#feedback). Nenhum dado de feedback é coletado em
+segundo plano, e o formulário não envia nada até você apertar **Enviar** e aceitar a linha de
+consentimento. A única requisição de rede automática é a verificação de atualizações descrita acima.
 
 - O app preenche um **checklist editável** com as versões do app e do sidecar, a versão do Windows,
   o nome do provedor, o modo pasta/arquivamento, as categorias selecionadas e o idioma.

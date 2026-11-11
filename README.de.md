@@ -67,9 +67,15 @@ Token-Daten.
 Gibt es eine neuere Version, bietet ein Banner **Install update** und **Later** an. **Install update**
 fragt einmal nach. Danach lädt die App genau die Datei `CleanYourMail-Setup-<version>.exe` und die
 zugehörige `.sha256` über HTTPS, prüft den SHA-256, bevor irgendetwas ausgeführt wird, schließt sich,
-führt den Installer still für den aktuellen Benutzer aus und öffnet die neue Version wieder. Wenn
-Prüfung, Download, Hash oder Installation fehlschlägt, bleibt die App nutzbar und bietet die
-Release-Seite an.
+führt den Installer still für den aktuellen Benutzer aus und öffnet die neue Version wieder.
+
+Fehler blockieren die App nicht. Eine fehlgeschlagene automatische Prüfung bleibt still; drücke
+**Updates**, um es manuell zu versuchen. Eine fehlgeschlagene manuelle Prüfung zeigt eine lokalisierte
+Meldung mit **Open GitHub**. Fehlt dem Release ein gültiger Installer oder Checksum, bietet das Banner
+**Open GitHub** statt **Install update** an. Bei einem Download- oder Hash-Fehler erscheint eine
+lokalisierte Fehlermeldung, und das Banner bleibt, damit **Install update** es erneut versuchen kann.
+Wenn der Installer nicht abschließt, öffnet sich die alte App wieder und das Banner bietet
+**Open GitHub** an.
 
 Der Installer 0.6.0 ist nicht code-signiert, daher kann SmartScreen während des Updates warnen, genau
 wie beim manuellen Start: Wähle **Weitere Informationen** und dann **Trotzdem ausführen**. Der
@@ -156,9 +162,10 @@ Zugangsdaten oder Netzwerkzugriff.
 
 Feedback ist **optional und manuell**. Öffne es über die Schaltfläche **Feedback** in der
 App-Kopfzeile oder nutze das
-[Formular auf der Website](https://cleanyourmail.org/#feedback). Im Hintergrund
-wird nichts erfasst, und die App sendet nichts, bis du **Senden** drückst und der Einwilligungszeile
-zustimmst.
+[Formular auf der Website](https://cleanyourmail.org/#feedback). Es werden keine Feedback-Daten im
+Hintergrund erfasst, und das Formular sendet nichts, bis du **Senden** drückst und der
+Einwilligungszeile zustimmst. Die einzige automatische Netzwerkanfrage ist die oben beschriebene
+Update-Prüfung.
 
 - Die App füllt eine **editierbare Checkliste** vor: Versionen von App und Sidecar, Windows-Version,
   Anbietername, Ordner-/Archivmodus, ausgewählte Kategorien und Sprache.

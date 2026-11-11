@@ -163,8 +163,12 @@ Startup timer / Updates button
   release CDN, requires the `CleanYourMail-Setup-<version>.exe` name, caps the download at 200 MB and
   checks the installer against the downloaded `.sha256` before anything runs. It never executes an
   installer.
-- A missing or malformed asset, a hash mismatch or a redirect to another host refuses automatic
-  installation and offers the release page instead.
+- Failure handling follows the UI state: a failed automatic check stays silent and leaves **Updates**
+  available; a failed manual check shows a localized message with **Open GitHub**. A release without
+  a valid named installer and `.sha256` shows **Open GitHub** instead of **Install update**. A
+  download, hash mismatch or redirect failure shows a localized error and keeps the banner so
+  **Install update** retries. If the installer cannot finish, the old app reopens and the banner
+  offers **Open GitHub**.
 - `services/installer.py` builds the helper command. The helper waits for the app PID, quotes every
   path, deletes the installer only after a successful install and reopens the app. It leaves the
   installer for diagnosis if the install fails.

@@ -73,7 +73,7 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 | Undo the wrong run | The full run id from the journal is passed back; the CLI verifies account and message identity. Undo requires confirmation. |
 | Permanent deletion | The app has no delete action. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
 | Unexpected network exposure | The app opens no listening socket and no HTTP server. It makes the public GitHub release check and the opt-in feedback POST; all mail-network access belongs to the sidecar. |
-| SmartScreen / unsigned installer | The README and the in-app update warn about the unsigned installer, and every release publishes a SHA-256; code signing is deferred. |
+| SmartScreen / unsigned installer | The README documents that the installer is unsigned, and every release publishes a SHA-256. Windows SmartScreen may warn; the app does not claim code signing. Code signing is deferred. |
 | Supply-chain compromise | Dependencies use declared version ranges in `pyproject.toml` and are installed from PyPI at build time; the sidecar is built from an exact tag with a clean-worktree check; the updater accepts only named assets on GitHub hosts and refuses a hash mismatch; CI runs the contract tests and the installer smoke. |
 | Malicious website reaching the app | There is no localhost listener, no session cookie and no browser surface to reach. |
 | Browser profile or extension compromise | The app does not use a browser. The only browser interaction is the person opening Microsoft's device-login page, which the OS handles. |

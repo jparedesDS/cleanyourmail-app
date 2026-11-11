@@ -69,8 +69,13 @@ the app version and your IP address to GitHub; it sends no account data, mailbox
 When a newer version exists, a banner offers **Install update** and **Later**. **Install update**
 asks for one confirmation. The app then downloads the exact `CleanYourMail-Setup-<version>.exe` asset
 and its published `.sha256` file over HTTPS, verifies the SHA-256 before running anything, closes,
-runs the installer silently for the current user and reopens the new version. If the check, the
-download, the hash or the install fails, the app stays usable and offers the release page instead.
+runs the installer silently for the current user and reopens the new version.
+
+Failures never block the app. A failed automatic check stays silent; press **Updates** to try
+manually. A failed manual check shows a localized message with **Open GitHub**. If the release lacks
+a valid installer or checksum, the banner offers **Open GitHub** instead of **Install update**. A
+download or hash failure shows a localized error and keeps the banner, so **Install update** can
+retry. If the installer cannot finish, the old app reopens and the banner offers **Open GitHub**.
 
 The installer is unsigned in 0.6.0, so Windows SmartScreen may warn during an update just as it does
 when you run the installer by hand: choose **More info**, then **Run anyway**. SHA-256 proves the
@@ -144,8 +149,9 @@ The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or 
 ## Feedback
 
 Feedback is **opt-in and manual**. Open it with the **Feedback** button in the app header or use the
-[website form](https://cleanyourmail.org/#feedback). Nothing is collected in
-the background, and the app sends nothing until you press **Send** and accept the consent line.
+[website form](https://cleanyourmail.org/#feedback). No feedback data is collected in the background,
+and the form sends nothing until you press **Send** and accept the consent line. The only automatic
+network request is the update check described above.
 
 - The app pre-fills an **editable checklist** with the app and sidecar versions, the Windows
   version, the provider name, the folder/archive mode, the selected categories and the language.

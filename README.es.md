@@ -65,8 +65,14 @@ tokens.
 Cuando hay una versión nueva, un aviso ofrece **Instalar actualización** y **Más tarde**. **Instalar
 actualización** pide una confirmación. Después la app descarga el `CleanYourMail-Setup-<version>.exe`
 exacto y su `.sha256` por HTTPS, verifica el SHA-256 antes de ejecutar nada, se cierra, ejecuta el
-instalador en silencio para el usuario actual y vuelve a abrir la nueva versión. Si falla la consulta,
-la descarga, el hash o la instalación, la app sigue usable y ofrece la página de la release.
+instalador en silencio para el usuario actual y vuelve a abrir la nueva versión.
+
+Los fallos no bloquean la app. Si falla una comprobación automática, no se muestra nada; pulsa
+**Actualizaciones** para intentarlo a mano. Si falla una comprobación manual, aparece un mensaje
+localizado con **Abrir GitHub**. Si a la release le falta un instalador o un checksum válido, el aviso
+ofrece **Abrir GitHub** en lugar de **Instalar actualización**. Si falla la descarga o el hash,
+aparece un error localizado y el aviso se mantiene para que **Instalar actualización** reintente. Si
+el instalador no termina, la app anterior se vuelve a abrir y el aviso ofrece **Abrir GitHub**.
 
 El instalador 0.6.0 no tiene firma de código, así que SmartScreen puede avisar durante la
 actualización igual que al ejecutarlo a mano: elige **Más información** y luego **Ejecutar de todas
@@ -150,9 +156,10 @@ red.
 ## Feedback
 
 El feedback es **opcional y manual**. Ábrelo con el botón **Feedback** de la cabecera de la app o usa
-el [formulario de la web](https://cleanyourmail.org/#feedback). No se recoge
-nada en segundo plano y la app no envía nada hasta que pulsas **Enviar** y aceptas la línea de
-consentimiento.
+el [formulario de la web](https://cleanyourmail.org/#feedback). No se recoge ningún dato de feedback
+en segundo plano y el formulario no envía nada hasta que pulsas **Enviar** y aceptas la línea de
+consentimiento. La única petición de red automática es la comprobación de actualizaciones descrita
+arriba.
 
 - La app rellena un **checklist editable** con las versiones de la app y del sidecar, la versión de
   Windows, el nombre del proveedor, el modo carpeta/archivado, las categorías seleccionadas y el

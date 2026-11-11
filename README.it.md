@@ -66,9 +66,14 @@ casella o token.
 Quando esiste una versione più recente, un banner propone **Install update** e **Later**.
 **Install update** chiede una conferma. Poi l'app scarica l'esatto `CleanYourMail-Setup-<version>.exe`
 e il relativo `.sha256` via HTTPS, verifica lo SHA-256 prima di eseguire qualsiasi cosa, si chiude,
-esegue l'installer in silenzio per l'utente corrente e riapre la nuova versione. Se il controllo, il
-download, l'hash o l'installazione falliscono, l'app resta utilizzabile e propone la pagina della
-release.
+esegue l'installer in silenzio per l'utente corrente e riapre la nuova versione.
+
+Gli errori non bloccano l'app. Un controllo automatico fallito resta silenzioso; premi **Updates**
+per riprovare manualmente. Un controllo manuale fallito mostra un messaggio localizzato con
+**Open GitHub**. Se alla release manca un installer o un checksum valido, il banner propone
+**Open GitHub** invece di **Install update**. Se il download o l'hash falliscono, compare un errore
+localizzato e il banner resta per consentire a **Install update** di riprovare. Se l'installer non
+termina, la vecchia app si riapre e il banner propone **Open GitHub**.
 
 L'installer 0.6.0 non è firmato, quindi SmartScreen può avvisare durante l'aggiornamento come quando
 lo esegui a mano: scegli **Ulteriori informazioni**, poi **Esegui comunque**. Lo SHA-256 dimostra che
@@ -151,9 +156,9 @@ La suite usa fixture CLI simulate. Non richiede mai una casella reale, credenzia
 ## Feedback
 
 Il feedback è **facoltativo e manuale**. Aprilo con il pulsante **Feedback** nell'intestazione
-dell'app oppure usa il [modulo sul sito](https://cleanyourmail.org/#feedback).
-Nulla viene raccolto in background e l'app non invia niente finché non premi **Invia** e accetti la
-riga di consenso.
+dell'app oppure usa il [modulo sul sito](https://cleanyourmail.org/#feedback). Nessun dato di feedback
+viene raccolto in background e il modulo non invia niente finché non premi **Invia** e accetti la riga
+di consenso. L'unica richiesta di rete automatica è il controllo degli aggiornamenti descritto sopra.
 
 - L'app precompila una **checklist modificabile** con le versioni dell'app e del sidecar, la versione
   di Windows, il nome del provider, la modalità cartelle/archivio, le categorie selezionate e la
