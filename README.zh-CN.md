@@ -100,7 +100,7 @@ python -m pytest -q
 
 ## 反馈
 
-反馈是**可选且手动**的。点击应用顶栏中的**反馈**按钮，或使用[网站表单](https://jparedesds.github.io/cleanyourmail-web/#feedback)。应用不会在后台收集任何内容；在你点击**发送**并接受同意声明之前，它不会发送任何内容。
+反馈是**可选且手动**的。点击应用顶栏中的**反馈**按钮，或使用[网站表单](https://cleanyourmail.org/#feedback)。应用不会在后台收集任何内容；在你点击**发送**并接受同意声明之前，它不会发送任何内容。
 
 - 应用会预填一份**可编辑的清单**，包含应用和 sidecar 版本、Windows 版本、提供商名称、文件夹/归档模式、所选分类和语言。
 - 不想分享的内容可以修改或删除。请**不要**在消息或清单中填写密码、令牌、邮箱地址、邮件主题、消息 ID 或文件路径。
@@ -157,7 +157,7 @@ python -m pytest -q
 
 - 应用版本发布：<https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill 与 CLI：<https://github.com/jparedesDS/cleanyourmail>
-- 网站：<https://jparedesds.github.io/cleanyourmail-web/>
+- 网站：<https://cleanyourmail.org/>
 - 安全模型：<https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## 许可证

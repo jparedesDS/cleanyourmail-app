@@ -133,7 +133,7 @@ Zugangsdaten oder Netzwerkzugriff.
 
 Feedback ist **optional und manuell**. Öffne es über die Schaltfläche **Feedback** in der
 App-Kopfzeile oder nutze das
-[Formular auf der Website](https://jparedesds.github.io/cleanyourmail-web/#feedback). Im Hintergrund
+[Formular auf der Website](https://cleanyourmail.org/#feedback). Im Hintergrund
 wird nichts erfasst, und die App sendet nichts, bis du **Senden** drückst und der Einwilligungszeile
 zustimmst.
 
@@ -206,7 +206,7 @@ Wie du eine Sicherheitslücke meldest, steht in [SECURITY.md](SECURITY.md).
 
 - App-Releases: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill und CLI: <https://github.com/jparedesDS/cleanyourmail>
-- Website: <https://jparedesds.github.io/cleanyourmail-web/>
+- Website: <https://cleanyourmail.org/>
 - Sicherheitsmodell: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## Lizenz

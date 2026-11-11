@@ -121,7 +121,7 @@ The suite uses fake CLI fixtures. It never needs a real mailbox, credentials or 
 ## Feedback
 
 Feedback is **opt-in and manual**. Open it with the **Feedback** button in the app header or use the
-[website form](https://jparedesds.github.io/cleanyourmail-web/#feedback). Nothing is collected in
+[website form](https://cleanyourmail.org/#feedback). Nothing is collected in
 the background, and the app sends nothing until you press **Send** and accept the consent line.
 
 - The app pre-fills an **editable checklist** with the app and sidecar versions, the Windows
@@ -189,7 +189,7 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 - App releases: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill and CLI: <https://github.com/jparedesDS/cleanyourmail>
-- Website: <https://jparedesds.github.io/cleanyourmail-web/>
+- Website: <https://cleanyourmail.org/>
 - Safety model: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## License

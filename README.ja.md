@@ -100,7 +100,7 @@ python -m pytest -q
 
 ## フィードバック
 
-フィードバックは **オプトインで手動** です。アプリのヘッダーにある **フィードバック** ボタン、または[ウェブサイトのフォーム](https://jparedesds.github.io/cleanyourmail-web/#feedback)から開けます。バックグラウンドで収集されるものはなく、**送信** を押して同意行に同意するまで、アプリは何も送信しません。
+フィードバックは **オプトインで手動** です。アプリのヘッダーにある **フィードバック** ボタン、または[ウェブサイトのフォーム](https://cleanyourmail.org/#feedback)から開けます。バックグラウンドで収集されるものはなく、**送信** を押して同意行に同意するまで、アプリは何も送信しません。
 
 - アプリは、アプリとサイドカーのバージョン、Windows のバージョン、プロバイダー名、フォルダー／アーカイブのモード、選択したカテゴリ、言語を **編集可能なチェックリスト** に事前入力します。
 - 共有したくないものは編集または削除してください。パスワード、トークン、メールアドレス、メールの件名、メッセージ ID、ファイルパスをメッセージやチェックリストに **含めないでください**。
@@ -157,7 +157,7 @@ python -m pytest -q
 
 - アプリのリリース: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill と CLI: <https://github.com/jparedesDS/cleanyourmail>
-- ウェブサイト: <https://jparedesds.github.io/cleanyourmail-web/>
+- ウェブサイト: <https://cleanyourmail.org/>
 - 安全モデル: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## ライセンス

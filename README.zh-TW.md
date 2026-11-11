@@ -100,7 +100,7 @@ python -m pytest -q
 
 ## 意見回饋
 
-意見回饋是**選用且手動**的。使用應用程式頂欄的**意見回饋**按鈕，或[網站表單](https://jparedesds.github.io/cleanyourmail-web/#feedback)。應用程式不會在背景收集任何內容；在你按下**傳送**並接受同意聲明之前，它不會送出任何內容。
+意見回饋是**選用且手動**的。使用應用程式頂欄的**意見回饋**按鈕，或[網站表單](https://cleanyourmail.org/#feedback)。應用程式不會在背景收集任何內容；在你按下**傳送**並接受同意聲明之前，它不會送出任何內容。
 
 - 應用程式會預先填入一份**可編輯的檢查清單**，包含應用程式與 sidecar 版本、Windows 版本、提供者名稱、資料夾/封存模式、已選類別與語言。
 - 不想分享的內容可以修改或刪除。請**不要**在訊息或檢查清單中填入密碼、權杖、電子郵件地址、郵件主旨、訊息 ID 或檔案路徑。
@@ -157,7 +157,7 @@ python -m pytest -q
 
 - 應用程式發行版本：<https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill 與 CLI：<https://github.com/jparedesDS/cleanyourmail>
-- 網站：<https://jparedesds.github.io/cleanyourmail-web/>
+- 網站：<https://cleanyourmail.org/>
 - 安全模型：<https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## 授權

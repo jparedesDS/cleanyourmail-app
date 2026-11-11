@@ -124,7 +124,7 @@ python -m pytest -q
 ## 피드백
 
 피드백은 **선택 사항이며 직접 보내는 방식**입니다. 앱 헤더의 **피드백** 버튼을 누르거나
-[웹사이트 양식](https://jparedesds.github.io/cleanyourmail-web/#feedback)을 이용하세요.
+[웹사이트 양식](https://cleanyourmail.org/#feedback)을 이용하세요.
 백그라운드에서는 아무것도 수집하지 않으며, **보내기**를 누르고 동의 문구를 확인하기 전까지
 앱은 아무것도 전송하지 않습니다.
 
@@ -195,7 +195,7 @@ python -m pytest -q
 
 - 앱 릴리스: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - 스킬과 CLI: <https://github.com/jparedesDS/cleanyourmail>
-- 웹사이트: <https://jparedesds.github.io/cleanyourmail-web/>
+- 웹사이트: <https://cleanyourmail.org/>
 - 안전 모델: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## 라이선스

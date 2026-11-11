@@ -128,7 +128,7 @@ red.
 ## Feedback
 
 El feedback es **opcional y manual**. Ábrelo con el botón **Feedback** de la cabecera de la app o usa
-el [formulario de la web](https://jparedesds.github.io/cleanyourmail-web/#feedback). No se recoge
+el [formulario de la web](https://cleanyourmail.org/#feedback). No se recoge
 nada en segundo plano y la app no envía nada hasta que pulsas **Enviar** y aceptas la línea de
 consentimiento.
 
@@ -199,7 +199,7 @@ Consulta [SECURITY.md](SECURITY.md) para saber cómo informar de una vulnerabili
 
 - Versiones publicadas de la app: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill y CLI: <https://github.com/jparedesDS/cleanyourmail>
-- Web: <https://jparedesds.github.io/cleanyourmail-web/>
+- Web: <https://cleanyourmail.org/>
 - Modelo de seguridad: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## Licencia

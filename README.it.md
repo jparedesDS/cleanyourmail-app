@@ -128,7 +128,7 @@ La suite usa fixture CLI simulate. Non richiede mai una casella reale, credenzia
 ## Feedback
 
 Il feedback è **facoltativo e manuale**. Aprilo con il pulsante **Feedback** nell'intestazione
-dell'app oppure usa il [modulo sul sito](https://jparedesds.github.io/cleanyourmail-web/#feedback).
+dell'app oppure usa il [modulo sul sito](https://cleanyourmail.org/#feedback).
 Nulla viene raccolto in background e l'app non invia niente finché non premi **Invia** e accetti la
 riga di consenso.
 
@@ -199,7 +199,7 @@ Vedi [SECURITY.md](SECURITY.md) per come segnalare una vulnerabilità.
 
 - Release dell'app: <https://github.com/jparedesDS/cleanyourmail-app/releases/latest>
 - Skill e CLI: <https://github.com/jparedesDS/cleanyourmail>
-- Sito web: <https://jparedesds.github.io/cleanyourmail-web/>
+- Sito web: <https://cleanyourmail.org/>
 - Modello di sicurezza: <https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md>
 
 ## Licenza
