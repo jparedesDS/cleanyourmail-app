@@ -274,6 +274,7 @@ class ProviderPage(QWidget):
                     provider=provider.id,
                     email=email,
                     preferences=current.preferences,
+                    last_update_check=current.last_update_check,
                 )
             )
         except (OSError, ValueError, TypeError):

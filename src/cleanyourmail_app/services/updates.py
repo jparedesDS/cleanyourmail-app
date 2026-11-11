@@ -31,7 +31,11 @@ RELEASES_API = "https://api.github.com/repos/jparedesDS/cleanyourmail-app/releas
 RELEASES_PAGE = "https://github.com/jparedesDS/cleanyourmail-app/releases/latest"
 
 INSTALLER_PREFIX = "CleanYourMail-Setup-"
-ALLOWED_HOSTS: frozenset[str] = frozenset({"github.com", "objects.githubusercontent.com"})
+ALLOWED_HOSTS: frozenset[str] = frozenset({
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+})
 MAX_INSTALLER_BYTES = 200 * 1024 * 1024
 
 _TIMEOUT_SECONDS = 10.0
@@ -207,7 +211,12 @@ def download_update(
 
     try:
         directory.mkdir(parents=True, exist_ok=True)
-        expected_digest = _fetch_checksum(open_url, info.checksum_url, version)
+        expected_digest = _fetch_checksum(
+            open_url,
+            info.checksum_url,
+            version,
+            installer_name,
+        )
         actual_digest = _fetch_installer(
             open_url,
             info.installer_url,
@@ -316,16 +325,23 @@ def _ensure_allowed_final_url(response: Any) -> None:
 
     geturl = getattr(response, "geturl", None)
     if not callable(geturl):
-        return
+        raise UpdateError("The update download did not report a final URL.")
     try:
         final_url = geturl()
-    except Exception:
-        return
-    if isinstance(final_url, str) and final_url and not _is_allowed_url(final_url):
+    except Exception as error:
+        raise UpdateError("The update download did not report a final URL.") from error
+    if not isinstance(final_url, str) or not final_url:
+        raise UpdateError("The update download did not report a final URL.")
+    if not _is_allowed_url(final_url):
         raise UpdateError("The update download was redirected to an untrusted host.")
 
 
-def _fetch_checksum(open_url: Opener, url: str, version: str) -> str:
+def _fetch_checksum(
+    open_url: Opener,
+    url: str,
+    version: str,
+    installer_name: str,
+) -> str:
     request = _asset_request(url, version, "text/plain")
     try:
         with open_url(request, timeout=_TIMEOUT_SECONDS) as response:
@@ -352,7 +368,15 @@ def _fetch_checksum(open_url: Opener, url: str, version: str) -> str:
     match = _CHECKSUM_RE.search(bytes(raw).decode("utf-8", "replace"))
     if match is None:
         raise UpdateError("The update checksum file is malformed.")
-    return match.group(0).lower()
+    text = bytes(raw).decode("utf-8", "replace")
+    for line in text.splitlines():
+        parsed = re.fullmatch(
+            r"([0-9A-Fa-f]{64})[ \t]+\*?(.+?)[ \t]*",
+            line.strip(),
+        )
+        if parsed and Path(parsed.group(2)).name == installer_name:
+            return parsed.group(1).lower()
+    raise UpdateError("The update checksum does not name the expected installer.")
 
 
 def _fetch_installer(

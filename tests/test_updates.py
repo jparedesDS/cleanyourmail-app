@@ -87,6 +87,8 @@ class FakeOpener:
         if isinstance(response, BaseException):
             raise response
         assert isinstance(response, FakeResponse)
+        if response._url is None:
+            response._url = request.full_url
         return response
 
 
@@ -384,6 +386,40 @@ def test_download_refuses_a_release_without_both_assets(tmp_path):
 
     assert opener.calls == []
     assert list(tmp_path.iterdir()) == []
+
+
+def test_download_accepts_the_github_release_assets_cdn(tmp_path):
+    payload = b"installer bytes"
+    cdn = (
+        "https://release-assets.githubusercontent.com/"
+        "github-production-release-asset/123"
+    )
+    opener = FakeOpener(
+        _sha_file(payload),
+        FakeResponse(payload, url=cdn),
+    )
+
+    path = download_update(_info(), opener=opener, target_dir=tmp_path)
+
+    assert path.read_bytes() == payload
+
+
+def test_download_rejects_a_checksum_for_another_file(tmp_path):
+    payload = b"installer bytes"
+    wrong_name = FakeResponse(
+        f"{hashlib.sha256(payload).hexdigest()}  Other.exe\n".encode("ascii")
+    )
+    opener = FakeOpener(wrong_name, FakeResponse(payload))
+
+    with pytest.raises(UpdateError):
+        download_update(_info(), opener=opener, target_dir=tmp_path)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_redirect_validation_fails_closed_without_a_final_url():
+    with pytest.raises(UpdateError):
+        updates._ensure_allowed_final_url(object())
 
 
 def test_download_refuses_a_redirect_to_an_untrusted_host(tmp_path):
