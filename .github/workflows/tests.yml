@@ -137,7 +137,7 @@ jobs:
             -RedirectStandardOutput $stdout `
             -RedirectStandardError $stderr
           $version = (Get-Content -LiteralPath $stdout -Raw).Trim()
-          if ($process.ExitCode -ne 0 -or $version -ne "CleanYourMail app 0.6.0") {
+          if ($process.ExitCode -ne 0 -or $version -ne "CleanYourMail app 0.6.1") {
             $errorText = ""
             if (Test-Path -LiteralPath $stderr) {
               $errorText = (Get-Content -LiteralPath $stderr -Raw).Trim()
@@ -174,7 +174,7 @@ jobs:
           }
           & $iscc "/Qp" "packaging\installer.iss"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Test-Path -LiteralPath "dist\CleanYourMail-Setup-0.6.0.exe")) {
+          if (-not (Test-Path -LiteralPath "dist\CleanYourMail-Setup-0.6.1.exe")) {
             throw "The installer was not created."
           }
 
@@ -199,17 +199,17 @@ jobs:
       - name: Compute SHA-256
         shell: pwsh
         run: |
-          $setup = "dist\CleanYourMail-Setup-0.6.0.exe"
+          $setup = "dist\CleanYourMail-Setup-0.6.1.exe"
           $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -LiteralPath "$setup.sha256" -Value "$hash  CleanYourMail-Setup-0.6.0.exe" -Encoding ascii
+          Set-Content -LiteralPath "$setup.sha256" -Value "$hash  CleanYourMail-Setup-0.6.1.exe" -Encoding ascii
           Get-Content -LiteralPath "$setup.sha256"
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: CleanYourMail-Setup-0.6.0
+          name: CleanYourMail-Setup-0.6.1
           path: |
-            dist/CleanYourMail-Setup-0.6.0.exe
-            dist/CleanYourMail-Setup-0.6.0.exe.sha256
+            dist/CleanYourMail-Setup-0.6.1.exe
+            dist/CleanYourMail-Setup-0.6.1.exe.sha256
             build/*.log
           if-no-files-found: error

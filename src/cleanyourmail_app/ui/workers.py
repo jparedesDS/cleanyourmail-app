@@ -40,7 +40,7 @@ class BackgroundCall(QObject):
             return self._active
 
     def start(self, call: Callable[[], Any]) -> bool:
-        """Run *call* once; return ``False`` when a call is already active."""
+        """Run *call* once; return ``False`` when it cannot be started."""
         with self._lock:
             if self._active:
                 return False
@@ -52,7 +52,13 @@ class BackgroundCall(QObject):
             daemon=True,
         )
         self._thread = thread
-        thread.start()
+        try:
+            thread.start()
+        except Exception:  # noqa: BLE001 - a failed start is reported, not raised
+            with self._lock:
+                self._active = False
+            self._thread = None
+            return False
         return True
 
     def _run(self, call: Callable[[], Any]) -> None:

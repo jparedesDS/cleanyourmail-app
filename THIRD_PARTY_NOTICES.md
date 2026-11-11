@@ -1,7 +1,7 @@
 # Third-party notices
 
-CleanYourMail app 0.6.0 is built from several open-source components. This file
-is installed next to the application by `CleanYourMail-Setup-0.6.0.exe` and is
+CleanYourMail app 0.6.1 is built from several open-source components. This file
+is installed next to the application by `CleanYourMail-Setup-0.6.1.exe` and is
 also present in the source repository.
 
 ## CleanYourMail app

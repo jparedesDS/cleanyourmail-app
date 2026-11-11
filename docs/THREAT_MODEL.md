@@ -54,14 +54,14 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 |---|---|
 | App password left in the widget or undo history | The field is cleared with `setText("")` on save, Back and account change; tests assert `undo()` cannot restore it. |
 | App password in argv | The app never passes a secret as an argument. `save_app_password` writes the file; `CliClient` argv is asserted secret-free. |
-| App password in QSettings, a label or a log | Settings hold only provider, email, preferences and the last update check (`last_update_check`). Errors use localized generic copy, and 0.6.0 writes no local log. Tests scan rendered labels and settings. |
+| App password in QSettings, a label or a log | Settings hold only provider, email, preferences and the last update check (`last_update_check`). Errors use localized generic copy, and 0.6.1 writes no local log. Tests scan rendered labels and settings. |
 | App password written to the wrong account's file | An existing config for another email or IMAP host raises `ConfigMismatchError`; the person must confirm before `init --force`, and the app writes the `password_file` the config actually names. |
 | OAuth token exposed to the UI | The app only calls the sidecar's device-code commands and renders URL/code. It never reads the OAuth store or a token field. |
 | Command injection through a run id, plan path or host | Argument-list subprocesses with no shell; fixed command names; run ids match a strict pattern; plan path is one argv word; custom host rejects spaces and URL schemes. |
 | Malicious or malformed sidecar JSON | Parsed as data, never evaluated; unknown shapes become a failed command, not a crash. Raw stdout/stderr are never rendered. |
 | Plan tampering after review | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan and allows one apply per plan. |
 | Double apply | The gate closes as soon as an apply starts, including a timeout or partial result; only a fresh scan or plan reopens it. |
-| Applying unsubscribe by accident | There is no unsubscribe action in 0.6.0. The plan column is informational; Apply is always `--action move`. |
+| Applying unsubscribe by accident | There is no unsubscribe action in 0.6.1. The plan column is informational; Apply is always `--action move`. |
 | Accidental PII in feedback | The checklist is editable and limited to app/sidecar versions, Windows version, provider label, mode, categories and language. The dialog copy names passwords, tokens, addresses, subjects, message IDs and paths as things not to include. Tests use an email, a path and a token as sentinels and assert none reach the checklist, a label or a status line. |
 | Automatic or background feedback | The feedback client is constructed only after Send, and a send requires the consent checkbox; tests assert nothing is sent without it. The only automatic request is the release check, which carries no feedback, account or mailbox data. |
 | Update check leaks mailbox data | The check is one GET to the public GitHub API with `User-Agent: CleanYourMail/<version>`. It carries no credentials, account address, mailbox metadata or token. |
@@ -86,7 +86,7 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 - Physical access to an unlocked machine.
 - Protecting a mailbox from the mail provider itself.
 - A multi-user or hosted deployment.
-- Guaranteeing that a sender honours an unsubscribe request (and 0.6.0 does not send one).
+- Guaranteeing that a sender honours an unsubscribe request (and 0.6.1 does not send one).
 - Protecting against a compromised maintainer GitHub account. TLS plus a SHA-256 published in the same
   release detect corruption and network tampering, not a malicious release.
 - Preventing a person from typing sensitive data into the editable feedback message or checklist.

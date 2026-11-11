@@ -48,6 +48,19 @@ START_FAILURE_BY_README = {
     "README.zh-TW.md": "如果更新助手無法啟動",
 }
 
+OLD_BLANKET_FAILURE_CLAIMS = (
+    "A failure leaves the app open and usable.",
+    "Un fallo deja la app abierta y usable.",
+    "Ein Fehler lässt die App geöffnet und nutzbar.",
+    "Un échec laisse l’app ouverte et utilisable.",
+    "Un errore lascia l'app aperta e utilizzabile.",
+    "Uma falha deixa o app aberto e utilizável.",
+    "失敗してもアプリは開いたまま使えます。",
+    "실패해도 앱은 열린 상태로 계속 사용할 수 있습니다.",
+    "失败不会关闭应用，仍可继续使用。",
+    "失敗不會關閉應用程式，仍可繼續使用。",
+)
+
 
 def _flat(path: Path) -> str:
     return " ".join(path.read_text(encoding="utf-8").split()).replace("**", "")
@@ -63,6 +76,14 @@ def test_every_readme_describes_the_installer_failures_accurately(readme):
     assert START_FAILURE_BY_README[readme.name] in text, (
         f"missing start-failure fallback in {readme.name}"
     )
+
+
+@pytest.mark.parametrize("readme", READMES, ids=lambda path: path.name)
+def test_every_readme_drops_the_blanket_open_and_usable_claim(readme):
+    text = _flat(readme)
+
+    for old_claim in OLD_BLANKET_FAILURE_CLAIMS:
+        assert old_claim not in text, f"stale blanket failure claim in {readme.name}"
 
 
 def test_the_readme_project_layout_names_the_auto_update_spec():

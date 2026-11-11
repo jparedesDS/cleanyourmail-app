@@ -29,16 +29,16 @@
 
 沒有瀏覽器、本機伺服器、帳戶、遙測，不讀取郵件本文，也不會永久刪除。應用程式本身只會連線至公開的 GitHub 發行來源（用於更新）與意見回饋 Worker（僅在你按下傳送並同意後）。
 
-> **狀態：** `0.6.0` 是目前的 Windows 早期 MVP 版本。它新增了自動更新：已安裝的應用程式會檢查公開的 GitHub 發行頁、驗證安裝程式的 SHA-256，並在一次確認後安裝。安裝程式會捆綁凍結的 CleanYourMail CLI `1.3.0` sidecar。Gmail 已驗證；Outlook 取決於 Microsoft 的同意模式。請見[提供者狀態](#provider-status)。
+> **狀態：** `0.6.1` 是目前的 Windows 早期 MVP 版本。它新增了自動更新：已安裝的應用程式會檢查公開的 GitHub 發行頁、驗證安裝程式的 SHA-256，並在一次確認後安裝。安裝程式會捆綁凍結的 CleanYourMail CLI `1.3.0` sidecar。Gmail 已驗證；Outlook 取決於 Microsoft 的同意模式。請見[提供者狀態](#provider-status)。
 
 ## 下載
 
-[適用於 Windows 10/11 x64 的 CleanYourMail 應用程式 0.6.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是以每位使用者為範圍的安裝程式，會捆綁固定版本的 CleanYourMail CLI `1.3.0` sidecar，且不需要系統管理員權限。
+[適用於 Windows 10/11 x64 的 CleanYourMail 應用程式 0.6.1](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是以每位使用者為範圍的安裝程式，會捆綁固定版本的 CleanYourMail CLI `1.3.0` sidecar，且不需要系統管理員權限。
 
-0.6.0 安裝程式未經程式碼簽章。首次啟動時，Windows SmartScreen 可能會顯示「未知的發行者」警告：請選擇**更多資訊**，再選擇**仍要執行**，並將隨版本發行的 SHA-256 與 `CleanYourMail-Setup-0.6.0.exe` 比對：
+0.6.1 安裝程式未經程式碼簽章。首次啟動時，Windows SmartScreen 可能會顯示「未知的發行者」警告：請選擇**更多資訊**，再選擇**仍要執行**，並將隨版本發行的 SHA-256 與 `CleanYourMail-Setup-0.6.1.exe` 比對：
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.1.exe -Algorithm SHA256
 ```
 
 發行頁也提供 `.sha256` 檔案，格式為 `HASH  filename`。
@@ -49,11 +49,11 @@ Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
 
 有新版本時，橫幅會提供 **Install update** 和 **Later**。**Install update** 會要求一次確認。隨後應用程式透過 HTTPS 下載完全相符的 `CleanYourMail-Setup-<version>.exe` 及其 `.sha256`，在執行任何內容前驗證 SHA-256，關閉應用程式，為目前使用者靜默安裝並重新開啟新版本。
 
-失敗不會關閉應用程式，仍可繼續使用。自動檢查失敗時不會顯示任何內容；按下 **Updates** 可手動檢查。手動檢查失敗時會顯示本地化訊息和 **Open GitHub**。如果發行缺少有效的安裝程式或校驗和，橫幅會顯示 **Open GitHub** 而不是 **Install update**。下載、驗證或雜湊失敗時會顯示本地化錯誤，可用 **Install update** 重試，也可用 **Open GitHub** 開啟發行頁。如果更新助手無法啟動，應用程式會保持開啟，橫幅會提供 **Open GitHub**。如果安裝程式已啟動但失敗，助手會重新開啟舊版應用程式；不會儲存失敗橫幅，因此請用 **Updates** 重試或手動開啟發行頁。
+更新失敗不會循環，也不會在應用程式仍在執行時安裝。自動檢查失敗時不會顯示任何內容；按下 **Updates** 可手動檢查。手動檢查失敗時會顯示本地化訊息和 **Open GitHub**。如果發行缺少有效的安裝程式或校驗和，橫幅會顯示 **Open GitHub** 而不是 **Install update**。下載、驗證或雜湊失敗時會顯示本地化錯誤，可用 **Install update** 重試，也可用 **Open GitHub** 開啟發行頁。如果更新助手無法啟動，應用程式會保持開啟，橫幅會提供 **Open GitHub**。如果安裝程式已啟動但失敗，助手會重新開啟舊版應用程式；不會儲存失敗橫幅，因此請用 **Updates** 重試或手動開啟發行頁。
 
-0.6.0 安裝程式未經程式碼簽章，因此更新時 SmartScreen 可能像手動執行安裝程式一樣發出警告：請選擇**更多資訊**，再選擇**仍要執行**。SHA-256 證明下載完整，不證明發行者身分；程式碼簽章是下一步安全措施。如果無法自動安裝（例如從原始碼執行），同一流程會提供發行頁，供你手動安裝。
+0.6.1 安裝程式未經程式碼簽章，因此更新時 SmartScreen 可能像手動執行安裝程式一樣發出警告：請選擇**更多資訊**，再選擇**仍要執行**。SHA-256 證明下載完整，不證明發行者身分；程式碼簽章是下一步安全措施。如果無法自動安裝（例如從原始碼執行），同一流程會提供發行頁，供你手動安裝。
 
-Gmail 可搭配應用程式密碼與兩步驟驗證使用。Outlook / Microsoft 365 無法一鍵完成：Microsoft 365 需要租用戶系統管理員同意，個人 Outlook.com 帳戶則需要已驗證的發行者。macOS 與 Linux 不在 0.6.0 的範圍內。
+Gmail 可搭配應用程式密碼與兩步驟驗證使用。Outlook / Microsoft 365 無法一鍵完成：Microsoft 365 需要租用戶系統管理員同意，個人 Outlook.com 帳戶則需要已驗證的發行者。macOS 與 Linux 不在 0.6.1 的範圍內。
 
 ## 為什麼需要這個應用程式
 
@@ -93,7 +93,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` 會輸出 `CleanYourMail app 0.6.0`。
+`python -m cleanyourmail_app --version` 會輸出 `CleanYourMail app 0.6.1`。
 
 執行測試：
 
@@ -137,13 +137,13 @@ python -m pytest -q
 ## 安全模型
 
 - **預設本機，選用意見回饋除外。** 沒有帳戶、雲端、遙測或本文存取。應用程式本身只發出兩類請求：公開的 GitHub 發行檢查（僅版本與 IP；最多每六小時一次，或按下 **Updates** 時）以及按下傳送並同意後的意見回饋 POST。郵件網路存取由 sidecar 負責。
-- **更新經過驗證。** 安裝程式透過 HTTPS 從 GitHub 發行頁下載，使用公開的 SHA-256 驗證，並且只在一次確認後執行。0.6.0 安裝程式未經程式碼簽章，因此 SmartScreen 可能發出警告；SHA-256 證明完整性，不證明發行者。
+- **更新經過驗證。** 安裝程式透過 HTTPS 從 GitHub 發行頁下載，使用公開的 SHA-256 驗證，並且只在一次確認後執行。0.6.1 安裝程式未經程式碼簽章，因此 SmartScreen 可能發出警告；SHA-256 證明完整性，不證明發行者。
 - **僅透過 CLI。** 應用程式無法增加 CLI 沒有的能力。
 - **命令列引數中沒有機密。** 應用程式密碼會寫入 CLI 的 `password_file`；應用程式絕不會將它們當作命令列引數傳遞。
 - **應用程式設定中不保留機密。** 機密絕不會進入 QSettings、日誌、錯誤對話方塊或測試輸出。
 - **先檢視。** 沒有檢視過的計畫就不會寫入；復原永遠只差一次點擊。
 - **不永久刪除。** 移動與封存都可復原。
-- **0.6.0 沒有取消訂閱。** 計畫可能顯示取消訂閱模式，但套用時只會移動郵件。
+- **0.6.1 沒有取消訂閱。** 計畫可能顯示取消訂閱模式，但套用時只會移動郵件。
 - **英文與西班牙文都是完整支援的語言。** 所有字串都位於 `i18n/*.json`。
 
 請見 [SECURITY.md](SECURITY.md) 了解如何回報漏洞。

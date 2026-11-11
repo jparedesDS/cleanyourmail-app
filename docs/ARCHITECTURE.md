@@ -38,7 +38,7 @@ a native view and a process wrapper around the frozen sidecar.
 |---|---|
 | `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app`; prints `--version` before importing Qt. |
 | `src/cleanyourmail_app/app.py` | Builds `QApplication`, the translator, `SettingsStore`, `AppServices` and `MainWindow`. |
-| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.6.0`). |
+| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.6.1`). |
 | `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch, the Feedback button and the Updates button/banner. |
 | `src/cleanyourmail_app/ui/pages/provider.py` | Seven provider cards, email validation, account handoff. |
 | `src/cleanyourmail_app/ui/pages/connect.py` | App-password save, doctor, custom host, Outlook device-code UI, Cancel and sensitive-state clearing. |
@@ -177,7 +177,7 @@ Startup timer / Updates button
   `%SystemRoot%\System32` tools, fails closed when `tasklist`/`find` cannot report, and writes a
   start marker so the app only quits after the helper is known to be running. It leaves the
   installer for diagnosis if the install fails.
-- The installer is unsigned in 0.6.0. SHA-256 is integrity, not publisher authentication; code
+- The installer is unsigned in 0.6.1. SHA-256 is integrity, not publisher authentication; code
   signing is the next security step, and Windows SmartScreen may warn.
 - The automatic check never installs anything. Only **Install update** plus the confirmation starts
   the download and verification; the helper runs only after both succeed. A failed check is silent

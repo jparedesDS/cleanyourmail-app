@@ -34,7 +34,7 @@ Niente browser, niente server locale, niente account, niente telemetria, nessun 
 messaggi, nessuna eliminazione definitiva. L'app contatta da sola solo il feed pubblico delle release
 GitHub (per gli aggiornamenti) e il Worker di feedback (solo dopo **Invia** e il consenso).
 
-> **Stato:** `0.6.0` è l'attuale release Early MVP per Windows. Aggiunge gli aggiornamenti
+> **Stato:** `0.6.1` è l'attuale release Early MVP per Windows. Aggiunge gli aggiornamenti
 > automatici: l'app installata controlla la release pubblica GitHub, verifica lo SHA-256
 > dell'installer e installa dopo una conferma. L'installer include la CLI CleanYourMail `1.3.0`
 > congelata come sidecar. Gmail è validato; Outlook dipende dal modello di consenso di Microsoft.
@@ -42,16 +42,16 @@ GitHub (per gli aggiornamenti) e il Worker di feedback (solo dopo **Invia** e il
 
 ## Download
 
-[CleanYourMail app 0.6.0 per Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+[CleanYourMail app 0.6.1 per Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
 è un installer per utente che include la CLI CleanYourMail `1.3.0` fissata come sidecar e non
 richiede privilegi di amministratore.
 
-L'installer 0.6.0 non è firmato. Al primo avvio Windows SmartScreen potrebbe mostrare un avviso di
+L'installer 0.6.1 non è firmato. Al primo avvio Windows SmartScreen potrebbe mostrare un avviso di
 editore sconosciuto: scegli **Ulteriori informazioni**, poi **Esegui comunque**, e confronta lo
-SHA-256 pubblicato con la release con `CleanYourMail-Setup-0.6.0.exe`:
+SHA-256 pubblicato con la release con `CleanYourMail-Setup-0.6.1.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.1.exe -Algorithm SHA256
 ```
 
 La release pubblica anche un file `.sha256` nel formato `HASH  filename`.
@@ -68,7 +68,8 @@ Quando esiste una versione più recente, un banner propone **Install update** e 
 e il relativo `.sha256` via HTTPS, verifica lo SHA-256 prima di eseguire qualsiasi cosa, si chiude,
 esegue l'installer in silenzio per l'utente corrente e riapre la nuova versione.
 
-Un errore lascia l'app aperta e utilizzabile. Un controllo automatico fallito resta silenzioso;
+Un aggiornamento fallito non entra mai in loop e non si installa mai mentre l'app è ancora in esecuzione.
+Un controllo automatico fallito resta silenzioso;
 premi **Updates** per riprovare manualmente. Un controllo manuale fallito mostra un messaggio
 localizzato con **Open GitHub**. Se alla release manca un installer o un checksum valido, il banner
 propone **Open GitHub** invece di **Install update**. Se il download, la verifica o l'hash
@@ -78,7 +79,7 @@ banner propone **Open GitHub**. Se l'installer parte ma fallisce, l'helper riapr
 non resta un banner di errore salvato, quindi usa **Updates** per riprovare o apri la pagina della
 release manualmente.
 
-L'installer 0.6.0 non è firmato, quindi SmartScreen può avvisare durante l'aggiornamento come quando
+L'installer 0.6.1 non è firmato, quindi SmartScreen può avvisare durante l'aggiornamento come quando
 lo esegui a mano: scegli **Ulteriori informazioni**, poi **Esegui comunque**. Lo SHA-256 dimostra che
 il download è integro, non chi lo ha pubblicato; la firma del codice è il prossimo passo di sicurezza.
 Se l'installazione automatica non è disponibile (ad esempio eseguendo dal codice sorgente), lo stesso
@@ -87,7 +88,7 @@ flusso propone la pagina della release per installare manualmente.
 Gmail funziona con una password per le app e la verifica in due passaggi. Outlook / Microsoft 365 non
 funziona con un clic: Microsoft 365 richiede il consenso dell'amministratore del tenant, mentre gli
 account personali Outlook.com richiedono un editore verificato. macOS e Linux sono fuori ambito per
-la 0.6.0.
+la 0.6.1.
 
 ## Perché questa app
 
@@ -133,7 +134,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` stampa `CleanYourMail app 0.6.0`.
+`python -m cleanyourmail_app --version` stampa `CleanYourMail app 0.6.1`.
 
 Esegui i test:
 
@@ -197,7 +198,7 @@ L'app riporta questi stati con onestà. Non promette un supporto Outlook con un 
   pubblico delle release GitHub (solo versione e IP; al massimo ogni sei ore o con **Updates**) e il
   POST di feedback dopo Invia e consenso. L'accesso di rete alla posta appartiene al sidecar.
 - **Aggiornamenti verificati.** L'installer viene scaricato via HTTPS dalla release GitHub, verificato
-  con lo SHA-256 pubblicato ed eseguito solo dopo una conferma. L'installer 0.6.0 non è firmato,
+  con lo SHA-256 pubblicato ed eseguito solo dopo una conferma. L'installer 0.6.1 non è firmato,
   quindi SmartScreen può avvisare; lo SHA-256 dimostra l'integrità, non l'autore.
 - **Solo CLI.** L'app non può aggiungere capacità che la CLI non ha.
 - **Nessun segreto in argv.** Le password per le app vengono scritte nel `password_file` della CLI;
@@ -206,7 +207,7 @@ L'app riporta questi stati con onestà. Non promette un supporto Outlook con un 
   nei log, nei dialoghi di errore o nell'output dei test.
 - **Prima la revisione.** Nessuna scrittura senza un piano rivisto; l'annullamento resta a un clic.
 - **Nessuna eliminazione definitiva.** Spostamenti e archiviazioni sono reversibili.
-- **Nessuna disiscrizione nella 0.6.0.** Il piano può mostrare modalità di disiscrizione, ma Applica
+- **Nessuna disiscrizione nella 0.6.1.** Il piano può mostrare modalità di disiscrizione, ma Applica
   sposta solo i messaggi.
 - **Inglese e spagnolo di pari livello.** Ogni stringa vive in `i18n/*.json`.
 

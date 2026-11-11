@@ -7,7 +7,7 @@
     2. packaging/app.ico is generated from the SVG when missing.
     3. PyInstaller builds dist/CleanYourMail from cleanyourmail-app.spec.
     4. The shipped tree and both executables are smoke-tested.
-    5. Inno Setup builds dist/CleanYourMail-Setup-0.6.0.exe.
+    5. Inno Setup builds dist/CleanYourMail-Setup-0.6.1.exe.
 
     Inno Setup 6 is required for the installer. If ISCC.exe is not installed the
     script fails with an explicit message after the app itself has been built;
@@ -46,7 +46,7 @@ $Dist = Join-Path $Root "dist"
 $AppDist = Join-Path $Dist "CleanYourMail"
 $AppExe = Join-Path $AppDist "CleanYourMail.exe"
 $SidecarExe = Join-Path $AppDist "resources\cli\cym-cli.exe"
-$SetupExe = Join-Path $Dist "CleanYourMail-Setup-0.6.0.exe"
+$SetupExe = Join-Path $Dist "CleanYourMail-Setup-0.6.1.exe"
 
 function Invoke-Native {
     param(
@@ -222,8 +222,8 @@ try {
         throw "App smoke test produced no version output (exit 0).`nstderr:`n$appError"
     }
     $appVersion = $appVersionText.Trim()
-    if ($appVersion -ne "CleanYourMail app 0.6.0") {
-        throw "App smoke test failed: expected 'CleanYourMail app 0.6.0', got '$appVersion' (exit $($appProcess.ExitCode)).`n$appError"
+    if ($appVersion -ne "CleanYourMail app 0.6.1") {
+        throw "App smoke test failed: expected 'CleanYourMail app 0.6.1', got '$appVersion' (exit $($appProcess.ExitCode)).`n$appError"
     }
 }
 finally {

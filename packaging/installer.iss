@@ -1,4 +1,4 @@
-; CleanYourMail 0.6.0 - per-user installer (no administrator required).
+; CleanYourMail 0.6.1 - per-user installer (no administrator required).
 ;
 ; The app and its frozen CLI sidecar are installed under
 ; %LOCALAPPDATA%\Programs\CleanYourMail. Build it with:
@@ -6,12 +6,12 @@
 ; or directly:
 ;   ISCC.exe packaging\installer.iss
 ;
-; 0.6.0 is not code-signed. Windows SmartScreen may warn on first launch; the
+; 0.6.1 is not code-signed. Windows SmartScreen may warn on first launch; the
 ; SHA-256 published with the release lets users verify the download. Feedback
 ; is opt-in: nothing is sent unless the person presses Send in the app dialog.
 
 #define MyAppName "CleanYourMail"
-#define MyAppVersion "0.6.0"
+#define MyAppVersion "0.6.1"
 #define MyAppPublisher "CleanYourMail contributors"
 #define MyAppURL "https://github.com/jparedesDS/cleanyourmail-app"
 #define MyAppExeName "CleanYourMail.exe"
@@ -25,13 +25,13 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-VersionInfoVersion=0.6.0.0
+VersionInfoVersion=0.6.1.0
 DefaultDirName={localappdata}\Programs\CleanYourMail
 DefaultGroupName=CleanYourMail
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=CleanYourMail-Setup-0.6.0
+OutputBaseFilename=CleanYourMail-Setup-0.6.1
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

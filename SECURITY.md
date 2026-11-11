@@ -47,7 +47,7 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   Cloudflare secrets and do not ship in the app or the website. The Worker stores no message body.
 - **Updates are verified and confirmed.** The app asks for one confirmation, downloads the exact
   release installer and its `.sha256` over HTTPS from GitHub, refuses another host or asset name and
-  checks the SHA-256 before running anything. The installer is unsigned in 0.6.0, so Windows
+  checks the SHA-256 before running anything. The installer is unsigned in 0.6.1, so Windows
   SmartScreen may warn; SHA-256 proves integrity, not the publisher. Code signing is the next step.
 - **App password stays out of argv and settings.** The app writes the app password to the private
   `password_file` named by the CLI config (by default `%USERPROFILE%\.secrets\cleanyourmail.txt`,
@@ -61,7 +61,7 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   JSON summaries. The app has no IMAP code and no attachment viewer.
 - **No permanent deletion.** The app exposes moves and archives only. It has no delete action and
   no server-side filter upload.
-- **No unsubscribe in 0.6.0.** The plan may display unsubscribe modes for context, but Apply is
+- **No unsubscribe in 0.6.1.** The plan may display unsubscribe modes for context, but Apply is
   always `--action move`; the app never sends an unsubscribe request.
 - **Review first.** No mailbox change happens without a scanned plan, an explicit review checkbox
   and a confirmation dialog. Apply is limited by policy and by the plan's own move count.
@@ -74,7 +74,7 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   `init --force`.
 - **English and Spanish first-class.** Every visible string lives in `i18n/*.json`.
 
-There is deliberately no local log file in 0.6.0. Errors use localized generic copy so a server
+There is deliberately no local log file in 0.6.1. Errors use localized generic copy so a server
 message or path cannot leak a secret into a log. The trade-off is reduced diagnostics; a redacted
 diagnostics channel is future work.
 

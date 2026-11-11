@@ -29,16 +29,16 @@
 
 没有浏览器，没有本地服务器，没有账号，没有遥测，不读取邮件正文，也不会永久删除。应用自身只会访问公开的 GitHub 发布源（用于更新）和反馈 Worker（仅在你按下发送并同意后）。
 
-> **状态：** `0.6.0` 是当前 Windows 早期 MVP 版本。它新增了自动更新：已安装的应用会检查公开的 GitHub 发布页，校验安装程序的 SHA-256，并在一次确认后安装。安装程序捆绑了冻结的 CleanYourMail CLI `1.3.0` sidecar。Gmail 已验证；Outlook 取决于 Microsoft 的同意模式。见[提供商状态](#provider-status)。
+> **状态：** `0.6.1` 是当前 Windows 早期 MVP 版本。它新增了自动更新：已安装的应用会检查公开的 GitHub 发布页，校验安装程序的 SHA-256，并在一次确认后安装。安装程序捆绑了冻结的 CleanYourMail CLI `1.3.0` sidecar。Gmail 已验证；Outlook 取决于 Microsoft 的同意模式。见[提供商状态](#provider-status)。
 
 ## 下载
 
-[适用于 Windows 10/11 x64 的 CleanYourMail 应用 0.6.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是每用户安装程序，捆绑固定版本的 CleanYourMail CLI `1.3.0` sidecar，无需管理员权限。
+[适用于 Windows 10/11 x64 的 CleanYourMail 应用 0.6.1](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是每用户安装程序，捆绑固定版本的 CleanYourMail CLI `1.3.0` sidecar，无需管理员权限。
 
-0.6.0 安装程序未进行代码签名。首次启动时，Windows SmartScreen 可能显示“未知发布者”警告：请选择**更多信息**，再选择**仍要运行**，并将随版本发布的 SHA-256 与 `CleanYourMail-Setup-0.6.0.exe` 进行比对：
+0.6.1 安装程序未进行代码签名。首次启动时，Windows SmartScreen 可能显示“未知发布者”警告：请选择**更多信息**，再选择**仍要运行**，并将随版本发布的 SHA-256 与 `CleanYourMail-Setup-0.6.1.exe` 进行比对：
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.6.1.exe -Algorithm SHA256
 ```
 
 发布页还提供 `.sha256` 文件，格式为 `HASH  filename`。
@@ -49,11 +49,11 @@ Get-FileHash .\CleanYourMail-Setup-0.6.0.exe -Algorithm SHA256
 
 有新版本时，横幅会提供 **Install update** 和 **Later**。**Install update** 会请求一次确认。随后应用通过 HTTPS 下载完全匹配的 `CleanYourMail-Setup-<version>.exe` 及其 `.sha256`，在执行任何内容前校验 SHA-256，关闭应用，为当前用户静默安装并重新打开新版本。
 
-失败不会关闭应用，仍可继续使用。自动检查失败时不会显示任何内容；按下 **Updates** 可手动检查。手动检查失败时会显示本地化消息和 **Open GitHub**。如果发布缺少有效的安装程序或校验和，横幅会显示 **Open GitHub** 而不是 **Install update**。下载、验证或哈希失败时会显示本地化错误，可用 **Install update** 重试，也可用 **Open GitHub** 打开发布页。如果更新助手无法启动，应用会保持打开，横幅会提供 **Open GitHub**。如果安装程序已启动但失败，助手会重新打开旧版应用；不会保存失败横幅，因此请用 **Updates** 重试或手动打开发布页。
+更新失败不会循环，也不会在应用仍在运行时安装。自动检查失败时不会显示任何内容；按下 **Updates** 可手动检查。手动检查失败时会显示本地化消息和 **Open GitHub**。如果发布缺少有效的安装程序或校验和，横幅会显示 **Open GitHub** 而不是 **Install update**。下载、验证或哈希失败时会显示本地化错误，可用 **Install update** 重试，也可用 **Open GitHub** 打开发布页。如果更新助手无法启动，应用会保持打开，横幅会提供 **Open GitHub**。如果安装程序已启动但失败，助手会重新打开旧版应用；不会保存失败横幅，因此请用 **Updates** 重试或手动打开发布页。
 
-0.6.0 安装程序未进行代码签名，因此更新时 SmartScreen 可能像手动运行安装程序一样发出警告：请选择**更多信息**，再选择**仍要运行**。SHA-256 证明下载完整，不证明发布者身份；代码签名是下一步安全措施。如果无法自动安装（例如从源代码运行），同一流程会提供发布页，供你手动安装。
+0.6.1 安装程序未进行代码签名，因此更新时 SmartScreen 可能像手动运行安装程序一样发出警告：请选择**更多信息**，再选择**仍要运行**。SHA-256 证明下载完整，不证明发布者身份；代码签名是下一步安全措施。如果无法自动安装（例如从源代码运行），同一流程会提供发布页，供你手动安装。
 
-Gmail 可通过应用专用密码和两步验证使用。Outlook / Microsoft 365 无法一键完成：Microsoft 365 需要租户管理员同意，个人 Outlook.com 账户需要已验证的发布者。macOS 和 Linux 不在 0.6.0 的支持范围内。
+Gmail 可通过应用专用密码和两步验证使用。Outlook / Microsoft 365 无法一键完成：Microsoft 365 需要租户管理员同意，个人 Outlook.com 账户需要已验证的发布者。macOS 和 Linux 不在 0.6.1 的支持范围内。
 
 ## 为什么做这个应用
 
@@ -93,7 +93,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` 会输出 `CleanYourMail app 0.6.0`。
+`python -m cleanyourmail_app --version` 会输出 `CleanYourMail app 0.6.1`。
 
 运行测试：
 
@@ -137,13 +137,13 @@ python -m pytest -q
 ## 安全模型
 
 - **默认本地，可选反馈除外。** 没有账号、云端、遥测或正文访问。应用自身只发起两类请求：公开的 GitHub 发布检查（仅版本和 IP；最多每六小时一次，或按下 **Updates** 时）以及按下发送并同意后的反馈 POST。邮件网络访问由 sidecar 负责。
-- **更新经过验证。** 安装程序通过 HTTPS 从 GitHub 发布页下载，使用公开的 SHA-256 校验，并且只在一次确认后执行。0.6.0 安装程序未进行代码签名，因此 SmartScreen 可能发出警告；SHA-256 证明完整性，不证明发布者。
+- **更新经过验证。** 安装程序通过 HTTPS 从 GitHub 发布页下载，使用公开的 SHA-256 校验，并且只在一次确认后执行。0.6.1 安装程序未进行代码签名，因此 SmartScreen 可能发出警告；SHA-256 证明完整性，不证明发布者。
 - **仅通过 CLI。** 应用无法添加 CLI 不具备的能力。
 - **命令行参数中不含机密。** 应用专用密码会写入 CLI 的 `password_file`；应用绝不会将其作为命令行参数传递。
 - **应用设置中不存储机密。** 机密绝不会进入 QSettings、日志、错误对话框或测试输出。
 - **先审阅。** 没有经过审阅的计划就不会写入；撤销始终只需点击一次。
 - **不永久删除。** 移动和归档均可撤销。
-- **0.6.0 不支持退订。** 计划中可能显示退订模式，但应用只会移动邮件。
+- **0.6.1 不支持退订。** 计划中可能显示退订模式，但应用只会移动邮件。
 - **英语和西班牙语都是完整支持的语言。** 所有字符串都位于 `i18n/*.json`。
 
 见 [SECURITY.md](SECURITY.md) 了解如何报告漏洞。
