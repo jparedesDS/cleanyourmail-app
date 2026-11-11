@@ -10,6 +10,19 @@
   <img src="https://img.shields.io/badge/local--by--default-opt%20in%20feedback-b9f36a?labelColor=08110d" alt="Local by default; opt-in feedback">
 </p>
 
+<p align="center">
+  <b>English</b> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.pt-BR.md">Português (BR)</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.de.md">Deutsch</a> ·
+  <a href="README.it.md">Italiano</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.zh-TW.md">繁體中文</a> ·
+  <a href="README.ko.md">한국어</a>
+</p>
+
 # CleanYourMail app
 
 **Your inbox, minus the noise — as a native Windows app.** CleanYourMail app is a PySide6 front end
@@ -60,6 +73,13 @@ This app adds that path without duplicating the engine:
 
 The app never implements IMAP, planning, moves, undo or unsubscribe itself. It calls the frozen
 CleanYourMail CLI sidecar and renders the result, so there is one safety model and one set of rules.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/app-provider.png" alt="Choose a provider and enter the mailbox address" width="49%">
+  <img src="docs/images/app-review.png" alt="Review the plan before applying it" width="49%">
+</p>
 
 ## Requirements
 
@@ -115,6 +135,8 @@ the background, and the app sends nothing until you press **Send** and accept th
   ships in the app or the website.
 - There is **no account, no telemetry, no analytics and no crash reporting**. The Worker stores no
   message body and applies a short, salted-IP rate limit.
+
+<a id="provider-status"></a>
 
 ## Provider status
 
