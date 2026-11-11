@@ -29,8 +29,8 @@ from cleanyourmail_app.services.feedback import FeedbackError, send_feedback
 
 def _checklist() -> str:
     return build_checklist(
-        app_version="0.4.0",
-        sidecar_version="1.2.2",
+        app_version="0.5.0",
+        sidecar_version="1.3.0",
         provider="Gmail",
         mode="folders",
         categories=("newsletter", "promotion"),
@@ -43,9 +43,9 @@ def _payload(**overrides) -> FeedbackPayload:
     fields = {
         "kind": "feedback",
         "message": "The review screen could explain what moves.",
-        "checklist": "CleanYourMail app 0.4.0",
+        "checklist": "CleanYourMail app 0.5.0",
         "contact": "",
-        "app_version": "CleanYourMail app 0.4.0",
+        "app_version": "CleanYourMail app 0.5.0",
     }
     fields.update(overrides)
     return FeedbackPayload(**fields)
@@ -82,14 +82,14 @@ def test_constants_match_the_worker_contract():
 
 
 def test_payload_as_dict_has_exact_fields_and_an_empty_honeypot():
-    payload = _payload(contact="tester", app_version="CleanYourMail app 0.4.0")
+    payload = _payload(contact="tester", app_version="CleanYourMail app 0.5.0")
 
     assert payload.as_dict() == {
         "kind": "feedback",
         "message": "The review screen could explain what moves.",
-        "checklist": "CleanYourMail app 0.4.0",
+        "checklist": "CleanYourMail app 0.5.0",
         "contact": "tester",
-        "app_version": "CleanYourMail app 0.4.0",
+        "app_version": "CleanYourMail app 0.5.0",
         "website": "",
     }
 
@@ -101,8 +101,8 @@ def test_payload_is_frozen():
 
 def test_checklist_has_the_allowed_human_readable_lines():
     assert _checklist() == (
-        "CleanYourMail app 0.4.0\n"
-        "Sidecar: 1.2.2\n"
+        "CleanYourMail app 0.5.0\n"
+        "Sidecar: 1.3.0\n"
         "Windows: 10.0.19045\n"
         "Provider: Gmail\n"
         "Mode: folders\n"
@@ -113,8 +113,8 @@ def test_checklist_has_the_allowed_human_readable_lines():
 
 def test_checklist_accepts_localized_labels():
     text = build_checklist(
-        app_version="0.4.0",
-        sidecar_version="1.2.2",
+        app_version="0.5.0",
+        sidecar_version="1.3.0",
         provider="Gmail",
         mode="folders",
         categories=("newsletter", "promotion"),
@@ -134,8 +134,8 @@ def test_checklist_accepts_localized_labels():
     )
 
     assert text.splitlines() == [
-        "Aplicación CleanYourMail 0.4.0",
-        "Sidecar: 1.2.2",
+        "Aplicación CleanYourMail 0.5.0",
+        "Sidecar: 1.3.0",
         "Windows: 10.0.19045",
         "Proveedor: Gmail",
         "Modo: folders",
@@ -202,8 +202,8 @@ def test_checklist_has_no_channel_for_account_paths_message_ids_or_tokens():
     for name, value in sensitive.items():
         with pytest.raises(TypeError):
             build_checklist(
-                app_version="0.4.0",
-                sidecar_version="1.2.2",
+                app_version="0.5.0",
+                sidecar_version="1.3.0",
                 provider="Gmail",
                 mode="folders",
                 categories=("newsletter",),
@@ -230,7 +230,7 @@ def test_validation_accepts_uppercase_kind_and_a_checklist_only():
         validate_feedback(
             kind=" BUG ",
             message="",
-            checklist="CleanYourMail app 0.4.0",
+            checklist="CleanYourMail app 0.5.0",
             contact="",
         )
         is None
@@ -284,17 +284,17 @@ def test_feedback_payload_trims_every_field_and_lowercases_the_kind():
     payload = feedback_payload(
         kind="  BUG  ",
         message="  A real bug.  ",
-        checklist="  CleanYourMail app 0.4.0\n  ",
+        checklist="  CleanYourMail app 0.5.0\n  ",
         contact="  tester  ",
-        app_version="  CleanYourMail app 0.4.0  ",
+        app_version="  CleanYourMail app 0.5.0  ",
     )
 
     assert payload == FeedbackPayload(
         kind="bug",
         message="A real bug.",
-        checklist="CleanYourMail app 0.4.0",
+        checklist="CleanYourMail app 0.5.0",
         contact="tester",
-        app_version="CleanYourMail app 0.4.0",
+        app_version="CleanYourMail app 0.5.0",
     )
 
 
@@ -315,9 +315,9 @@ def test_send_posts_the_exact_json_body_and_headers():
     expected = {
         "kind": "feedback",
         "message": "The review screen could explain what moves.",
-        "checklist": "CleanYourMail app 0.4.0",
+        "checklist": "CleanYourMail app 0.5.0",
         "contact": "tester",
-        "app_version": "CleanYourMail app 0.4.0",
+        "app_version": "CleanYourMail app 0.5.0",
         "website": "",
     }
 

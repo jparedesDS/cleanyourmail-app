@@ -1,7 +1,7 @@
 """The Review page: scan, report and a plan with a review gate.
 
 Every test is headless and offline. The page tests use a ``FakeCli`` that
-records the typed helper calls and returns the JSON shapes the frozen 1.2.2
+records the typed helper calls and returns the JSON shapes the frozen 1.3.0
 sidecar really prints; the three helper tests at the top run a real
 ``CliClient`` against ``tests/fixtures/fake_cli.py`` so the argv contract is
 pinned, not assumed.

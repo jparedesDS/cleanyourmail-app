@@ -28,7 +28,7 @@ from cleanyourmail_app.ui.dialogs import feedback as feedback_dialog
 from cleanyourmail_app.ui.dialogs.feedback import FeedbackDialog
 from cleanyourmail_app.ui.main_window import MainWindow
 
-SIDECAR_VERSION = "1.2.2"
+SIDECAR_VERSION = "1.3.0"
 WINDOWS_TEXT = "Windows-11-10.0.22631-SP0"
 EMAIL_SENTINEL = "account-sentinel@example.com"
 PATH_SENTINEL = r"C:\Users\sentinel\AppData\Roaming\cleanyourmail-app"
@@ -160,7 +160,7 @@ def test_clicking_the_header_button_opens_the_dialog_with_safe_arguments(
     monkeypatch.setattr(
         "cleanyourmail_app.ui.main_window.FeedbackDialog", FakeDialog
     )
-    monkeypatch.setattr(app_services.cli, "version", lambda: "CleanYourMail 1.2.2")
+    monkeypatch.setattr(app_services.cli, "version", lambda: "CleanYourMail 1.3.0")
     monkeypatch.setattr(
         app_services.cli,
         "run",
@@ -239,7 +239,7 @@ def test_repeated_opens_do_not_accumulate_dialogs(
 
     def read_version() -> str:
         version_calls.append("read")
-        return "CleanYourMail 1.2.2"
+        return "CleanYourMail 1.3.0"
 
     monkeypatch.setattr(
         "cleanyourmail_app.ui.main_window.FeedbackDialog", FakeDialog

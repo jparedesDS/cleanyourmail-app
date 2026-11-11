@@ -189,6 +189,12 @@ try {
     Write-Host "installed app version: $version"
     Assert-True ($version -eq "CleanYourMail app 0.5.0") "unexpected installed version: '$version'"
 
+    $installedSidecar = Join-Path $AppDir "resources\cli\cym-cli.exe"
+    Assert-True (Test-Path -LiteralPath $installedSidecar) "installed sidecar missing: $installedSidecar"
+    $sidecarVersion = (& $installedSidecar "--version" | Out-String).Trim()
+    Write-Host "installed sidecar version: $sidecarVersion"
+    Assert-True ($sidecarVersion -eq "CleanYourMail 1.3.0") "unexpected installed sidecar version: '$sidecarVersion'"
+
     Write-Host "==> Uninstalling per-user (silent)"
     Assert-True (Test-Path -LiteralPath $Uninstaller) "uninstaller missing: $Uninstaller"
     $uninstallLog = Join-Path $env:TEMP "clean-your-mail-uninstall.log"
