@@ -69,13 +69,15 @@ fragt einmal nach. Danach lädt die App genau die Datei `CleanYourMail-Setup-<ve
 zugehörige `.sha256` über HTTPS, prüft den SHA-256, bevor irgendetwas ausgeführt wird, schließt sich,
 führt den Installer still für den aktuellen Benutzer aus und öffnet die neue Version wieder.
 
-Fehler blockieren die App nicht. Eine fehlgeschlagene automatische Prüfung bleibt still; drücke
-**Updates**, um es manuell zu versuchen. Eine fehlgeschlagene manuelle Prüfung zeigt eine lokalisierte
-Meldung mit **Open GitHub**. Fehlt dem Release ein gültiger Installer oder Checksum, bietet das Banner
-**Open GitHub** statt **Install update** an. Bei einem Download- oder Hash-Fehler erscheint eine
-lokalisierte Fehlermeldung, und das Banner bleibt, damit **Install update** es erneut versuchen kann.
-Wenn der Installer nicht abschließt, öffnet sich die alte App wieder und das Banner bietet
-**Open GitHub** an.
+Ein Fehler lässt die App geöffnet und nutzbar. Eine fehlgeschlagene automatische Prüfung bleibt
+still; drücke **Updates**, um es manuell zu versuchen. Eine fehlgeschlagene manuelle Prüfung zeigt
+eine lokalisierte Meldung mit **Open GitHub**. Fehlt dem Release ein gültiger Installer oder
+Checksum, bietet das Banner **Open GitHub** statt **Install update** an. Bei einem Download-,
+Prüf- oder Hash-Fehler erscheint eine lokalisierte Fehlermeldung mit **Install update** zum erneuten
+Versuch und **Open GitHub** für die Release-Seite. Kann der Update-Helfer nicht starten, bleibt die
+App geöffnet und das Banner bietet **Open GitHub** an. Startet der Installer, schlägt aber fehl,
+öffnet der Helfer die alte App wieder; es gibt kein gespeichertes Fehlerbanner, daher kannst du über
+**Updates** erneut versuchen oder die Release-Seite manuell öffnen.
 
 Der Installer 0.6.0 ist nicht code-signiert, daher kann SmartScreen während des Updates warnen, genau
 wie beim manuellen Start: Wähle **Weitere Informationen** und dann **Trotzdem ausführen**. Der

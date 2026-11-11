@@ -204,6 +204,32 @@ def test_incomplete_placeholders_do_not_raise(language):
     assert text
 
 
+@pytest.mark.parametrize(
+    ("language", "sentence"),
+    [
+        ("en", "No feedback is sent automatically"),
+        ("es", "Ningún comentario se envía automáticamente"),
+    ],
+)
+def test_feedback_copy_only_claims_feedback_is_not_automatic(language, sentence):
+    body = _load(language)["feedback"]["body"]
+    assert sentence in body
+    assert "Nothing is sent automatically" not in body
+    assert "No se envía nada automáticamente" not in body
+
+
+@pytest.mark.parametrize("language", CATALOGS)
+def test_download_failure_copy_covers_download_or_verification(language):
+    text = _load(language)["update"]["download_failed"].lower()
+    assert "download" in text or "descarg" in text
+    assert "verif" in text or "verific" in text
+
+
+def test_the_theme_styles_the_secondary_open_github_action():
+    qss = THEME_PATH.read_text(encoding="utf-8").lower()
+    assert "qpushbutton#updategithubbutton" in qss
+
+
 def test_the_theme_uses_the_spectrum_palette_and_soft_radii():
     qss = THEME_PATH.read_text(encoding="utf-8").lower()
     for colour in ("#121316", "#2a2c31", "#f3f1ec", "#a19e96", "#ffb38a", "#a8e6cf", "#ffe08a"):

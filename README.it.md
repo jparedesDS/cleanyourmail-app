@@ -68,12 +68,15 @@ Quando esiste una versione più recente, un banner propone **Install update** e 
 e il relativo `.sha256` via HTTPS, verifica lo SHA-256 prima di eseguire qualsiasi cosa, si chiude,
 esegue l'installer in silenzio per l'utente corrente e riapre la nuova versione.
 
-Gli errori non bloccano l'app. Un controllo automatico fallito resta silenzioso; premi **Updates**
-per riprovare manualmente. Un controllo manuale fallito mostra un messaggio localizzato con
-**Open GitHub**. Se alla release manca un installer o un checksum valido, il banner propone
-**Open GitHub** invece di **Install update**. Se il download o l'hash falliscono, compare un errore
-localizzato e il banner resta per consentire a **Install update** di riprovare. Se l'installer non
-termina, la vecchia app si riapre e il banner propone **Open GitHub**.
+Un errore lascia l'app aperta e utilizzabile. Un controllo automatico fallito resta silenzioso;
+premi **Updates** per riprovare manualmente. Un controllo manuale fallito mostra un messaggio
+localizzato con **Open GitHub**. Se alla release manca un installer o un checksum valido, il banner
+propone **Open GitHub** invece di **Install update**. Se il download, la verifica o l'hash
+falliscono, compare un errore localizzato con **Install update** per riprovare e **Open GitHub** per
+la pagina della release. Se l'helper di aggiornamento non può partire, l'app resta aperta e il
+banner propone **Open GitHub**. Se l'installer parte ma fallisce, l'helper riapre la vecchia app;
+non resta un banner di errore salvato, quindi usa **Updates** per riprovare o apri la pagina della
+release manualmente.
 
 L'installer 0.6.0 non è firmato, quindi SmartScreen può avvisare durante l'aggiornamento come quando
 lo esegui a mano: scegli **Ulteriori informazioni**, poi **Esegui comunque**. Lo SHA-256 dimostra che

@@ -15,7 +15,7 @@ import pytest
 from PySide6.QtWidgets import QMessageBox
 
 from cleanyourmail_app import version
-from cleanyourmail_app.domain.models import AppSettings
+from cleanyourmail_app.domain.models import AppSettings, Preferences
 from cleanyourmail_app.services.installer import InstallerUnavailable
 from cleanyourmail_app.services.updates import RELEASES_PAGE, UpdateError, UpdateInfo
 from cleanyourmail_app.ui import main_window as main_window_module
@@ -64,40 +64,29 @@ def _wait_banner(qtbot, window: MainWindow, fragment: str = "") -> None:
 
 
 def test_without_a_checker_there_is_no_button_and_no_startup_check(
-    qtbot, app_services, monkeypatch
+    qtbot, app_services
 ):
-    scheduled: list[int] = []
-
-    class FakeTimer:
-        @staticmethod
-        def singleShot(milliseconds: int, callback: object) -> None:
-            scheduled.append(milliseconds)
-
-    monkeypatch.setattr(main_window_module, "QTimer", FakeTimer)
     window = _window(qtbot, app_services)
 
     assert not window.update_button.isVisible()
     assert not window.update_banner.isVisible()
+    assert window._update_startup_timer is None
     window._maybe_check_updates()
-    assert scheduled == []
 
 
-def test_a_checker_schedules_one_startup_check(qtbot, app_services, monkeypatch):
-    scheduled: list[int] = []
-
-    class FakeTimer:
-        @staticmethod
-        def singleShot(milliseconds: int, callback: object) -> None:
-            scheduled.append(milliseconds)
-
-    monkeypatch.setattr(main_window_module, "QTimer", FakeTimer)
+def test_a_checker_schedules_one_parented_startup_check(qtbot, app_services):
     window = _window(
         qtbot,
         app_services,
         update_checker=lambda current: None,
     )
 
-    assert scheduled == [1500]
+    timer = window._update_startup_timer
+    assert timer is not None
+    assert timer.parent() is window
+    assert timer.isSingleShot()
+    assert timer.isActive()
+    assert 0 < timer.remainingTime() <= 1500
     assert window.update_button.isVisible()
 
 
@@ -169,6 +158,11 @@ def test_the_banner_fits_the_minimum_window_without_covering_the_stack(
     assert banner.width() <= window.centralWidget().width()
     assert banner.bottom() < window.stack.geometry().top()
     assert window.stack.height() > 0
+    assert window.update_github_button.isVisible()
+    assert window.update_github_button.text() == "Open GitHub"
+    assert window.update_github_button.geometry().right() <= banner.width()
+    assert window.update_open_button.geometry().right() <= banner.width()
+    assert window.update_later_button.geometry().right() <= banner.width()
 
 
 def test_a_newer_version_shows_the_banner_and_later_hides_it(qtbot, app_services):
@@ -190,6 +184,8 @@ def test_a_newer_version_shows_the_banner_and_later_hides_it(qtbot, app_services
 
     assert seen == [version.__version__]
     assert window.update_open_button.text() == "Install update"
+    assert window.update_github_button.text() == "Open GitHub"
+    assert window.update_github_button.isVisible()
     assert window.update_later_button.text() == "Later"
     assert window.update_button.accessibleName() == "Updates"
     assert window.update_button.toolTip() == "Check for updates"
@@ -219,7 +215,34 @@ def test_without_installer_assets_the_primary_action_opens_github(
     _wait_banner(qtbot, window)
 
     assert window.update_open_button.text() == "Open GitHub"
+    assert not window.update_github_button.isVisible()
     window.update_open_button.click()
+    assert opened == [RELEASES_PAGE]
+
+
+def test_the_secondary_open_github_action_opens_the_release_page(
+    qtbot, app_services, monkeypatch
+):
+    opened: list[str] = []
+
+    class FakeDesktop:
+        @staticmethod
+        def openUrl(url: object) -> None:
+            opened.append(url.toString())
+
+    monkeypatch.setattr(main_window_module, "QDesktopServices", FakeDesktop)
+    window = _window(
+        qtbot,
+        app_services,
+        update_checker=lambda current: _info(),
+        update_downloader=lambda info: Path("unused.exe"),
+        update_installer=lambda path: None,
+    )
+    window._on_updates_clicked()
+    _wait_banner(qtbot, window)
+
+    assert window.update_github_button.isVisible()
+    window.update_github_button.click()
     assert opened == [RELEASES_PAGE]
 
 
@@ -233,6 +256,7 @@ def test_manual_check_reports_up_to_date(qtbot, app_services):
     _wait_banner(qtbot, window, "You're up to date.")
 
     assert window.update_open_button.isHidden()
+    assert window.update_github_button.isHidden()
     assert window.update_later_button.isVisible()
 
 
@@ -248,6 +272,7 @@ def test_manual_check_failure_is_localized_and_visible(qtbot, app_services):
 
     assert window.update_open_button.text() == "Open GitHub"
     assert window.update_open_button.isVisible()
+    assert not window.update_github_button.isVisible()
 
 
 def test_automatic_check_failure_is_silent(qtbot, app_services):
@@ -283,6 +308,39 @@ def test_automatic_check_is_skipped_within_six_hours(qtbot, app_services):
     assert app_services.settings.load().last_update_check == stamp
 
 
+def test_automatic_check_updates_the_timestamp_without_losing_settings(
+    qtbot, app_services
+):
+    app_services.settings.save(
+        AppSettings(
+            provider="gmail",
+            email="me@gmail.com",
+            preferences=Preferences(
+                categories=["newsletter"],
+                mode="archive",
+                language="es",
+            ),
+        )
+    )
+    window = _window(
+        qtbot,
+        app_services,
+        update_checker=lambda current: None,
+    )
+    with qtbot.waitSignal(window._update_check_worker.finished, timeout=3000):
+        window._maybe_check_updates()
+
+    stored = app_services.settings.load()
+    assert stored.last_update_check > 0
+    assert stored.provider == "gmail"
+    assert stored.email == "me@gmail.com"
+    assert stored.preferences == Preferences(
+        categories=["newsletter"],
+        mode="archive",
+        language="es",
+    )
+
+
 def test_installer_without_a_downloader_opens_github(
     qtbot, app_services, monkeypatch
 ):
@@ -304,6 +362,7 @@ def test_installer_without_a_downloader_opens_github(
     _wait_banner(qtbot, window)
 
     assert window.update_open_button.text() == "Open GitHub"
+    assert not window.update_github_button.isVisible()
     window.update_open_button.click()
     assert opened == [RELEASES_PAGE]
 
@@ -408,6 +467,8 @@ def test_spanish_retranslation_keeps_the_pending_version(qtbot, app_services):
         == "CleanYourMail 9.9.9 está disponible."
     )
     assert window.update_open_button.text() == "Instalar actualización"
+    assert window.update_github_button.text() == "Abrir GitHub"
+    assert window.update_github_button.isVisible()
     assert window.update_later_button.text() == "Más tarde"
 
 
@@ -446,6 +507,113 @@ def test_install_waits_for_a_busy_review_page(
     assert installs == []
     assert window._update_state == "available"
     assert window.update_open_button.text() == "Install update"
+
+
+def test_a_confirmed_download_blocks_the_whole_window(
+    qtbot, app_services, monkeypatch, tmp_path
+):
+    downloaded = tmp_path / "CleanYourMail-Setup-9.9.9.exe"
+    downloaded.write_bytes(b"MZ")
+    download_started = threading.Event()
+    download_release = threading.Event()
+    installs: list[object] = []
+    quits: list[bool] = []
+
+    def downloader(info: UpdateInfo) -> Path:
+        download_started.set()
+        download_release.wait(5)
+        return downloaded
+
+    window = _window(
+        qtbot,
+        app_services,
+        update_checker=lambda current: _info(),
+        update_downloader=downloader,
+        update_installer=lambda path: installs.append(path),
+    )
+    monkeypatch.setattr(window, "_quit_for_update", lambda: quits.append(True))
+    monkeypatch.setattr(
+        main_window_module.QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    try:
+        window._on_updates_clicked()
+        _wait_banner(qtbot, window)
+        window.update_open_button.click()
+        qtbot.waitUntil(download_started.is_set, timeout=3000)
+
+        assert window._update_state == "downloading"
+        assert window._update_ui_blocked
+        assert not window.centralWidget().isEnabled()
+        assert not window.update_button.isEnabled()
+        assert not window.feedback_button.isEnabled()
+        assert not window.language_combo.isEnabled()
+        assert not window.update_open_button.isEnabled()
+        assert not window.update_later_button.isEnabled()
+        assert window.update_github_button.isHidden()
+
+        download_release.set()
+        qtbot.waitUntil(lambda: quits == [True], timeout=3000)
+        assert installs == [downloaded]
+    finally:
+        download_release.set()
+
+
+def test_download_finishing_while_review_busy_does_not_install_or_quit(
+    qtbot, app_services, monkeypatch, tmp_path
+):
+    downloaded = tmp_path / "CleanYourMail-Setup-9.9.9.exe"
+    downloaded.write_bytes(b"MZ")
+    download_started = threading.Event()
+    download_release = threading.Event()
+    installs: list[object] = []
+    quits: list[bool] = []
+
+    def downloader(info: UpdateInfo) -> Path:
+        download_started.set()
+        download_release.wait(5)
+        return downloaded
+
+    window = _window(
+        qtbot,
+        app_services,
+        update_checker=lambda current: _info(),
+        update_downloader=downloader,
+        update_installer=lambda path: installs.append(path),
+    )
+    monkeypatch.setattr(window, "_quit_for_update", lambda: quits.append(True))
+    monkeypatch.setattr(
+        main_window_module.QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    try:
+        window._on_updates_clicked()
+        _wait_banner(qtbot, window)
+        window.update_open_button.click()
+        qtbot.waitUntil(download_started.is_set, timeout=3000)
+
+        # The confirmation is already answered. A mailbox action starts while
+        # the download is still in flight; the finishing download must not
+        # install or quit over it.
+        monkeypatch.setattr(window.review_page, "is_busy", lambda: True)
+        download_release.set()
+        _wait_banner(
+            qtbot,
+            window,
+            "Wait for the current mailbox action to finish before updating.",
+        )
+
+        assert installs == []
+        assert quits == []
+        assert window._update_state == "available"
+        assert not window._update_ui_blocked
+        assert window.centralWidget().isEnabled()
+        assert window.update_open_button.isEnabled()
+        assert window.update_github_button.isVisible()
+    finally:
+        download_release.set()
 
 
 def test_confirmation_no_does_not_download_or_install(
@@ -545,13 +713,45 @@ def test_download_failure_is_localized_and_re_enables_the_banner(
     _wait_banner(
         qtbot,
         window,
-        "The update could not be downloaded. Check your connection and try again.",
+        "The update could not be downloaded or verified. "
+        "Check your connection and try again.",
     )
 
     assert window.update_open_button.isEnabled()
+    assert window.update_github_button.isVisible()
+    assert window.update_github_button.isEnabled()
     assert window.update_later_button.isEnabled()
     assert window.update_open_button.text() == "Install update"
+    assert window.centralWidget().isEnabled()
     assert installs == []
+
+
+def test_close_uses_one_total_deadline_for_both_update_workers(
+    qtbot, app_services, monkeypatch
+):
+    calls: list[float] = []
+
+    class SlowWorker:
+        def shutdown(self, timeout: float = 5.0) -> None:
+            calls.append(timeout)
+            time.sleep(timeout)
+
+    window = _window(qtbot, app_services)
+    monkeypatch.setattr(
+        main_window_module, "UPDATE_SHUTDOWN_TIMEOUT_SECONDS", 0.2
+    )
+    monkeypatch.setattr(window, "_update_check_worker", SlowWorker())
+    monkeypatch.setattr(window, "_update_download_worker", SlowWorker())
+
+    started = time.monotonic()
+    window._shutdown_update_workers()
+    elapsed = time.monotonic() - started
+
+    assert 1 <= len(calls) <= 2
+    assert elapsed < 0.4, "shutdown must not wait 5 s per worker"
+    assert calls[0] <= 0.2
+    if len(calls) == 2:
+        assert calls[1] <= 0.05
 
 
 def test_an_unfrozen_installer_failure_offers_github_and_keeps_the_app_open(
@@ -589,3 +789,5 @@ def test_an_unfrozen_installer_failure_offers_github_and_keeps_the_app_open(
     assert quits == []
     assert window.update_open_button.text() == "Open GitHub"
     assert window.update_open_button.isEnabled()
+    assert window.centralWidget().isEnabled()
+    assert not window._update_ui_blocked

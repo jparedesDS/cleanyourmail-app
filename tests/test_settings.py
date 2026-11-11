@@ -195,6 +195,83 @@ def test_update_preferences_writes_the_file_when_none_exists(tmp_path):
     assert SettingsStore(target).load_preferences().mode == "archive"
 
 
+def test_update_last_update_check_preserves_every_other_field(tmp_path):
+    target = tmp_path / "settings.json"
+    store = SettingsStore(target)
+    store.save(
+        AppSettings(
+            provider="gmail",
+            email="me@gmail.com",
+            preferences=Preferences(
+                categories=["newsletter", "spam"],
+                mode="archive",
+                max_moves=25,
+                language="es",
+            ),
+        )
+    )
+
+    store.update_last_update_check(1_760_000_123)
+
+    loaded = store.load()
+    assert loaded.last_update_check == 1_760_000_123
+    assert loaded.provider == "gmail"
+    assert loaded.email == "me@gmail.com"
+    assert loaded.preferences == Preferences(
+        categories=["newsletter", "spam"],
+        mode="archive",
+        max_moves=25,
+        language="es",
+    )
+
+
+def test_update_last_update_check_creates_a_missing_file(tmp_path):
+    target = tmp_path / "settings.json"
+    SettingsStore(target).update_last_update_check(42)
+
+    assert target.is_file()
+    loaded = SettingsStore(target).load()
+    assert loaded.last_update_check == 42
+    assert loaded.provider == "custom"
+    assert loaded.email == ""
+
+
+def test_update_last_update_check_does_not_overwrite_a_corrupt_file(tmp_path):
+    target = tmp_path / "settings.json"
+    target.write_text("{not json", encoding="utf-8")
+    before = target.read_bytes()
+
+    SettingsStore(target).update_last_update_check(99)
+
+    assert target.read_bytes() == before
+
+
+def test_update_last_update_check_does_not_overwrite_invalid_settings(tmp_path):
+    target = tmp_path / "settings.json"
+    target.write_text(
+        json.dumps({"provider": "gmail", "preferences": {"max_moves": 0}}),
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+
+    SettingsStore(target).update_last_update_check(99)
+
+    assert target.read_bytes() == before
+
+
+@pytest.mark.parametrize("timestamp", [-1, True, False, "42", 1.5, None])
+def test_update_last_update_check_rejects_an_invalid_timestamp(
+    tmp_path, timestamp
+):
+    target = tmp_path / "settings.json"
+    store = SettingsStore(target)
+
+    with pytest.raises(ValueError):
+        store.update_last_update_check(timestamp)
+
+    assert not target.exists()
+
+
 def test_settings_file_is_utf8_and_ends_with_a_newline(tmp_path):
     target = tmp_path / "settings.json"
     SettingsStore(target).save(AppSettings(provider="gmail", email="me@gmail.com"))

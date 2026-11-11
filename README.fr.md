@@ -68,12 +68,15 @@ Quand une version plus récente existe, une bannière propose **Install update**
 quoi que ce soit, se ferme, exécute l’installateur silencieusement pour l’utilisateur courant et
 rouvre la nouvelle version.
 
-Les échecs ne bloquent pas l’app. Un contrôle automatique qui échoue reste silencieux ; cliquez sur
-**Updates** pour réessayer à la main. Un contrôle manuel en échec affiche un message localisé avec
-**Open GitHub**. Si la release n’a pas d’installateur ou de checksum valide, la bannière propose
-**Open GitHub** au lieu de **Install update**. Un échec de téléchargement ou de hachage affiche une
-erreur localisée et garde la bannière pour que **Install update** réessaie. Si l’installateur
-n’aboutit pas, l’ancienne app se rouvre et la bannière propose **Open GitHub**.
+Un échec laisse l’app ouverte et utilisable. Un contrôle automatique qui échoue reste silencieux ;
+cliquez sur **Updates** pour réessayer à la main. Un contrôle manuel en échec affiche un message
+localisé avec **Open GitHub**. Si la release n’a pas d’installateur ou de checksum valide, la
+bannière propose **Open GitHub** au lieu de **Install update**. Un échec de téléchargement, de
+vérification ou de hachage affiche une erreur localisée avec **Install update** pour réessayer et
+**Open GitHub** pour la page de la release. Si l’assistant de mise à jour ne peut pas démarrer,
+l’app reste ouverte et la bannière propose **Open GitHub**. Si l’installateur démarre mais échoue,
+l’assistant rouvre l’ancienne app ; aucune bannière d’échec n’est enregistrée, donc utilisez
+**Updates** pour réessayer ou ouvrez la page de la release à la main.
 
 L’installateur 0.6.0 n’est pas signé, donc SmartScreen peut avertir pendant la mise à jour comme lors
 d’une exécution manuelle : choisissez **Informations complémentaires**, puis **Exécuter quand même**.

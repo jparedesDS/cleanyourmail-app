@@ -71,11 +71,14 @@ asks for one confirmation. The app then downloads the exact `CleanYourMail-Setup
 and its published `.sha256` file over HTTPS, verifies the SHA-256 before running anything, closes,
 runs the installer silently for the current user and reopens the new version.
 
-Failures never block the app. A failed automatic check stays silent; press **Updates** to try
-manually. A failed manual check shows a localized message with **Open GitHub**. If the release lacks
-a valid installer or checksum, the banner offers **Open GitHub** instead of **Install update**. A
-download or hash failure shows a localized error and keeps the banner, so **Install update** can
-retry. If the installer cannot finish, the old app reopens and the banner offers **Open GitHub**.
+A failure leaves the app open and usable. A failed automatic check stays silent; press **Updates**
+to try manually. A failed manual check shows a localized message with **Open GitHub**. If the
+release lacks a valid installer or checksum, the banner offers **Open GitHub** instead of **Install
+update**. A download, verification or hash failure shows a localized error with **Install update**
+to retry and **Open GitHub** for the release page. If the update helper cannot start, the app stays
+open and the banner offers **Open GitHub**. If the installer starts but fails, the helper reopens
+the old app; there is no saved failure banner, so use **Updates** to retry or open the release page
+manually.
 
 The installer is unsigned in 0.6.0, so Windows SmartScreen may warn during an update just as it does
 when you run the installer by hand: choose **More info**, then **Run anyway**. SHA-256 proves the
@@ -181,10 +184,11 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
 
 ## Security model
 
-- **Local by default, no account or telemetry.** The app makes two kinds of network request itself:
-  a public GitHub release check (app version and IP only; at most every six hours or when you press
-  **Updates**) and the feedback POST after you press Send and accept the consent line. Mailbox
-  network access belongs to the sidecar and goes only to your mail provider.
+- **Local by default, no account or telemetry.** The app's own requests are limited to the public
+  GitHub release check (app version and IP only; at most every six hours or when you press
+  **Updates**), the two public update assets downloaded only after you confirm **Install update**,
+  and the feedback POST after you press Send and accept the consent line. Mailbox network access
+  belongs to the sidecar and goes only to your mail provider.
 - **Verified updates.** The installer is downloaded over HTTPS from the GitHub release, must match
   the published SHA-256, and runs only after one confirmation. The 0.6.0 installer is unsigned, so
   SmartScreen may warn; SHA-256 proves integrity, not the publisher.
@@ -215,7 +219,7 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 | `scripts/` | Sidecar/app builds and the installer smoke test. |
 | `packaging/` | Inno Setup script and icons. |
 | `tests/` | pytest and pytest-qt suite with fake CLI fixtures. |
-| `docs/superpowers/specs/` | Design docs (0.3.0 app, 0.4.0 feedback). |
+| `docs/superpowers/specs/` | Design docs (0.3.0 app, 0.4.0 feedback, 0.5.0 review wizard, 0.6.0 auto-update). |
 | `docs/superpowers/plans/` | Task-by-task implementation plan. |
 
 ## Links

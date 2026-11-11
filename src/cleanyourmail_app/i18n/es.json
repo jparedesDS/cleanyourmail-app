@@ -59,7 +59,7 @@
     "confirm": "¿Instalar {version} ahora? La app se cerrará y se reiniciará.",
     "up_to_date": "Ya tienes la última versión.",
     "check_failed": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión.",
-    "download_failed": "No se pudo descargar la actualización. Revisa tu conexión e inténtalo de nuevo.",
+    "download_failed": "No se pudo descargar ni verificar la actualización. Revisa tu conexión e inténtalo de nuevo.",
     "review_busy": "Espera a que termine la acción actual del buzón antes de actualizar.",
     "install_failed": "No se pudo iniciar la actualización. Abre GitHub para instalarla manualmente.",
     "dev_unavailable": "Las actualizaciones automáticas están disponibles en la app instalada. Abre GitHub en su lugar."
@@ -67,7 +67,7 @@
   "feedback": {
     "open": "Comentarios",
     "title": "Enviar comentarios",
-    "body": "Cuéntanos una idea o un error. No se envía nada automáticamente: no hay telemetría ni analíticas.",
+    "body": "Cuéntanos una idea o un error. Ningún comentario se envía automáticamente: no hay telemetría ni analíticas.",
     "kind": "Tipo",
     "kind_feedback": "Mejora",
     "kind_bug": "Error",

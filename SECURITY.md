@@ -35,10 +35,11 @@ The app does not replace the CLI's safety rules and does not add capabilities th
 
 - **No local HTTP server, browser, cookies or CSRF surface.** The UI is a native window. The app
   never opens a web server, never accepts inbound connections and has no web view.
-- **No account, cloud or telemetry.** The app makes two requests itself: a public GitHub release
-  check (app version and IP only; at most every six hours or when the person presses **Updates**) and
-  the feedback POST after the person presses Send and accepts the consent line. Network access for
-  mail belongs to the sidecar and goes only to the mail provider.
+- **No account, cloud or telemetry.** The app's own requests are limited to a public GitHub release
+  check (app version and IP only; at most every six hours or when the person presses **Updates**),
+  the two public update assets downloaded only after the person confirms **Install update**, and the
+  feedback POST after the person presses Send and accepts the consent line. Network access for mail
+  belongs to the sidecar and goes only to the mail provider.
 - **Feedback is opt-in and manual.** The dialog sends one JSON payload to the Cloudflare Worker and
   nothing else. The editable checklist is limited to app/sidecar versions, Windows version, provider
   label, mode, category names and language; account addresses, config paths, senders, subjects,

@@ -51,7 +51,7 @@ a native view and a process wrapper around the frozen sidecar.
 | `src/cleanyourmail_app/services/config.py` | Creates the TOML through `init`, refuses a different account/host, maps `--force`, reads `password_file` and `state_dir`, edits only known policy keys. |
 | `src/cleanyourmail_app/services/secrets.py` | Writes the app password to the private password file with owner-only permissions. |
 | `src/cleanyourmail_app/services/oauth.py` | Runs `connect outlook --no-wait/--wait` and maps known failures; the app never handles a token. |
-| `src/cleanyourmail_app/services/settings.py` | Stores provider, email and app preferences in `%APPDATA%\cleanyourmail-app\settings.json`; no secrets. |
+| `src/cleanyourmail_app/services/settings.py` | Stores provider, email, app preferences and the last automatic update check (`last_update_check`) in `%APPDATA%\cleanyourmail-app\settings.json`; no secrets. |
 | `src/cleanyourmail_app/services/feedback.py` | One HTTPS POST to the feedback Worker, only after Send; maps 429/503/network failures to localized keys and never logs the payload. |
 | `src/cleanyourmail_app/services/updates.py` | Reads the public GitHub release, compares versions, and downloads the installer plus its `.sha256`; verifies the hash and never executes anything. |
 | `src/cleanyourmail_app/services/installer.py` | Writes and starts the temporary silent per-user installer helper; it never downloads or installs without the window's confirmation. |
@@ -111,8 +111,9 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 
 ## Feedback flow
 
-Feedback is the only network request that carries anything the person writes. The only other request
-the app makes itself is the public GitHub release check, which sends no account data.
+Feedback is the only network request that carries anything the person writes. The only other
+requests the app makes itself are the public GitHub release check and, after a confirmed update,
+the two public release assets; none carries account data.
 
 ```text
 Header Feedback button
@@ -166,11 +167,15 @@ Startup timer / Updates button
 - Failure handling follows the UI state: a failed automatic check stays silent and leaves **Updates**
   available; a failed manual check shows a localized message with **Open GitHub**. A release without
   a valid named installer and `.sha256` shows **Open GitHub** instead of **Install update**. A
-  download, hash mismatch or redirect failure shows a localized error and keeps the banner so
-  **Install update** retries. If the installer cannot finish, the old app reopens and the banner
-  offers **Open GitHub**.
+  download, verification, hash mismatch or redirect failure shows a localized error with **Install
+  update** to retry and a secondary **Open GitHub** for the release page. If the helper cannot
+  start, the app stays open and the banner offers **Open GitHub**. If the installer starts but
+  fails, the helper reopens the old app; no failure banner is persisted, so the person can retry
+  from **Updates** or open the release page manually.
 - `services/installer.py` builds the helper command. The helper waits for the app PID, quotes every
-  path, deletes the installer only after a successful install and reopens the app. It leaves the
+  path, deletes the installer only after a successful install and reopens the app. It uses
+  `%SystemRoot%\System32` tools, fails closed when `tasklist`/`find` cannot report, and writes a
+  start marker so the app only quits after the helper is known to be running. It leaves the
   installer for diagnosis if the install fails.
 - The installer is unsigned in 0.6.0. SHA-256 is integrity, not publisher authentication; code
   signing is the next security step, and Windows SmartScreen may warn.

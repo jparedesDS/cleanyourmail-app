@@ -115,6 +115,48 @@ class SettingsStore:
             )
         )
 
+    def update_last_update_check(self, timestamp: int) -> None:
+        """Update only the automatic-check timestamp.
+
+        The automatic check must never write back a defaults object produced by
+        a transient read failure: that would wipe the provider, email and
+        preferences. This method reads the raw file, validates it as
+        ``AppSettings`` and writes the same values with only the timestamp
+        changed, using the same atomic replace as :meth:`save`.
+
+        A missing file is created from defaults. A file that exists but cannot
+        be read, parsed or validated is left untouched: overwriting it could
+        destroy the very settings this method exists to preserve.
+        """
+        if (
+            isinstance(timestamp, bool)
+            or not isinstance(timestamp, int)
+            or timestamp < 0
+        ):
+            raise ValueError("last_update_check must be a non-negative integer")
+
+        try:
+            text = self.path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            current = _defaults()
+        except (OSError, UnicodeError):
+            return
+        else:
+            try:
+                payload: Any = json.loads(text.lstrip("\ufeff"))
+                current = AppSettings.from_dict(payload)
+            except (TypeError, ValueError):
+                return
+
+        self.save(
+            AppSettings(
+                provider=current.provider,
+                email=current.email,
+                preferences=current.preferences,
+                last_update_check=timestamp,
+            )
+        )
+
 
 def _defaults() -> AppSettings:
     return AppSettings(provider="custom", email="")

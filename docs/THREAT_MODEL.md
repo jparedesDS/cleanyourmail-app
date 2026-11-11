@@ -20,7 +20,8 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 - The CLI config (`cleanyourmail.toml`), which names `password_file` and `state_dir`.
 - The plan (`plan.json`), the undo journal and the CLI cache.
 - The user's mailbox state: folders, labels and messages.
-- App settings: provider, email and cleaning preferences (never a secret).
+- App settings: provider, email, cleaning preferences and the last update check
+  (`last_update_check`); never a secret.
 - Optional feedback: the message, the editable checklist and an optional contact, only after the
   person presses Send and accepts the consent line.
 - Update metadata and installer: the public GitHub release feed, the version string in the
@@ -53,7 +54,7 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 |---|---|
 | App password left in the widget or undo history | The field is cleared with `setText("")` on save, Back and account change; tests assert `undo()` cannot restore it. |
 | App password in argv | The app never passes a secret as an argument. `save_app_password` writes the file; `CliClient` argv is asserted secret-free. |
-| App password in QSettings, a label or a log | Settings hold only provider/email/preferences. Errors use localized generic copy, and 0.6.0 writes no local log. Tests scan rendered labels and settings. |
+| App password in QSettings, a label or a log | Settings hold only provider, email, preferences and the last update check (`last_update_check`). Errors use localized generic copy, and 0.6.0 writes no local log. Tests scan rendered labels and settings. |
 | App password written to the wrong account's file | An existing config for another email or IMAP host raises `ConfigMismatchError`; the person must confirm before `init --force`, and the app writes the `password_file` the config actually names. |
 | OAuth token exposed to the UI | The app only calls the sidecar's device-code commands and renders URL/code. It never reads the OAuth store or a token field. |
 | Command injection through a run id, plan path or host | Argument-list subprocesses with no shell; fixed command names; run ids match a strict pattern; plan path is one argv word; custom host rejects spaces and URL schemes. |
@@ -64,7 +65,7 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 | Accidental PII in feedback | The checklist is editable and limited to app/sidecar versions, Windows version, provider label, mode, categories and language. The dialog copy names passwords, tokens, addresses, subjects, message IDs and paths as things not to include. Tests use an email, a path and a token as sentinels and assert none reach the checklist, a label or a status line. |
 | Automatic or background feedback | The feedback client is constructed only after Send, and a send requires the consent checkbox; tests assert nothing is sent without it. The only automatic request is the release check, which carries no feedback, account or mailbox data. |
 | Update check leaks mailbox data | The check is one GET to the public GitHub API with `User-Agent: CleanYourMail/<version>`. It carries no credentials, account address, mailbox metadata or token. |
-| Tampered or malicious update | Assets must be HTTPS on `github.com` or GitHub's release CDN, match `CleanYourMail-Setup-<version>.exe`, stay under 200 MB and match the release `.sha256` before the helper runs. A redirect to another host or a missing, misnamed or malformed asset refuses auto-install and offers the release page. |
+| Tampered or malicious update | Assets must be HTTPS on `github.com` or GitHub's release CDN, match `CleanYourMail-Setup-<version>.exe`, stay under 200 MB and match the release `.sha256` before the helper runs. A redirect to another host, a hash mismatch or a missing, misnamed or malformed asset refuses auto-install and offers the release page. |
 | Update installs without consent | The automatic check only shows a banner and a manual button. Installation requires **Install update** and a confirmation; the helper waits for the app PID, installs for the current user and never loops. |
 | Compromised release or maintainer account | TLS and a SHA-256 published in the same release stop corruption and network tampering, not a malicious release. The confirmation and the linked release page are the human check; code signing is the structural fix. |
 | Discord webhook leak | The webhook and IP salt live only as Cloudflare secrets and never appear in either repository, the installer, the website, logs or tests. The clients post to the Worker, not to Discord. |
@@ -72,7 +73,7 @@ session, CSRF token or localhost listener in 0.6.x. The website is a static, no-
 | Feedback message retention | The Worker stores no message body and returns generic errors without logging it. Discord retention is outside this app's control and is documented. |
 | Undo the wrong run | The full run id from the journal is passed back; the CLI verifies account and message identity. Undo requires confirmation. |
 | Permanent deletion | The app has no delete action. The CLI is moves-only by default and refuses without UIDPLUS/MOVE. |
-| Unexpected network exposure | The app opens no listening socket and no HTTP server. It makes the public GitHub release check and the opt-in feedback POST; all mail-network access belongs to the sidecar. |
+| Unexpected network exposure | The app opens no listening socket and no HTTP server. It makes the public GitHub release check, downloads the two public update assets only after a confirmed update, and sends the opt-in feedback POST; all mail-network access belongs to the sidecar. |
 | SmartScreen / unsigned installer | The README documents that the installer is unsigned, and every release publishes a SHA-256. Windows SmartScreen may warn; the app does not claim code signing. Code signing is deferred. |
 | Supply-chain compromise | Dependencies use declared version ranges in `pyproject.toml` and are installed from PyPI at build time; the sidecar is built from an exact tag with a clean-worktree check; the updater accepts only named assets on GitHub hosts and refuses a hash mismatch; CI runs the contract tests and the installer smoke. |
 | Malicious website reaching the app | There is no localhost listener, no session cookie and no browser surface to reach. |

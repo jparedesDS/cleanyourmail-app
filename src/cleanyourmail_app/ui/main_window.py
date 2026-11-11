@@ -64,6 +64,9 @@ UPDATE_CHECK_INTERVAL_SECONDS = 6 * 60 * 60
 #: Let the first page paint before asking GitHub, so a slow network is invisible.
 UPDATE_STARTUP_DELAY_MS = 1500
 
+#: Total time the window spends waiting for update workers during close.
+UPDATE_SHUTDOWN_TIMEOUT_SECONDS = 5.0
+
 
 class MainWindow(QMainWindow):
     """Own the window chrome, the progress rail and the page stack."""
@@ -111,6 +114,8 @@ class MainWindow(QMainWindow):
         self._update_auto_available = False
         self._update_allow_github = False
         self._update_check_manual = False
+        self._update_ui_blocked = False
+        self._update_startup_timer: QTimer | None = None
         self._update_check_worker = BackgroundCall(self)
         self._update_download_worker = BackgroundCall(self)
         self._update_check_worker.succeeded.connect(self._on_update_check_succeeded)
@@ -130,7 +135,11 @@ class MainWindow(QMainWindow):
         self.retranslate()
 
         if self.update_checker is not None:
-            QTimer.singleShot(UPDATE_STARTUP_DELAY_MS, self._maybe_check_updates)
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(self._maybe_check_updates)
+            timer.start(UPDATE_STARTUP_DELAY_MS)
+            self._update_startup_timer = timer
 
     # -- construction -------------------------------------------------------
 
@@ -223,6 +232,12 @@ class MainWindow(QMainWindow):
         self.update_banner_label.setObjectName("updateBannerLabel")
         self.update_banner_label.setWordWrap(True)
         row.addWidget(self.update_banner_label, 1)
+
+        self.update_github_button = QPushButton(banner)
+        self.update_github_button.setObjectName("updateGithubButton")
+        self.update_github_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.update_github_button.clicked.connect(self._open_release_page)
+        row.addWidget(self.update_github_button)
 
         self.update_open_button = QPushButton(banner)
         self.update_open_button.setObjectName("updateOpenButton")
@@ -464,7 +479,7 @@ class MainWindow(QMainWindow):
         last = stored.last_update_check if stored is not None else 0
         if last and now - last < UPDATE_CHECK_INTERVAL_SECONDS:
             return
-        self._start_update_check(manual=False, stored=stored)
+        self._start_update_check(manual=False)
 
     def _on_updates_clicked(self) -> None:
         """The header button always checks on demand, ignoring the throttle."""
@@ -479,15 +494,13 @@ class MainWindow(QMainWindow):
             or self._update_state in {"downloading", "installing"}
         )
 
-    def _start_update_check(
-        self, *, manual: bool, stored: object | None = None
-    ) -> None:
+    def _start_update_check(self, *, manual: bool) -> None:
         checker = self.update_checker
         if checker is None or self._updates_busy():
             return
         self._update_check_manual = manual
         if not manual:
-            self._record_update_check(stored)
+            self._record_update_check()
         started = self._update_check_worker.start(
             lambda: checker(version.__version__)
         )
@@ -495,11 +508,10 @@ class MainWindow(QMainWindow):
             self._update_check_manual = False
         self._refresh_update_banner()
 
-    def _record_update_check(self, stored: object | None = None) -> None:
+    def _record_update_check(self) -> None:
         """Stamp the check before it starts; a read-only profile is not fatal."""
         try:
-            current = stored if stored is not None else self.settings.load()
-            self.settings.save(replace(current, last_update_check=int(time.time())))
+            self.settings.update_last_update_check(int(time.time()))
         except (OSError, TypeError, ValueError):
             return
 
@@ -582,6 +594,8 @@ class MainWindow(QMainWindow):
         primary_visible = False
         primary_enabled = True
         later_enabled = True
+        github_visible = False
+        github_enabled = True
 
         if state == "available":
             label = (
@@ -596,6 +610,11 @@ class MainWindow(QMainWindow):
             )
             primary_visible = True
             primary_enabled = not self._update_check_worker.active
+            # A secondary release-page escape hatch is shown only when the
+            # primary button is Install update. It is also useful after a
+            # download, hash or redirect failure while a retry is still offered.
+            github_visible = self._update_auto_available
+            github_enabled = primary_enabled
         elif state == "downloading":
             label = t("update.downloading")
             primary = (
@@ -622,6 +641,12 @@ class MainWindow(QMainWindow):
 
         self.update_banner_label.setText(label)
         self.update_banner.setAccessibleName(label)
+        self._configure_update_button(
+            self.update_github_button,
+            t("update.open_github"),
+            visible=github_visible,
+            enabled=github_enabled,
+        )
         self._configure_update_button(
             self.update_open_button,
             primary,
@@ -675,6 +700,25 @@ class MainWindow(QMainWindow):
             return
         self._start_update_download(info)
 
+    def _set_update_blocking(self, blocking: bool) -> None:
+        """Make the window non-interactive while a confirmed update owns it.
+
+        The whole central widget is disabled, not only the banner, so a person
+        cannot start an Apply, an Outlook wait or type feedback between the
+        confirmation and the quit. Every failure path calls this with
+        ``False`` before showing its message.
+        """
+        if self._update_ui_blocked == blocking:
+            return
+        self._update_ui_blocked = blocking
+        central = self.centralWidget()
+        if central is not None:
+            central.setEnabled(not blocking)
+        if blocking:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        else:
+            QApplication.restoreOverrideCursor()
+
     def _start_update_download(self, info: object) -> None:
         downloader = self.update_downloader
         if downloader is None or not callable(downloader):
@@ -684,11 +728,14 @@ class MainWindow(QMainWindow):
             return
         if self._update_download_worker.active:
             return
+        self._set_update_blocking(True)
         self._update_state = "downloading"
         self._update_error_key = ""
         self._refresh_update_banner()
         if not self._update_download_worker.start(lambda: downloader(info)):
+            self._set_update_blocking(False)
             self._update_state = "available"
+            self._update_error_key = "update.download_failed"
             self._refresh_update_banner()
 
     def _on_update_download_succeeded(self, result: object) -> None:
@@ -696,8 +743,15 @@ class MainWindow(QMainWindow):
             return
         installer = self.update_installer
         if not callable(installer):
+            self._set_update_blocking(False)
             self._update_auto_available = False
             self._update_error_key = "update.install_failed"
+            self._update_state = "available"
+            self._refresh_update_banner()
+            return
+        if self.review_page.is_busy():
+            self._set_update_blocking(False)
+            self._update_error_key = "update.review_busy"
             self._update_state = "available"
             self._refresh_update_banner()
             return
@@ -708,12 +762,14 @@ class MainWindow(QMainWindow):
             # Only the path returned by this download is ever installed.
             installer(result)
         except InstallerUnavailable:
+            self._set_update_blocking(False)
             self._update_auto_available = False
             self._update_error_key = "update.dev_unavailable"
             self._update_state = "available"
             self._refresh_update_banner()
             return
         except Exception:  # noqa: BLE001 - any failure keeps the old app open
+            self._set_update_blocking(False)
             self._update_auto_available = False
             self._update_error_key = "update.install_failed"
             self._update_state = "available"
@@ -724,6 +780,7 @@ class MainWindow(QMainWindow):
     def _on_update_download_failed(self, error: object) -> None:
         if self._update_state != "downloading":
             return
+        self._set_update_blocking(False)
         if self._update_info is None:
             self._show_update_message("update.download_failed", allow_github=True)
             return
@@ -757,10 +814,22 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt's contract
-        """Stop update workers before the window goes away."""
-        self._update_check_worker.shutdown()
-        self._update_download_worker.shutdown()
+        """Stop the startup timer and update workers before the window goes."""
+        if self._update_startup_timer is not None:
+            self._update_startup_timer.stop()
+        if self._update_ui_blocked:
+            self._set_update_blocking(False)
+        self._shutdown_update_workers()
         super().closeEvent(event)
+
+    def _shutdown_update_workers(self) -> None:
+        """Wait for both workers under one total deadline, not 5 s each."""
+        deadline = time.monotonic() + UPDATE_SHUTDOWN_TIMEOUT_SECONDS
+        for worker in (self._update_check_worker, self._update_download_worker):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            worker.shutdown(remaining)
 
     # -- language -----------------------------------------------------------
 

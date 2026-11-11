@@ -67,12 +67,15 @@ actualización** pide una confirmación. Después la app descarga el `CleanYourM
 exacto y su `.sha256` por HTTPS, verifica el SHA-256 antes de ejecutar nada, se cierra, ejecuta el
 instalador en silencio para el usuario actual y vuelve a abrir la nueva versión.
 
-Los fallos no bloquean la app. Si falla una comprobación automática, no se muestra nada; pulsa
-**Actualizaciones** para intentarlo a mano. Si falla una comprobación manual, aparece un mensaje
+Un fallo deja la app abierta y usable. Si falla una comprobación automática, no se muestra nada;
+pulsa **Actualizaciones** para intentarlo a mano. Si falla una comprobación manual, aparece un mensaje
 localizado con **Abrir GitHub**. Si a la release le falta un instalador o un checksum válido, el aviso
-ofrece **Abrir GitHub** en lugar de **Instalar actualización**. Si falla la descarga o el hash,
-aparece un error localizado y el aviso se mantiene para que **Instalar actualización** reintente. Si
-el instalador no termina, la app anterior se vuelve a abrir y el aviso ofrece **Abrir GitHub**.
+ofrece **Abrir GitHub** en lugar de **Instalar actualización**. Si falla la descarga, la verificación
+o el hash, aparece un error localizado con **Instalar actualización** para reintentar y **Abrir
+GitHub** para la página de la release. Si el asistente de actualización no puede iniciarse, la app
+sigue abierta y el aviso ofrece **Abrir GitHub**. Si el instalador se inicia pero falla, el asistente
+vuelve a abrir la app anterior; no queda un aviso de error guardado, así que usa **Actualizaciones**
+para reintentar o abre la página de la release a mano.
 
 El instalador 0.6.0 no tiene firma de código, así que SmartScreen puede avisar durante la
 actualización igual que al ejecutarlo a mano: elige **Más información** y luego **Ejecutar de todas
