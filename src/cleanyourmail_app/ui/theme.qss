@@ -665,6 +665,100 @@ QLabel#successPanel {
     padding: 12px 16px;
 }
 
+/* Header Updates button and the slim update banner below the header. */
+QPushButton#updateButton {
+    background: transparent;
+    color: #A8E6CF;
+    border: 1px solid #2A2C31;
+    border-radius: 12px;
+    padding: 0 16px;
+    min-height: 44px;
+}
+
+QPushButton#updateButton:hover {
+    background-color: #1C2A26;
+    border-color: #A8E6CF;
+    color: #C7F2E2;
+}
+
+QPushButton#updateButton:focus {
+    border: 2px solid #A8E6CF;
+    padding: 0 15px;
+}
+
+QPushButton#updateButton:disabled {
+    color: #6E6B64;
+    background-color: #17181C;
+    border-color: #2A2C31;
+}
+
+QFrame#updateBanner {
+    background-color: #241F1C;
+    border: 1px solid #FFB38A;
+    border-radius: 12px;
+}
+
+QLabel#updateBannerLabel {
+    color: #F3F1EC;
+    font-weight: 600;
+}
+
+QPushButton#updateOpenButton {
+    background-color: #FFB38A;
+    color: #121316;
+    border: 1px solid #FFB38A;
+    border-radius: 12px;
+    padding: 0 18px;
+    min-height: 44px;
+    font-weight: 600;
+}
+
+QPushButton#updateOpenButton:hover {
+    background-color: #FFC7A6;
+    border-color: #FFC7A6;
+}
+
+QPushButton#updateOpenButton:pressed {
+    background-color: #F2A277;
+    border-color: #F2A277;
+}
+
+QPushButton#updateOpenButton:focus {
+    border: 2px solid #F3F1EC;
+    padding: 0 17px;
+}
+
+QPushButton#updateOpenButton:disabled {
+    background-color: #3A322D;
+    color: #8C837B;
+    border-color: #3A322D;
+}
+
+QPushButton#updateLaterButton {
+    background: transparent;
+    color: #A19E96;
+    border: 1px solid #2A2C31;
+    border-radius: 12px;
+    padding: 0 16px;
+    min-height: 44px;
+}
+
+QPushButton#updateLaterButton:hover {
+    background-color: #2A2C31;
+    border-color: #A19E96;
+    color: #F3F1EC;
+}
+
+QPushButton#updateLaterButton:focus {
+    border: 2px solid #A8E6CF;
+    padding: 0 15px;
+}
+
+QPushButton#updateLaterButton:disabled {
+    color: #6E6B64;
+    border-color: #2A2C31;
+}
+
 /* Feedback header button and the opt-in feedback dialog. */
 QPushButton#feedbackButton {
     background: transparent;

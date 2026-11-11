@@ -5,7 +5,7 @@
     "version": "Version {version}",
     "tagline": "Your inbox, without the noise.",
     "window_title": "CleanYourMail — Your inbox, without the noise.",
-    "privacy": "Local by default. Opt-in feedback only. No telemetry."
+    "privacy": "Local by default. Opt-in feedback. No telemetry. Updates use GitHub."
   },
   "common": {
     "next": "Continue",
@@ -44,6 +44,24 @@
     "label": "Language",
     "en": "English",
     "es": "Español"
+  },
+  "update": {
+    "open": "Updates",
+    "check_tooltip": "Check for updates",
+    "available": "CleanYourMail {version} is available.",
+    "install": "Install update",
+    "open_github": "Open GitHub",
+    "later": "Later",
+    "downloading": "Downloading update…",
+    "verifying": "Verifying update…",
+    "installing": "Installing…",
+    "confirm_title": "Install update",
+    "confirm": "Install {version} now? The app will close and restart.",
+    "up_to_date": "You're up to date.",
+    "check_failed": "Could not check for updates. Check your connection.",
+    "download_failed": "The update could not be downloaded. Check your connection and try again.",
+    "install_failed": "The update could not be started. Open GitHub to install it manually.",
+    "dev_unavailable": "Automatic updates are available in the installed app. Open GitHub instead."
   },
   "feedback": {
     "open": "Feedback",

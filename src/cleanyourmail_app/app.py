@@ -8,6 +8,7 @@ account credentials.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -20,7 +21,9 @@ from cleanyourmail_app.services.cli import (
     find_sidecar,
 )
 from cleanyourmail_app.services.config import ConfigService
+from cleanyourmail_app.services.installer import install_update
 from cleanyourmail_app.services.settings import SettingsStore, default_settings_path
+from cleanyourmail_app.services.updates import check_for_update, download_update
 from cleanyourmail_app.version import __version__
 
 APP_NAME = "CleanYourMail"
@@ -54,6 +57,16 @@ def build_services(settings: SettingsStore, translator: Translator) -> AppServic
     return AppServices(cli=cli, config=config, settings=settings, translator=translator)
 
 
+def install_downloaded_update(installer: str | os.PathLike[str]) -> Path:
+    """Adapter for the window: install the verified file for this process."""
+    return install_update(
+        Path(installer),
+        Path(sys.executable),
+        os.getpid(),
+        frozen=getattr(sys, "frozen", False),
+    )
+
+
 def main() -> int:
     from PySide6.QtWidgets import QApplication
 
@@ -71,6 +84,13 @@ def main() -> int:
     translator = Translator(stored.preferences.language)
     services = build_services(settings, translator)
 
-    window = MainWindow(settings, translator, services)
+    window = MainWindow(
+        settings,
+        translator,
+        services,
+        update_checker=check_for_update,
+        update_downloader=download_update,
+        update_installer=install_downloaded_update,
+    )
     window.show()
     return app.exec()
