@@ -11,8 +11,8 @@ What these tests pin down:
 * Scan asks for 365 days, report for the top 30 senders, and the plan receives
   exactly the categories and mode stored in ``Preferences``.
 * The scan cards show the cached total and per-category counts; the report
-  cards and table show totals and sender groups.
-* The plan table has category, destination, message count and unsubscribe mode.
+  cards show totals and sender groups.
+* The plan cards have destination, category, message count and unsubscribe mode.
 * The review checkbox is enabled only by a plan with at least one move; Apply
   follows the checkbox and refuses zero-move or unsubscribe-only plans.
 * A sidecar failure shows localized copy and leaves the gate closed.
@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from PySide6.QtWidgets import QLabel
 
 from cleanyourmail_app.domain.models import AppSettings, Preferences
 from cleanyourmail_app.services.app_services import AppServices
@@ -81,6 +82,7 @@ REPORT = {
             "count": 6,
             "actionable": 4,
             "unread": 1,
+            "samples": ["Weekly digest", "New arrivals", "Editor's picks"],
             "unsubscribe": {"mode": "one-click", "automatic": True, "url": "https://x.test/u"},
             "recommended": "move",
         },
@@ -92,6 +94,7 @@ REPORT = {
             "count": 4,
             "actionable": 3,
             "unread": 1,
+            "samples": ["Autumn sale"],
             "unsubscribe": {"mode": "manual", "automatic": False, "url": None},
             "recommended": "move",
         },
@@ -137,7 +140,62 @@ PLAN_MOVES = {
             "dest": "CleanYourMail/Promotions",
         },
     ],
-    "groups": [],
+    "groups": [
+        {
+            "key": "newsletter-example",
+            "category": "newsletter",
+            "domain": "news.example",
+            "messages": [
+                {
+                    "uid": 1,
+                    "mailbox": "INBOX",
+                    "sender": "news@news.example",
+                    "name": "Example News",
+                    "subject": "Your weekly digest",
+                    "date": "2026-10-01T08:00:00+00:00",
+                },
+                {
+                    "uid": 2,
+                    "mailbox": "INBOX",
+                    "sender": "news@news.example",
+                    "name": "Example News",
+                    "subject": "New arrivals",
+                    "date": "2026-10-02T08:00:00+00:00",
+                },
+                {
+                    "uid": 3,
+                    "mailbox": "INBOX",
+                    "sender": "news@news.example",
+                    "name": "Example News",
+                    "subject": "Editor's picks",
+                    "date": "2026-10-03T08:00:00+00:00",
+                },
+            ],
+        },
+        {
+            "key": "promotion-shop",
+            "category": "promotion",
+            "domain": "shop.example",
+            "messages": [
+                {
+                    "uid": 4,
+                    "mailbox": "INBOX",
+                    "sender": "sale@shop.example",
+                    "name": "Example Shop",
+                    "subject": "Autumn sale",
+                    "date": "2026-10-04T08:00:00+00:00",
+                },
+                {
+                    "uid": 5,
+                    "mailbox": "INBOX",
+                    "sender": "sale@shop.example",
+                    "name": "Example Shop",
+                    "subject": "Last days",
+                    "date": "2026-10-05T08:00:00+00:00",
+                },
+            ],
+        },
+    ],
 }
 
 #: A plan that only asks the sender to unsubscribe; no message moves.
@@ -183,6 +241,11 @@ def _result(data: dict[str, Any], *, ok: bool = True, exit_code: int = 0) -> dic
 
 def _plan_result(plan: dict[str, Any]) -> dict[str, Any]:
     return _result({"path": "plan.json", "plan": plan})
+
+
+def _card_text(card: object) -> str:
+    """Every label inside one card, joined for content assertions."""
+    return "\n".join(label.text() for label in card.findChildren(QLabel))
 
 
 class FakeCli:
@@ -412,16 +475,16 @@ def test_report_shows_totals_and_sender_groups(page, services):
     assert page.report_total_label.text() == "10"
     assert page.report_groups_label.text() == "2"
     assert page.report_protected_label.text() == "3"
-    assert page.report_table.rowCount() == 2
-    assert page.report_table.item(0, 0).text() == t(
-        "preferences.category.newsletter.label"
-    )
-    assert page.report_table.item(0, 1).text() == "news.example"
-    assert page.report_table.item(0, 2).text() == "6"
-    assert page.report_table.item(0, 3).text() == "1"
-    assert page.report_table.item(0, 4).text() == t(
-        "review.plan.unsubscribe_one_click"
-    )
+    assert page.report_cards_layout.count() == 2
+    first = _card_text(page.report_cards_layout.itemAt(0).widget())
+    assert t("preferences.category.newsletter.label") in first
+    assert "news.example" in first
+    assert t("review.wizard.report.group", count=6, unread=1) in first
+    assert "Weekly digest" in first
+    assert t(
+        "review.wizard.plan.unsubscribe",
+        modes=t("review.plan.unsubscribe_one_click"),
+    ) in first
 
 
 def test_the_report_button_asks_for_the_top_thirty(page, cli, qtbot):
@@ -429,7 +492,7 @@ def test_the_report_button_asks_for_the_top_thirty(page, cli, qtbot):
     _wait(page, qtbot)
 
     assert cli.calls[-1][:2] == ("report", 30)
-    assert page.report_table.rowCount() == 2
+    assert page.report_cards_layout.count() == 2
 
 
 def test_a_failed_report_shows_localized_copy(page, cli, qtbot, services):
@@ -441,7 +504,8 @@ def test_a_failed_report_shows_localized_copy(page, cli, qtbot, services):
     _wait(page, qtbot)
 
     assert page.error_label.text() == services.translator.t("errors.report")
-    assert page.report_table.rowCount() == 0
+    assert page.report_cards_layout.count() == 0
+    assert page.report_result.isHidden() is True
 
 
 # --- Plan ------------------------------------------------------------------
@@ -476,39 +540,32 @@ def test_the_plan_button_passes_the_stored_categories_and_mode(
     _, mode, categories, _ = cli.calls[-1]
     assert mode == "archive"
     assert categories == ["newsletter", "spam"]
-    assert page.plan_table.rowCount() == 2
+    assert page.plan_cards_layout.count() == 2
 
 
-def test_the_plan_table_shows_category_destination_messages_and_unsubscribe(
+def test_the_plan_cards_show_category_destination_messages_and_unsubscribe(
     page, services
 ):
     page.set_plan(_plan_result(PLAN_MOVES))
 
     t = services.translator.t
-    assert page.plan_table.columnCount() == 4
-    assert page.plan_table.rowCount() == 2
-    headers = [
-        page.plan_table.horizontalHeaderItem(column).text() for column in range(4)
-    ]
-    assert headers == [
-        t("review.plan.category"),
-        t("review.plan.destination"),
-        t("review.plan.messages"),
-        t("review.plan.unsubscribe"),
-    ]
-    first = [page.plan_table.item(0, column).text() for column in range(4)]
-    assert first == [
-        t("preferences.category.newsletter.label"),
-        "CleanYourMail/Newsletters",
-        "3",
-        t("review.plan.unsubscribe_none"),
-    ]
-    second = [page.plan_table.item(1, column).text() for column in range(4)]
-    assert second[:3] == [
-        t("preferences.category.promotion.label"),
-        "CleanYourMail/Promotions",
-        "2",
-    ]
+    assert page.plan_cards_layout.count() == 2
+    first = _card_text(page.plan_cards_layout.itemAt(0).widget())
+    assert t("preferences.category.newsletter.label") in first
+    assert "CleanYourMail/Newsletters" in first
+    assert t(
+        "review.wizard.plan.count_many", count=3, sender="news.example"
+    ) in first
+    assert "Your weekly digest" in first
+    assert "New arrivals" in first
+    assert "Editor's picks" in first
+    second = _card_text(page.plan_cards_layout.itemAt(1).widget())
+    assert t("preferences.category.promotion.label") in second
+    assert "CleanYourMail/Promotions" in second
+    assert t(
+        "review.wizard.plan.count_many", count=2, sender="shop.example"
+    ) in second
+    assert "Autumn sale" in second
     assert page.plan_path == "plan.json"
 
 
@@ -550,16 +607,12 @@ def test_an_unsubscribe_only_plan_keeps_the_gate_closed(page, services):
     assert page.plan_move_count() == 0
     assert page.review_checkbox.isEnabled() is False
     assert page.apply_button.isEnabled() is False
-    # The row still explains what the plan would ask, without offering Apply.
-    assert page.plan_table.rowCount() == 1
-    assert page.plan_table.item(0, 0).text() == t(
-        "preferences.category.newsletter.label"
-    )
-    assert page.plan_table.item(0, 1).text() == t("review.plan.no_destination")
-    assert page.plan_table.item(0, 2).text() == "0"
-    assert page.plan_table.item(0, 3).text() == t(
-        "review.plan.unsubscribe_one_click"
-    )
+    # The card still explains what the plan would ask, without offering Apply.
+    assert page.plan_cards_layout.count() == 1
+    card = _card_text(page.plan_cards_layout.itemAt(0).widget())
+    assert t("preferences.category.newsletter.label") in card
+    assert t("review.plan.no_destination") in card
+    assert t("review.plan.unsubscribe_one_click") in card
 
 
 def test_a_new_plan_closes_the_gate_again(page):
@@ -582,7 +635,8 @@ def test_a_new_scan_makes_the_old_plan_stale(page, cli, qtbot):
 
     # Start, not finish: the old UIDs are stale the moment the cache changes.
     assert page.plan_move_count() == 0
-    assert page.plan_table.rowCount() == 0
+    assert page.plan_cards_layout.count() == 0
+    assert page.plan_result.isHidden() is True
     assert page.review_checkbox.isChecked() is False
     assert page.apply_button.isEnabled() is False
     _wait(page, qtbot)
@@ -600,7 +654,8 @@ def test_a_plan_error_shows_a_readable_message_and_leaves_apply_disabled(
 
     assert page.error_label.isHidden() is False
     assert page.error_label.text() == services.translator.t("errors.plan")
-    assert page.plan_table.rowCount() == 0
+    assert page.plan_cards_layout.count() == 0
+    assert page.plan_result.isHidden() is True
     assert page.review_checkbox.isEnabled() is False
     assert page.apply_button.isEnabled() is False
 
@@ -637,31 +692,37 @@ def test_every_string_is_translated_into_spanish(qtbot, services):
     t = services.translator.t
 
     assert page.title_label.text() == t("review.title")
-    assert page.scan_button.text() == t("review.scan")
+    assert page.scan_button.text() == t("review.wizard.scan.action")
     assert page.review_checkbox.text() == t("review.reviewed")
     assert page.apply_button.text() == t("review.apply")
-    assert page.plan_table.horizontalHeaderItem(0).text() == t("review.plan.category")
+    assert page.scan_title_label.text() == t("review.wizard.scan.title")
+    assert page.plan_title_label.text() == t("review.wizard.plan.title")
 
 
 def test_a_language_switch_retranslates_the_rendered_values(qtbot, page, services):
-    page.set_plan(_plan_result(PLAN_MOVES))
     page.set_report(_result(REPORT))
+    page.set_plan(_plan_result(PLAN_MOVES))
 
     page.retranslate()
 
-    assert page.plan_table.horizontalHeaderItem(0).text() == services.translator.t(
-        "review.plan.category"
+    assert page.plan_title_label.text() == services.translator.t(
+        "review.wizard.plan.title"
     )
 
     services.translator.set_language("es")
     page.retranslate()
 
     t = services.translator.t
-    assert page.plan_table.item(0, 0).text() == t(
-        "preferences.category.newsletter.label"
-    )
-    assert page.report_table.item(0, 4).text() == t(
-        "review.plan.unsubscribe_one_click"
+    assert page.plan_title_label.text() == t("review.wizard.plan.title")
+    plan_text = _card_text(page.plan_cards_layout.itemAt(0).widget())
+    assert t("preferences.category.newsletter.label") in plan_text
+    assert t(
+        "review.wizard.plan.count_many", count=3, sender="news.example"
+    ) in plan_text
+    report_text = _card_text(page.report_cards_layout.itemAt(0).widget())
+    assert t("review.plan.unsubscribe_one_click") in report_text
+    assert page.report_result_label.text() == t(
+        "review.wizard.report.result", messages=10, groups=2, protected=3
     )
 
 
@@ -691,22 +752,18 @@ def test_preferences_continue_reaches_the_review_page(window):
     assert window.step_labels["review"].property("active") is True
     assert window.step_labels["preferences"].property("done") is True
 
-def test_review_tables_have_translated_accessible_names(page, services):
+def test_the_step_bar_has_translated_accessible_names(page, services):
     t = services.translator.t
-    assert page.report_table.accessibleName() == ", ".join(
-        [
-            t("review.plan.category"),
-            t("review.report.sender"),
-            t("review.plan.messages"),
-            t("review.report.unread"),
-            t("review.plan.unsubscribe"),
-        ]
+    assert page.wizard_step_labels[0].accessibleName() == t(
+        "review.wizard.step_of", current=1, total=3
     )
-    assert page.plan_table.accessibleName() == ", ".join(
-        [
-            t("review.plan.category"),
-            t("review.plan.destination"),
-            t("review.plan.messages"),
-            t("review.plan.unsubscribe"),
-        ]
+
+    page.show_step(1)
+
+    assert page.wizard_step_labels[0].accessibleName() == t(
+        "review.wizard.done_summary",
+        summary=t("review.wizard.steps.scan"),
+    )
+    assert page.wizard_step_labels[1].accessibleName() == t(
+        "review.wizard.step_of", current=2, total=3
     )

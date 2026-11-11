@@ -58,6 +58,13 @@ QLabel#subtitle {
     font-size: 11pt;
 }
 
+/* The active step's heading: bigger than the body, lighter than the page title. */
+QLabel#stepTitle {
+    color: #F3F1EC;
+    font-size: 17px;
+    font-weight: 600;
+}
+
 QLabel#muted,
 QLabel[muted="true"] {
     color: #A19E96;

@@ -298,6 +298,44 @@
   "review": {
     "title": "Review before anything changes",
     "subtitle": "This is a dry run. Nothing has moved yet.",
+    "wizard": {
+      "step_of": "Step {current} of {total}",
+      "steps": {
+        "scan": "1 Scan",
+        "report": "2 Report",
+        "plan": "3 Plan"
+      },
+      "scan": {
+        "title": "Step 1 · Scan your mailbox",
+        "body": "We read only the sender, the subject and the date. We do not open messages or move anything.",
+        "action": "Scan now",
+        "result": "We found {messages} messages in {categories} categories. Nothing has been changed.",
+        "continue": "Continue to the report"
+      },
+      "report": {
+        "title": "Step 2 · See what we found",
+        "body": "This summary is informative only. Protected messages will not be touched.",
+        "action": "Create report",
+        "result": "We found {messages} messages in {groups} sender groups; {protected} are protected.",
+        "continue": "Prepare the plan",
+        "group": "{count} messages · {unread} unread",
+        "no_samples": "No subject preview available."
+      },
+      "plan": {
+        "title": "Step 3 · Review the plan",
+        "body": "This is exactly what will move if you apply. Nothing moves until you press Apply.",
+        "action": "Prepare plan",
+        "count_one": "1 message from {sender}",
+        "count_many": "{count} messages from {sender}",
+        "more": "and {count} more",
+        "no_preview": "No message preview available.",
+        "no_subject": "(no subject)",
+        "unsubscribe": "Unsubscribe: {modes}"
+      },
+      "back": "Back",
+      "leave": "Back to preferences",
+      "done_summary": "Done: {summary}"
+    },
     "scan": "Scan mailbox",
     "scanning": "Scanning headers only…",
     "scan_done": "Scan complete.",
@@ -331,9 +369,10 @@
       "no_destination": "No move",
       "protected_note": "Protected messages are excluded from this plan."
     },
-    "reviewed": "I reviewed this plan and understand what it changes.",
+    "reviewed": "I have reviewed the plan and understand what it changes.",
     "reviewed_required": "Review the plan before applying.",
     "apply": "Apply plan",
+    "apply_count": "Apply {count} moves",
     "summary": "{messages} messages in {groups} sender groups.",
     "zero_moves": "There is nothing to apply.",
     "undo": {

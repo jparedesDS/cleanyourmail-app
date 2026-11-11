@@ -298,6 +298,44 @@
   "review": {
     "title": "Revisa antes de cambiar nada",
     "subtitle": "Esto es una simulación. Todavía no se ha movido nada.",
+    "wizard": {
+      "step_of": "Paso {current} de {total}",
+      "steps": {
+        "scan": "1 Escanear",
+        "report": "2 Informe",
+        "plan": "3 Plan"
+      },
+      "scan": {
+        "title": "Paso 1 · Escanea tu buzón",
+        "body": "Leemos solo el remitente, el asunto y la fecha. No abrimos correos ni movemos nada.",
+        "action": "Escanear ahora",
+        "result": "Encontramos {messages} mensajes en {categories} categorías. No se ha cambiado nada.",
+        "continue": "Continuar al informe"
+      },
+      "report": {
+        "title": "Paso 2 · Mira qué encontramos",
+        "body": "Este resumen es solo informativo. Los mensajes protegidos no se tocarán.",
+        "action": "Crear informe",
+        "result": "Encontramos {messages} mensajes en {groups} grupos de remitentes; {protected} están protegidos.",
+        "continue": "Preparar el plan",
+        "group": "{count} mensajes · {unread} sin leer",
+        "no_samples": "No hay vista previa de asuntos."
+      },
+      "plan": {
+        "title": "Paso 3 · Revisa el plan",
+        "body": "Esto es exactamente lo que se moverá si aplicas. Nada se mueve hasta que pulses Aplicar.",
+        "action": "Preparar plan",
+        "count_one": "1 mensaje de {sender}",
+        "count_many": "{count} mensajes de {sender}",
+        "more": "y {count} más",
+        "no_preview": "No hay vista previa de los mensajes.",
+        "no_subject": "(sin asunto)",
+        "unsubscribe": "Darse de baja: {modes}"
+      },
+      "back": "Atrás",
+      "leave": "Volver a preferencias",
+      "done_summary": "Hecho: {summary}"
+    },
     "scan": "Escanear buzón",
     "scanning": "Escaneando solo cabeceras…",
     "scan_done": "Escaneo completo.",
@@ -331,9 +369,10 @@
       "no_destination": "Sin movimiento",
       "protected_note": "Los mensajes protegidos quedan fuera de este plan."
     },
-    "reviewed": "Revisé este plan y entiendo qué cambia.",
+    "reviewed": "He revisado el plan y entiendo qué cambia.",
     "reviewed_required": "Revisa el plan antes de aplicar.",
     "apply": "Aplicar plan",
+    "apply_count": "Aplicar {count} movimientos",
     "summary": "{messages} mensajes en {groups} grupos de remitentes.",
     "zero_moves": "No hay nada que aplicar.",
     "undo": {

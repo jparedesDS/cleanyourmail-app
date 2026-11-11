@@ -392,6 +392,23 @@ def test_undo_helper_refuses_a_bad_run_id(sidecar, run):
 # --- The review gate and apply ---------------------------------------------
 
 
+def test_apply_and_undo_are_only_visible_on_the_plan_step(page):
+    page.set_plan(_plan_result(PLAN_MOVES))
+
+    assert page.apply_button.isHidden() is False
+    assert page.undo_button.isHidden() is False
+
+    page.show_step(1)
+
+    assert page.apply_button.isHidden() is True
+    assert page.undo_button.isHidden() is True
+
+    page.show_step(2)
+
+    assert page.apply_button.isHidden() is False
+    assert page.undo_button.isHidden() is False
+
+
 def test_apply_stays_disabled_until_the_plan_is_reviewed(page, cli, qtbot):
     page.set_plan(_plan_result(PLAN_MOVES))
 

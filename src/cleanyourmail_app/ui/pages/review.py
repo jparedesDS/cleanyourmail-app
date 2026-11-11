@@ -1,10 +1,16 @@
 """The fourth wizard page: scan, report, plan, apply, journal and undo.
 
-The page is a *view* of the sidecar. It never implements IMAP, classification,
-planning, moves or undo; it asks ``CliClient`` for ``scan``, ``report``,
-``plan``, ``apply``, ``journal`` and ``undo`` in worker threads and renders the
-JSON. No mailbox change happens before the person reviews the plan and confirms
-the apply dialog, and only the sidecar touches a mailbox.
+The page is a *view* of the sidecar and a three-step sub-wizard. Only one step
+is visible at a time: scan, report and plan, in that order. A completed step
+keeps its result and Back returns to it without rebuilding anything. Plan cards
+name the destination, sender, subject and date of each action's own UIDs; a
+group without an action, or a protected group, is never rendered.
+
+The page never implements IMAP, classification, planning, moves or undo; it
+asks ``CliClient`` for ``scan``, ``report``, ``plan``, ``apply``, ``journal``
+and ``undo`` in worker threads and renders the JSON. No mailbox change happens
+before the person reviews the plan and confirms the apply dialog, and only the
+sidecar touches a mailbox.
 
 Filing is the decisions the person made on the Preferences page: the plan call
 receives the stored ``categories`` and ``mode`` (``folders`` or ``archive``)
@@ -37,13 +43,13 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -54,6 +60,7 @@ from PySide6.QtWidgets import (
 from cleanyourmail_app.domain.models import CATEGORIES, Preferences
 from cleanyourmail_app.i18n import Translator
 from cleanyourmail_app.services.app_services import AppServices
+from cleanyourmail_app.ui.style import set_dynamic_property
 
 #: The app has no scan-window preference; one year is the documented default.
 SCAN_DAYS = 365
@@ -89,6 +96,27 @@ _UNSUBSCRIBE_KEYS = {
     "http": "review.plan.unsubscribe_link",
     "manual": "review.plan.unsubscribe_manual",
 }
+
+
+class _StepStack(QStackedWidget):
+    """A stack that reserves height only for the visible step.
+
+    ``QStackedWidget`` reports the largest size hint of every page. A long
+    plan would then leave blank space under the scan step, so the step stack
+    asks the current page instead; ``show_step`` calls ``updateGeometry``.
+    """
+
+    def sizeHint(self):  # noqa: N802 - Qt's naming
+        current = self.currentWidget()
+        return current.sizeHint() if current is not None else super().sizeHint()
+
+    def minimumSizeHint(self):  # noqa: N802 - Qt's naming
+        current = self.currentWidget()
+        return (
+            current.minimumSizeHint()
+            if current is not None
+            else super().minimumSizeHint()
+        )
 
 
 class _ReviewSignals(QObject):
@@ -319,7 +347,7 @@ class JournalDialog(QDialog):
 
 
 class ReviewPage(QWidget):
-    """Scan cards, a report table, a plan table and the review gate."""
+    """A three-step review wizard around the sidecar's scan, report and plan."""
 
     backRequested = Signal()
 
@@ -341,6 +369,7 @@ class ReviewPage(QWidget):
         self._plan: dict[str, Any] | None = None
         self._plan_path: str | None = None
         self._report_top = REPORT_TOP
+        self._step = 0
         self._status_key: str | None = None
         self._status_args: dict[str, object] = {}
         self._status_extra_key: str | None = None
@@ -368,7 +397,7 @@ class ReviewPage(QWidget):
     # -- public state -------------------------------------------------------
 
     def reload(self) -> None:
-        """Forget every answer and close the gate.
+        """Forget every answer and return to the scan step.
 
         Called when the shell enters the page, so a plan built before the
         person changed Preferences is never mistaken for the current one. An
@@ -382,27 +411,23 @@ class ReviewPage(QWidget):
         self._set_status(None)
         self._set_error(None)
         self._reset_answers()
-        self._refresh_actions()
+        self.show_step(0)
+        self.scroll.verticalScrollBar().setValue(0)
         self._sync_feedback()
 
     def _reset_answers(self) -> None:
         """Blank the scan, report and plan; a new scan makes them all stale."""
-        self._scan = None
-        self._report = None
-        self.scan_total_label.setText("0")
-        self.scan_categories_label.setText(
-            self._translator.t("review.plan.unsubscribe_none")
-        )
-        self.scan_mailboxes_label.setText("0")
-        self.report_total_label.setText("0")
-        self.report_groups_label.setText("0")
-        self.report_protected_label.setText("0")
-        self.report_table.setRowCount(0)
+        self._clear_scan()
+        self._clear_report()
         self._clear_plan()
 
     def is_busy(self) -> bool:
         """Whether a sidecar command is in flight."""
         return self._busy is not None
+
+    def current_step(self) -> int:
+        """The visible step: 0 scan, 1 report, 2 plan."""
+        return self._step
 
     @property
     def plan_path(self) -> str | None:
@@ -432,22 +457,55 @@ class ReviewPage(QWidget):
                 total += len(uids)
         return total
 
-    def build_plan(self, preferences: Preferences | None = None) -> dict[str, Any]:
-        """Ask the sidecar for a plan with the person's categories and mode.
+    # -- step navigation ----------------------------------------------------
 
-        Synchronous, like the other typed helpers; the Plan button runs it in a
-        worker thread. ``preferences`` defaults to what ``SettingsStore`` holds,
-        which is the same policy Preferences writes to the TOML on Continue.
-        """
-        if preferences is None:
-            preferences = self._settings.load().preferences
-        if not isinstance(preferences, Preferences):
-            raise TypeError("build_plan() needs a Preferences value")
-        return self._services.cli.plan(
-            preferences.mode,
-            preferences.categories,
-            config_path=self._services.config.config_path(),
+    def show_step(self, index: int) -> None:
+        """Show one step; 0 scan, 1 report, 2 plan."""
+        index = max(0, min(2, int(index)))
+        changed = index != self._step
+        self._step = index
+        self.step_stack.setCurrentIndex(index)
+        self.step_stack.updateGeometry()
+        self._update_step_bar()
+        self.step_back_button.setVisible(index > 0)
+        self.apply_button.setVisible(index == 2)
+        self.undo_button.setVisible(index == 2)
+        self._refresh_actions()
+        if changed:
+            bar = self.scroll.verticalScrollBar()
+            bar.setValue(bar.minimum())
+
+    def _continue_from_scan(self) -> None:
+        if self._busy is None and self._scan is not None:
+            self.show_step(1)
+
+    def _continue_from_report(self) -> None:
+        if self._busy is None and self._report is not None:
+            self.show_step(2)
+
+    def _step_back(self) -> None:
+        if self._busy is None and self._step > 0:
+            self.show_step(self._step - 1)
+
+    def _update_step_bar(self) -> None:
+        t = self._translator.t
+        keys = (
+            "review.wizard.steps.scan",
+            "review.wizard.steps.report",
+            "review.wizard.steps.plan",
         )
+        for index, label in enumerate(self.wizard_step_labels):
+            text = t(keys[index])
+            label.setText(text)
+            active = index == self._step
+            done = index < self._step
+            set_dynamic_property(label, "active", active)
+            set_dynamic_property(label, "done", done)
+            label.setAccessibleName(
+                t("review.wizard.done_summary", summary=text)
+                if done
+                else t("review.wizard.step_of", current=index + 1, total=3)
+            )
 
     # -- commands -----------------------------------------------------------
 
@@ -465,6 +523,23 @@ class ReviewPage(QWidget):
     def start_plan(self, preferences: Preferences | None = None) -> None:
         """Build a dry-run plan in the background, never applying it."""
         self._start("plan", lambda: self.build_plan(preferences))
+
+    def build_plan(self, preferences: Preferences | None = None) -> dict[str, Any]:
+        """Ask the sidecar for a plan with the person's categories and mode.
+
+        Synchronous, like the other typed helpers; the Plan button runs it in a
+        worker thread. ``preferences`` defaults to what ``SettingsStore`` holds,
+        which is the same policy Preferences writes to the TOML on Continue.
+        """
+        if preferences is None:
+            preferences = self._settings.load().preferences
+        if not isinstance(preferences, Preferences):
+            raise TypeError("build_plan() needs a Preferences value")
+        return self._services.cli.plan(
+            preferences.mode,
+            preferences.categories,
+            config_path=self._services.config.config_path(),
+        )
 
     def apply(self, limit: int = 0) -> None:
         """Apply the reviewed plan after confirmation.
@@ -611,6 +686,13 @@ class ReviewPage(QWidget):
                 # New headers make every old answer stale, including a plan
                 # whose UIDs the cache may have pruned. Re-plan before apply.
                 self._reset_answers()
+                self.show_step(0)
+            elif action == "report":
+                # A report built from new headers invalidates the old plan.
+                self._clear_plan()
+                self.show_step(1)
+            elif action == "plan":
+                self.show_step(2)
             self._set_status(_RUNNING_KEYS[action])
         self._refresh_actions()
         self._sync_feedback()
@@ -695,18 +777,9 @@ class ReviewPage(QWidget):
         self._set_status(None)
         self._set_error(_ERROR_KEYS[action])
         if action == "scan":
-            self._scan = None
-            self.scan_total_label.setText("0")
-            self.scan_categories_label.setText(
-                self._translator.t("review.plan.unsubscribe_none")
-            )
-            self.scan_mailboxes_label.setText("0")
+            self._clear_scan()
         elif action == "report":
-            self._report = None
-            self.report_total_label.setText("0")
-            self.report_groups_label.setText("0")
-            self.report_protected_label.setText("0")
-            self.report_table.setRowCount(0)
+            self._clear_report()
         elif action == "plan":
             self._clear_plan()
         elif action == "journal":
@@ -870,15 +943,6 @@ class ReviewPage(QWidget):
         if self._journal_dialog is not None:
             self._request_journal(quiet=True)
 
-    def _clear_plan(self) -> None:
-        self._plan = None
-        self._plan_path = None
-        self._applied = False
-        self.plan_table.setRowCount(0)
-        self.plan_summary_label.setText("")
-        self.plan_note.setVisible(False)
-        self._refresh_gate()
-
     # -- rendering ----------------------------------------------------------
 
     def set_scan(self, result: object) -> None:
@@ -886,11 +950,26 @@ class ReviewPage(QWidget):
         self._scan = self._payload(result)
         payload = self._scan
         total = self._int(payload.get("total"))
+        categories = payload.get("categories")
         self.scan_total_label.setText(str(total))
         self.scan_mailboxes_label.setText(str(len(payload.get("mailboxes") or {})))
-        self.scan_categories_label.setText(self._category_counts(payload.get("categories")))
+        self.scan_categories_label.setText(self._category_counts(categories))
+        self.scan_result_label.setText(
+            self._translator.t(
+                "review.wizard.scan.result",
+                messages=total,
+                categories=self._category_count(categories),
+            )
+        )
+        self.scan_result.setVisible(True)
+        self.scan_continue_button.setVisible(True)
+        # A fresh scan invalidates the old report and plan.
+        self._clear_report()
+        self._clear_plan()
+        self.show_step(0)
         self._set_error(None)
         self._set_status("review.scan_done" if total else "review.scan_empty")
+        self._refresh_actions()
         self._sync_feedback()
 
     def set_report(self, result: object) -> None:
@@ -904,12 +983,27 @@ class ReviewPage(QWidget):
         groups = totals.get("groups")
         if not isinstance(groups, int):
             groups = len(payload.get("groups") or [])
+        protected = self._int(totals.get("protected"))
         self.report_total_label.setText(str(messages))
         self.report_groups_label.setText(str(groups))
-        self.report_protected_label.setText(str(self._int(totals.get("protected"))))
+        self.report_protected_label.setText(str(protected))
+        self.report_result_label.setText(
+            self._translator.t(
+                "review.wizard.report.result",
+                messages=messages,
+                groups=groups,
+                protected=protected,
+            )
+        )
         self._render_report(payload)
+        self.report_result.setVisible(True)
+        self.report_continue_button.setVisible(True)
+        # A fresh report invalidates the old plan but keeps the scan.
+        self._clear_plan()
+        self.show_step(1)
         self._set_error(None)
         self._set_status("review.report.done")
+        self._refresh_actions()
         self._sync_feedback()
 
     def set_plan(self, result: object) -> None:
@@ -925,10 +1019,12 @@ class ReviewPage(QWidget):
         # previous plan was already applied.
         self._applied = False
         self._render_plan()
+        self.show_step(2)
         self._set_error(None)
         self._set_status(
             "review.plan.done" if self.plan_move_count() else "review.zero_moves"
         )
+        self._refresh_actions()
         self._sync_feedback()
 
     @staticmethod
@@ -947,37 +1043,81 @@ class ReviewPage(QWidget):
         return value
 
     def _render_report(self, payload: Mapping[str, Any]) -> None:
+        self._clear_layout(self.report_cards_layout)
         groups = payload.get("groups") or []
-        rows = [group for group in groups if isinstance(group, Mapping)][
-            : self._report_top
-        ]
-        self.report_table.setRowCount(len(rows))
-        for row, group in enumerate(rows):
-            unsubscribe = group.get("unsubscribe")
-            mode = ""
-            if isinstance(unsubscribe, Mapping):
-                mode = str(unsubscribe.get("mode") or "")
-            self._set_cell(
-                self.report_table,
-                row,
-                0,
-                self._category_label(str(group.get("category") or "")),
+        for group in groups:
+            if not isinstance(group, Mapping):
+                continue
+            if self.report_cards_layout.count() >= self._report_top:
+                break
+            self.report_cards_layout.addWidget(self._report_card(group))
+
+    def _report_card(self, group: Mapping[str, Any]) -> QFrame:
+        t = self._translator.t
+        card, layout = self._card_frame(self.report_cards)
+        card.setProperty("kind", "reportCard")
+        domain = str(group.get("domain") or group.get("key") or "")
+        category = self._category_label(str(group.get("category") or ""))
+        count = self._int(group.get("count"))
+        unread = self._int(group.get("unread"))
+        layout.addWidget(
+            self._wrapped_label(card, domain or t("common.unknown"), "section")
+        )
+        meta = " · ".join(
+            part
+            for part in (
+                category,
+                t("review.wizard.report.group", count=count, unread=unread),
             )
-            self._set_cell(self.report_table, row, 1, str(group.get("domain") or ""))
-            self._set_cell(self.report_table, row, 2, str(self._int(group.get("count"))))
-            self._set_cell(self.report_table, row, 3, str(self._int(group.get("unread"))))
-            self._set_cell(self.report_table, row, 4, self._unsubscribe_label(mode))
+            if part
+        )
+        layout.addWidget(self._wrapped_label(card, meta, "muted"))
+
+        samples: list[str] = []
+        raw_samples = group.get("samples")
+        if not isinstance(raw_samples, list):
+            raw_samples = group.get("subjects")
+        if isinstance(raw_samples, list):
+            for sample in raw_samples:
+                if isinstance(sample, str) and sample.strip():
+                    samples.append(sample)
+                if len(samples) == 3:
+                    break
+        for sample in samples:
+            layout.addWidget(self._wrapped_label(card, f"· {sample}"))
+        if not samples:
+            layout.addWidget(
+                self._wrapped_label(card, t("review.wizard.report.no_samples"), "muted")
+            )
+        remaining = max(0, count - len(samples))
+        if samples and remaining:
+            layout.addWidget(
+                self._wrapped_label(
+                    card,
+                    t("review.wizard.plan.more", count=remaining),
+                    "muted",
+                )
+            )
+
+        unsubscribe = group.get("unsubscribe")
+        mode = ""
+        if isinstance(unsubscribe, Mapping):
+            mode = str(unsubscribe.get("mode") or "")
+        if mode:
+            layout.addWidget(
+                self._wrapped_label(
+                    card,
+                    t("review.wizard.plan.unsubscribe", modes=self._unsubscribe_label(mode)),
+                    "muted",
+                )
+            )
+        return card
 
     def _render_plan(self) -> None:
+        self._clear_layout(self.plan_cards_layout)
         rows = self._plan_rows()
-        self.plan_table.setRowCount(len(rows))
-        for row, entry in enumerate(rows):
-            self._set_cell(
-                self.plan_table, row, 0, self._category_label(entry["category"])
-            )
-            self._set_cell(self.plan_table, row, 1, entry["destination"])
-            self._set_cell(self.plan_table, row, 2, str(entry["messages"]))
-            self._set_cell(self.plan_table, row, 3, self._unsubscribe_label(entry["modes"]))
+        for row in rows:
+            self.plan_cards_layout.addWidget(self._plan_card(row))
 
         moves = self.plan_move_count()
         if self._plan:
@@ -1006,11 +1146,73 @@ class ReviewPage(QWidget):
         if isinstance(stats, Mapping):
             protected = self._int(stats.get("protected"))
         self.plan_note.setVisible(bool(protected))
+        self.plan_result.setVisible(self._plan is not None)
         self._refresh_gate()
 
+    def _plan_card(self, row: Mapping[str, Any]) -> QFrame:
+        t = self._translator.t
+        card, layout = self._card_frame(self.plan_cards)
+        card.setProperty("kind", "planCard")
+        layout.addWidget(
+            self._wrapped_label(card, str(row["destination"]), "section")
+        )
+        category = self._category_label(str(row["category"]))
+        meta: list[str] = []
+        if category:
+            meta.append(category)
+        messages = self._int(row.get("messages"))
+        if messages:
+            meta.append(self._count_line(messages, str(row.get("sender") or "")))
+        if meta:
+            layout.addWidget(self._wrapped_label(card, " · ".join(meta), "muted"))
+
+        items = row.get("items") or []
+        for item in items:
+            layout.addWidget(self._message_label(card, item))
+        if messages and not items:
+            layout.addWidget(
+                self._wrapped_label(card, t("review.wizard.plan.no_preview"), "muted")
+            )
+        remaining = self._int(row.get("more"))
+        if remaining:
+            layout.addWidget(
+                self._wrapped_label(
+                    card,
+                    t("review.wizard.plan.more", count=remaining),
+                    "muted",
+                )
+            )
+        modes = row.get("modes") or []
+        if modes:
+            layout.addWidget(
+                self._wrapped_label(
+                    card,
+                    t("review.wizard.plan.unsubscribe", modes=self._unsubscribe_label(modes)),
+                    "muted",
+                )
+            )
+        return card
+
+    def _message_label(self, parent: QWidget, item: Mapping[str, Any]) -> QLabel:
+        t = self._translator.t
+        sender = str(item.get("sender") or "")
+        name = str(item.get("name") or "")
+        if name and sender and name != sender:
+            sender_line = f"{name} <{sender}>"
+        else:
+            sender_line = name or sender or t("common.unknown")
+        subject = str(item.get("subject") or "") or t("review.wizard.plan.no_subject")
+        date = self._display_date(item.get("date"))
+        parts = [sender_line, f"· {subject}"]
+        if date:
+            parts.append(date)
+        label = self._wrapped_label(parent, "\n".join(parts))
+        label.setObjectName("messagePreview")
+        return label
+
     def _plan_rows(self) -> list[dict[str, Any]]:
-        """One row per category/destination, with its messages and unsub modes."""
-        moves: dict[tuple[str, str], int] = {}
+        """One destination card per category/destination, with action previews."""
+        moves: dict[tuple[str, str], dict[str, Any]] = {}
         unsubscribe: dict[str, set[str]] = {}
         for action in (self._plan or {}).get("actions") or []:
             if not isinstance(action, Mapping):
@@ -1019,36 +1221,78 @@ class ReviewPage(QWidget):
             if action.get("type") == "move":
                 destination = str(action.get("dest") or "")
                 key = (category, destination)
-                uids = action.get("uids")
-                moves[key] = moves.get(key, 0) + (
-                    len(uids) if isinstance(uids, (list, tuple)) else 0
+                row = moves.get(key)
+                if row is None:
+                    row = {
+                        "category": category,
+                        "destination": destination,
+                        "uids": set(),
+                        "items": [],
+                        "more": 0,
+                        "domains": [],
+                        "modes": [],
+                    }
+                    moves[key] = row
+                mailbox = str(action.get("mailbox") or "")
+                raw_uids = action.get("uids")
+                uids = (
+                    [
+                        uid
+                        for uid in raw_uids
+                        if isinstance(uid, int) and not isinstance(uid, bool)
+                    ]
+                    if isinstance(raw_uids, (list, tuple))
+                    else []
                 )
+                for uid in uids:
+                    row["uids"].add((mailbox, uid))
+                group = self._plan_group(action.get("group"))
+                items, more, domain = self._plan_previews(group, mailbox, uids)
+                seen = {(str(item.get("mailbox") or ""), item.get("uid")) for item in row["items"]}
+                for item in items:
+                    identity = (str(item.get("mailbox") or ""), item.get("uid"))
+                    if item.get("uid") is None:
+                        identity = ("sample", str(item.get("subject") or ""))
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
+                    row["items"].append(item)
+                row["more"] += more
+                if domain and domain not in row["domains"]:
+                    row["domains"].append(domain)
             elif action.get("type") == "unsubscribe":
                 mode = str(action.get("mode") or "")
                 if mode:
                     unsubscribe.setdefault(category, set()).add(mode)
 
+        for (category, _destination), row in moves.items():
+            row["modes"] = sorted(unsubscribe.get(category, ()))
+        moved_categories = {category for category, _ in moves}
+        for category, modes in unsubscribe.items():
+            if category in moved_categories:
+                continue
+            moves[(category, "")] = {
+                "category": category,
+                "destination": "",
+                "uids": set(),
+                "items": [],
+                "more": 0,
+                "domains": [],
+                "modes": sorted(modes),
+            }
+
         no_destination = self._translator.t("review.plan.no_destination")
         rows: list[dict[str, Any]] = []
-        for (category, destination), messages in moves.items():
+        for row in moves.values():
             rows.append(
                 {
-                    "category": category,
-                    "destination": destination or no_destination,
-                    "messages": messages,
-                    "modes": sorted(unsubscribe.get(category, ())),
-                }
-            )
-        moved = {category for category, _ in moves}
-        for category, modes in unsubscribe.items():
-            if category in moved:
-                continue
-            rows.append(
-                {
-                    "category": category,
-                    "destination": no_destination,
-                    "messages": 0,
-                    "modes": sorted(modes),
+                    "category": row["category"],
+                    "destination": row["destination"] or no_destination,
+                    "sender": ", ".join(row["domains"]),
+                    "messages": len(row["uids"]),
+                    "items": row["items"],
+                    "more": row["more"],
+                    "modes": row["modes"],
                 }
             )
 
@@ -1062,6 +1306,122 @@ class ReviewPage(QWidget):
         )
         return rows
 
+    def _plan_group(self, key: object) -> Mapping[str, Any]:
+        if not isinstance(key, str) or not key:
+            return {}
+        for group in (self._plan or {}).get("groups") or []:
+            if not isinstance(group, Mapping):
+                continue
+            if any(group.get(field) == key for field in ("key", "group", "id")):
+                return group
+        return {}
+
+    def _plan_previews(
+        self,
+        group: Mapping[str, Any],
+        mailbox: str,
+        uids: list[int],
+    ) -> tuple[list[dict[str, Any]], int, str]:
+        """The previews this action may show, plus how many UIDs lack one."""
+        uid_set = set(uids)
+        if not group:
+            return [], len(uid_set), ""
+        domain = str(group.get("domain") or "")
+        raw = group.get("messages")
+        items: list[dict[str, Any]] = []
+        if isinstance(raw, list):
+            seen: set[int] = set()
+            for preview in raw:
+                if not isinstance(preview, Mapping):
+                    continue
+                if mailbox and str(preview.get("mailbox") or "") != mailbox:
+                    continue
+                uid = preview.get("uid")
+                if isinstance(uid, bool) or not isinstance(uid, int):
+                    continue
+                if uid not in uid_set or uid in seen:
+                    continue
+                seen.add(uid)
+                items.append(self._preview(preview))
+            more = max(0, len(uid_set) - len(items))
+        else:
+            # A 1.2.2-style plan has no messages; subjects are still useful.
+            samples = group.get("samples")
+            if isinstance(samples, list):
+                for sample in samples:
+                    if isinstance(sample, str) and sample.strip():
+                        items.append(self._preview({"subject": sample}))
+            more = max(0, len(uid_set) - len(items))
+        if not domain and items:
+            domain = self._sender_domain(items[0].get("sender"))
+        return items, more, domain
+
+    @staticmethod
+    def _preview(preview: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "uid": preview.get("uid"),
+            "mailbox": str(preview.get("mailbox") or ""),
+            "sender": str(preview.get("sender") or ""),
+            "name": str(preview.get("name") or ""),
+            "subject": str(preview.get("subject") or ""),
+            "date": str(preview.get("date") or ""),
+        }
+
+    @staticmethod
+    def _sender_domain(sender: object) -> str:
+        text = str(sender or "").strip()
+        if "@" not in text:
+            return text
+        return text.rsplit("@", 1)[-1].lower()
+
+    @staticmethod
+    def _display_date(value: object) -> str:
+        text = str(value or "")
+        if "T" in text:
+            text = text.replace("T", " ", 1)
+        return text[:16]
+
+    def _count_line(self, count: int, sender: str) -> str:
+        key = (
+            "review.wizard.plan.count_one"
+            if count == 1
+            else "review.wizard.plan.count_many"
+        )
+        return self._translator.t(
+            key, count=count, sender=sender or self._translator.t("common.unknown")
+        )
+
+    def _clear_scan(self) -> None:
+        self._scan = None
+        self.scan_total_label.setText("0")
+        self.scan_categories_label.setText(
+            self._translator.t("review.plan.unsubscribe_none")
+        )
+        self.scan_mailboxes_label.setText("0")
+        self.scan_result_label.setText("")
+        self.scan_result.setVisible(False)
+        self.scan_continue_button.setVisible(False)
+
+    def _clear_report(self) -> None:
+        self._report = None
+        self.report_total_label.setText("0")
+        self.report_groups_label.setText("0")
+        self.report_protected_label.setText("0")
+        self.report_result_label.setText("")
+        self._clear_layout(self.report_cards_layout)
+        self.report_result.setVisible(False)
+        self.report_continue_button.setVisible(False)
+
+    def _clear_plan(self) -> None:
+        self._plan = None
+        self._plan_path = None
+        self._applied = False
+        self._clear_layout(self.plan_cards_layout)
+        self.plan_summary_label.setText("")
+        self.plan_note.setVisible(False)
+        self.plan_result.setVisible(False)
+        self._refresh_gate()
+
     # -- gate ---------------------------------------------------------------
 
     def review_toggled(self, checked: bool) -> None:
@@ -1071,11 +1431,8 @@ class ReviewPage(QWidget):
         self._refresh_gate()
 
     def _refresh_gate(self) -> None:
-        enabled = (
-            not self._applied
-            and self.plan_move_count() > 0
-            and self._busy is None
-        )
+        moves = self.plan_move_count()
+        enabled = not self._applied and moves > 0 and self._busy is None
         if not enabled and self.review_checkbox.isChecked():
             self._gate_updating = True
             try:
@@ -1084,10 +1441,18 @@ class ReviewPage(QWidget):
                 self._gate_updating = False
         self.review_checkbox.setEnabled(enabled)
         self.apply_button.setEnabled(enabled and self.review_checkbox.isChecked())
+        self.apply_button.setText(
+            self._translator.t("review.apply_count", count=moves)
+            if moves
+            else self._translator.t("review.apply")
+        )
 
     def _refresh_actions(self) -> None:
         busy = self._busy is not None
         self.back_button.setEnabled(not busy)
+        self.step_back_button.setEnabled(not busy and self._step > 0)
+        self.scan_continue_button.setEnabled(not busy and self._scan is not None)
+        self.report_continue_button.setEnabled(not busy and self._report is not None)
         for button in (
             self.scan_button,
             self.report_button,
@@ -1167,31 +1532,23 @@ class ReviewPage(QWidget):
         self.subtitle_label.setObjectName("subtitle")
         self.subtitle_label.setWordWrap(True)
 
-        self.scan_button = QPushButton(body)
-        self.scan_button.setObjectName("secondary")
-        self.scan_button.setMinimumWidth(150)
-        self.scan_button.clicked.connect(lambda: self.start_scan(SCAN_DAYS))
-        self.report_button = QPushButton(body)
-        self.report_button.setObjectName("secondary")
-        self.report_button.setMinimumWidth(150)
-        self.report_button.clicked.connect(lambda: self.start_report(REPORT_TOP))
-        self.plan_button = QPushButton(body)
-        self.plan_button.setObjectName("primary")
-        self.plan_button.setMinimumWidth(150)
-        self.plan_button.clicked.connect(lambda: self.start_plan())
-        self.journal_button = QPushButton(body)
-        self.journal_button.setObjectName("secondary")
-        self.journal_button.setMinimumWidth(150)
-        self.journal_button.clicked.connect(self.load_journal)
-
-        actions = QHBoxLayout()
-        actions.setContentsMargins(0, 0, 0, 0)
-        actions.setSpacing(8)
-        actions.addWidget(self.scan_button)
-        actions.addWidget(self.report_button)
-        actions.addWidget(self.plan_button)
-        actions.addWidget(self.journal_button)
-        actions.addStretch(1)
+        self.step_bar = QWidget(body)
+        bar = QHBoxLayout(self.step_bar)
+        bar.setContentsMargins(0, 0, 0, 0)
+        bar.setSpacing(8)
+        self.wizard_step_labels: list[QLabel] = []
+        for index in range(3):
+            if index:
+                dot = QLabel("·", self.step_bar)
+                dot.setObjectName("muted")
+                bar.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
+            label = QLabel(self.step_bar)
+            label.setObjectName("step")
+            label.setProperty("active", False)
+            label.setProperty("done", False)
+            self.wizard_step_labels.append(label)
+            bar.addWidget(label)
+        bar.addStretch(1)
 
         self.status_label = QLabel(body)
         self.status_label.setObjectName("muted")
@@ -1201,75 +1558,241 @@ class ReviewPage(QWidget):
         self.error_label.setObjectName("error")
         self.error_label.setWordWrap(True)
 
-        self.scan_total_title, self.scan_total_label = self._stat_card(body)
-        self.scan_categories_title, self.scan_categories_label = self._stat_card(body)
-        self.scan_mailboxes_title, self.scan_mailboxes_label = self._stat_card(body)
-        scan_cards = QHBoxLayout()
-        scan_cards.setContentsMargins(0, 0, 0, 0)
-        scan_cards.setSpacing(12)
+        self.step_stack = _StepStack(body)
+        self.scan_step = self._build_scan_step(self.step_stack)
+        self.report_step = self._build_report_step(self.step_stack)
+        self.plan_step = self._build_plan_step(self.step_stack)
+        self.step_stack.addWidget(self.scan_step)
+        self.step_stack.addWidget(self.report_step)
+        self.step_stack.addWidget(self.plan_step)
+
+        self.undo_button = QPushButton(self)
+        self.undo_button.setObjectName("secondary")
+        self.undo_button.setMinimumWidth(180)
+        self.undo_button.setEnabled(False)
+        self.undo_button.setVisible(False)
+        self.undo_button.clicked.connect(lambda: self.undo(self._last_run or ""))
+
+        self.apply_button = QPushButton(self)
+        self.apply_button.setObjectName("primary")
+        self.apply_button.setMinimumWidth(180)
+        self.apply_button.setEnabled(False)
+        self.apply_button.setVisible(False)
+        self.apply_button.clicked.connect(self._apply_clicked)
+
+        self.journal_button = QPushButton(self)
+        self.journal_button.setObjectName("secondary")
+        self.journal_button.setMinimumWidth(150)
+        self.journal_button.clicked.connect(self.load_journal)
+
+        self.back_button = QPushButton(self)
+        self.back_button.setObjectName("secondary")
+        self.back_button.setMinimumWidth(180)
+        self.back_button.clicked.connect(self._go_back)
+
+        self.step_back_button = QPushButton(self)
+        self.step_back_button.setObjectName("secondary")
+        self.step_back_button.setMinimumWidth(120)
+        self.step_back_button.setVisible(False)
+        self.step_back_button.clicked.connect(self._step_back)
+
+        footer = QHBoxLayout()
+        footer.setContentsMargins(32, 12, 32, 24)
+        footer.addWidget(self.back_button)
+        footer.addWidget(self.step_back_button)
+        footer.addStretch(1)
+        footer.addWidget(self.journal_button)
+        footer.addWidget(self.undo_button)
+        footer.addWidget(self.apply_button)
+
+        root.addWidget(self.title_label)
+        root.addWidget(self.subtitle_label)
+        root.addWidget(self.step_bar)
+        root.addWidget(self.status_label)
+        root.addWidget(self.error_label)
+        root.addWidget(self.step_stack)
+        root.addStretch(1)
+
+        self.scroll.setWidget(body)
+        outer.addWidget(self.scroll, 1)
+        outer.addLayout(footer)
+
+        self.retranslate()
+
+    def _build_scan_step(self, parent: QWidget) -> QWidget:
+        panel = QWidget(parent)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        self.scan_title_label = self._wrapped_label(panel, "", "stepTitle")
+        self.scan_body_label = self._wrapped_label(panel, "", "muted")
+        layout.addWidget(self.scan_title_label)
+        layout.addWidget(self.scan_body_label)
+
+        self.scan_button = QPushButton(panel)
+        self.scan_button.setObjectName("primary")
+        self.scan_button.setMinimumWidth(180)
+        self.scan_button.clicked.connect(lambda: self.start_scan(SCAN_DAYS))
+        self.scan_continue_button = QPushButton(panel)
+        self.scan_continue_button.setObjectName("secondary")
+        self.scan_continue_button.setMinimumWidth(190)
+        self.scan_continue_button.setVisible(False)
+        self.scan_continue_button.clicked.connect(self._continue_from_scan)
+
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addWidget(self.scan_button)
+        actions.addStretch(1)
+        actions.addWidget(self.scan_continue_button)
+        layout.addLayout(actions)
+
+        self.scan_result = QWidget(panel)
+        result_layout = QVBoxLayout(self.scan_result)
+        result_layout.setContentsMargins(0, 0, 0, 0)
+        result_layout.setSpacing(10)
+        self.scan_result_label = self._wrapped_label(self.scan_result, "")
+
+        self.scan_total_title, self.scan_total_label = self._stat_card(self.scan_result)
+        self.scan_categories_title, self.scan_categories_label = self._stat_card(
+            self.scan_result
+        )
+        self.scan_mailboxes_title, self.scan_mailboxes_label = self._stat_card(
+            self.scan_result
+        )
+        cards = QHBoxLayout()
+        cards.setContentsMargins(0, 0, 0, 0)
+        cards.setSpacing(12)
         for title, value in (
             (self.scan_total_title, self.scan_total_label),
             (self.scan_categories_title, self.scan_categories_label),
             (self.scan_mailboxes_title, self.scan_mailboxes_label),
         ):
-            scan_cards.addWidget(self._card(body, title, value), 1)
+            cards.addWidget(self._card(self.scan_result, title, value), 1)
 
-        self.report_group = QGroupBox(body)
-        report_layout = QVBoxLayout(self.report_group)
-        report_layout.setContentsMargins(0, 0, 0, 0)
-        report_layout.setSpacing(8)
+        result_layout.addWidget(self.scan_result_label)
+        result_layout.addLayout(cards)
+        self.scan_result.setVisible(False)
+        layout.addWidget(self.scan_result)
+        return panel
+
+    def _build_report_step(self, parent: QWidget) -> QWidget:
+        panel = QWidget(parent)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        self.report_title_label = self._wrapped_label(panel, "", "stepTitle")
+        self.report_body_label = self._wrapped_label(panel, "", "muted")
+        layout.addWidget(self.report_title_label)
+        layout.addWidget(self.report_body_label)
+
+        self.report_button = QPushButton(panel)
+        self.report_button.setObjectName("primary")
+        self.report_button.setMinimumWidth(180)
+        self.report_button.clicked.connect(lambda: self.start_report(REPORT_TOP))
+        self.report_continue_button = QPushButton(panel)
+        self.report_continue_button.setObjectName("secondary")
+        self.report_continue_button.setMinimumWidth(180)
+        self.report_continue_button.setVisible(False)
+        self.report_continue_button.clicked.connect(self._continue_from_report)
+
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addWidget(self.report_button)
+        actions.addStretch(1)
+        actions.addWidget(self.report_continue_button)
+        layout.addLayout(actions)
+
+        self.report_result = QWidget(panel)
+        result_layout = QVBoxLayout(self.report_result)
+        result_layout.setContentsMargins(0, 0, 0, 0)
+        result_layout.setSpacing(10)
+        self.report_result_label = self._wrapped_label(self.report_result, "")
+
         self.report_total_title, self.report_total_label = self._stat_card(
-            self.report_group
+            self.report_result
         )
         self.report_groups_title, self.report_groups_label = self._stat_card(
-            self.report_group
+            self.report_result
         )
         self.report_protected_title, self.report_protected_label = self._stat_card(
-            self.report_group
+            self.report_result
         )
-        report_cards = QHBoxLayout()
-        report_cards.setContentsMargins(0, 0, 0, 0)
-        report_cards.setSpacing(12)
+        cards = QHBoxLayout()
+        cards.setContentsMargins(0, 0, 0, 0)
+        cards.setSpacing(12)
         for title, value in (
             (self.report_total_title, self.report_total_label),
             (self.report_groups_title, self.report_groups_label),
             (self.report_protected_title, self.report_protected_label),
         ):
-            report_cards.addWidget(self._card(self.report_group, title, value), 1)
-        self.report_table = self._table(
-            self.report_group,
-            ("review.plan.category", "review.report.sender", "review.plan.messages",
-             "review.report.unread", "review.plan.unsubscribe"),
-        )
-        report_layout.addLayout(report_cards)
-        report_layout.addWidget(self.report_table)
+            cards.addWidget(self._card(self.report_result, title, value), 1)
 
-        self.plan_group = QGroupBox(body)
-        plan_layout = QVBoxLayout(self.plan_group)
-        plan_layout.setContentsMargins(0, 0, 0, 0)
-        plan_layout.setSpacing(8)
-        self.plan_table = self._table(
-            self.plan_group,
-            ("review.plan.category", "review.plan.destination", "review.plan.messages",
-             "review.plan.unsubscribe"),
-        )
-        self.plan_summary_label = QLabel(self.plan_group)
-        self.plan_summary_label.setObjectName("muted")
-        self.plan_summary_label.setWordWrap(True)
-        self.plan_note = QLabel(self.plan_group)
-        self.plan_note.setObjectName("muted")
-        self.plan_note.setWordWrap(True)
-        plan_layout.addWidget(self.plan_table)
-        plan_layout.addWidget(self.plan_summary_label)
-        plan_layout.addWidget(self.plan_note)
+        self.report_cards = QWidget(self.report_result)
+        self.report_cards_layout = QVBoxLayout(self.report_cards)
+        self.report_cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.report_cards_layout.setSpacing(8)
 
-        self.review_checkbox = QCheckBox(body)
+        result_layout.addWidget(self.report_result_label)
+        result_layout.addLayout(cards)
+        result_layout.addWidget(self.report_cards)
+        self.report_result.setVisible(False)
+        layout.addWidget(self.report_result)
+        return panel
+
+    def _build_plan_step(self, parent: QWidget) -> QWidget:
+        panel = QWidget(parent)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        self.plan_title_label = self._wrapped_label(panel, "", "stepTitle")
+        self.plan_body_label = self._wrapped_label(panel, "", "muted")
+        layout.addWidget(self.plan_title_label)
+        layout.addWidget(self.plan_body_label)
+
+        self.plan_button = QPushButton(panel)
+        self.plan_button.setObjectName("primary")
+        self.plan_button.setMinimumWidth(180)
+        self.plan_button.clicked.connect(lambda: self.start_plan())
+        self.plan_step_button = self.plan_button
+
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addWidget(self.plan_button)
+        actions.addStretch(1)
+        layout.addLayout(actions)
+
+        self.plan_result = QWidget(panel)
+        result_layout = QVBoxLayout(self.plan_result)
+        result_layout.setContentsMargins(0, 0, 0, 0)
+        result_layout.setSpacing(8)
+        self.plan_summary_label = self._wrapped_label(self.plan_result, "", "muted")
+        self.plan_note = self._wrapped_label(self.plan_result, "", "muted")
+        self.plan_note.setVisible(False)
+        self.plan_cards = QWidget(self.plan_result)
+        self.plan_cards_layout = QVBoxLayout(self.plan_cards)
+        self.plan_cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.plan_cards_layout.setSpacing(8)
+
+        result_layout.addWidget(self.plan_summary_label)
+        result_layout.addWidget(self.plan_cards)
+        result_layout.addWidget(self.plan_note)
+        self.plan_result.setVisible(False)
+        layout.addWidget(self.plan_result)
+
+        self.review_checkbox = QCheckBox(panel)
         self.review_checkbox.setObjectName("reviewGate")
         self.review_checkbox.setChecked(False)
         self.review_checkbox.setEnabled(False)
         self.review_checkbox.toggled.connect(self.review_toggled)
+        layout.addWidget(self.review_checkbox)
 
-        self.unsubscribe_toggle = QToolButton(body)
+        self.unsubscribe_toggle = QToolButton(panel)
         self.unsubscribe_toggle.setCheckable(True)
         self.unsubscribe_toggle.setArrowType(Qt.ArrowType.RightArrow)
         self.unsubscribe_toggle.setToolButtonStyle(
@@ -1278,70 +1801,31 @@ class ReviewPage(QWidget):
         self.unsubscribe_toggle.setAutoRaise(True)
         self.unsubscribe_toggle.toggled.connect(self._toggle_unsubscribe)
 
-        self.unsubscribe_panel = QWidget(body)
+        self.unsubscribe_panel = QWidget(panel)
         unsubscribe_layout = QVBoxLayout(self.unsubscribe_panel)
         unsubscribe_layout.setContentsMargins(0, 0, 0, 0)
         unsubscribe_layout.setSpacing(6)
-        self.unsubscribe_warning = QLabel(self.unsubscribe_panel)
-        self.unsubscribe_warning.setObjectName("warningPanel")
-        self.unsubscribe_warning.setWordWrap(True)
-        self.unsubscribe_unavailable = QLabel(self.unsubscribe_panel)
-        self.unsubscribe_unavailable.setObjectName("muted")
-        self.unsubscribe_unavailable.setWordWrap(True)
-        self.unsubscribe_manual = QLabel(self.unsubscribe_panel)
-        self.unsubscribe_manual.setObjectName("muted")
-        self.unsubscribe_manual.setWordWrap(True)
-        self.unsubscribe_spam = QLabel(self.unsubscribe_panel)
-        self.unsubscribe_spam.setObjectName("muted")
-        self.unsubscribe_spam.setWordWrap(True)
+        self.unsubscribe_warning = self._wrapped_label(
+            self.unsubscribe_panel, "", "warningPanel"
+        )
+        self.unsubscribe_unavailable = self._wrapped_label(
+            self.unsubscribe_panel, "", "muted"
+        )
+        self.unsubscribe_manual = self._wrapped_label(
+            self.unsubscribe_panel, "", "muted"
+        )
+        self.unsubscribe_spam = self._wrapped_label(
+            self.unsubscribe_panel, "", "muted"
+        )
         unsubscribe_layout.addWidget(self.unsubscribe_warning)
         unsubscribe_layout.addWidget(self.unsubscribe_unavailable)
         unsubscribe_layout.addWidget(self.unsubscribe_manual)
         unsubscribe_layout.addWidget(self.unsubscribe_spam)
         self.unsubscribe_panel.setVisible(False)
 
-        self.undo_button = QPushButton(self)
-        self.undo_button.setObjectName("secondary")
-        self.undo_button.setMinimumWidth(180)
-        self.undo_button.setEnabled(False)
-        self.undo_button.clicked.connect(lambda: self.undo(self._last_run or ""))
-
-        self.apply_button = QPushButton(self)
-        self.apply_button.setObjectName("primary")
-        self.apply_button.setMinimumWidth(180)
-        self.apply_button.setEnabled(False)
-        self.apply_button.clicked.connect(self._apply_clicked)
-
-        self.back_button = QPushButton(self)
-        self.back_button.setObjectName("secondary")
-        self.back_button.setMinimumWidth(140)
-        self.back_button.clicked.connect(self._go_back)
-
-        footer = QHBoxLayout()
-        footer.setContentsMargins(32, 12, 32, 24)
-        footer.addWidget(self.back_button)
-        footer.addStretch(1)
-        footer.addWidget(self.undo_button)
-        footer.addWidget(self.apply_button)
-
-        root.addWidget(self.title_label)
-        root.addWidget(self.subtitle_label)
-        root.addLayout(actions)
-        root.addWidget(self.status_label)
-        root.addWidget(self.error_label)
-        root.addLayout(scan_cards)
-        root.addWidget(self.report_group)
-        root.addWidget(self.plan_group)
-        root.addWidget(self.review_checkbox)
-        root.addWidget(self.unsubscribe_toggle)
-        root.addWidget(self.unsubscribe_panel)
-        root.addStretch(1)
-
-        self.scroll.setWidget(body)
-        outer.addWidget(self.scroll, 1)
-        outer.addLayout(footer)
-
-        self.retranslate()
+        layout.addWidget(self.unsubscribe_toggle)
+        layout.addWidget(self.unsubscribe_panel)
+        return panel
 
     def _stat_card(self, parent: QWidget) -> tuple[QLabel, QLabel]:
         title = QLabel(parent)
@@ -1364,30 +1848,32 @@ class ReviewPage(QWidget):
         layout.addWidget(value)
         return card
 
-    def _table(self, parent: QWidget, headers: tuple[str, ...]) -> QTableWidget:
-        table = QTableWidget(0, len(headers), parent)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        table.setAlternatingRowColors(True)
-        table.setWordWrap(False)
-        table.verticalHeader().setVisible(False)
-        table.horizontalHeader().setVisible(True)
-        table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.ResizeToContents
-        )
-        table.horizontalHeader().setStretchLastSection(True)
-        table.setMinimumHeight(150)
-        table.setAccessibleName(
-            ", ".join(self._translator.t(key) for key in headers)
-        )
-        return table
+    def _card_frame(self, parent: QWidget) -> tuple[QFrame, QVBoxLayout]:
+        card = QFrame(parent)
+        card.setObjectName("card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(4)
+        return card, layout
 
     @staticmethod
-    def _set_cell(table: QTableWidget, row: int, column: int, text: str) -> None:
-        item = QTableWidgetItem(text)
-        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        table.setItem(row, column, item)
+    def _wrapped_label(parent: QWidget, text: str, name: str = "") -> QLabel:
+        label = QLabel(parent)
+        label.setTextFormat(Qt.TextFormat.PlainText)
+        label.setWordWrap(True)
+        if name:
+            label.setObjectName(name)
+        label.setText(text)
+        return label
+
+    @staticmethod
+    def _clear_layout(layout: QVBoxLayout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
 
     def _toggle_unsubscribe(self, opened: bool) -> None:
         self.unsubscribe_panel.setVisible(opened)
@@ -1403,11 +1889,20 @@ class ReviewPage(QWidget):
 
         self.title_label.setText(t("review.title"))
         self.subtitle_label.setText(t("review.subtitle"))
-        self.scan_button.setText(t("review.scan"))
-        self.report_button.setText(t("review.report.title"))
-        self.plan_button.setText(t("review.plan.title"))
-        self.report_group.setTitle(t("review.report.title"))
-        self.plan_group.setTitle(t("review.plan.title"))
+        self.scan_title_label.setText(t("review.wizard.scan.title"))
+        self.scan_body_label.setText(t("review.wizard.scan.body"))
+        self.report_title_label.setText(t("review.wizard.report.title"))
+        self.report_body_label.setText(t("review.wizard.report.body"))
+        self.plan_title_label.setText(t("review.wizard.plan.title"))
+        self.plan_body_label.setText(t("review.wizard.plan.body"))
+        self.scan_button.setText(t("review.wizard.scan.action"))
+        self.report_button.setText(t("review.wizard.report.action"))
+        self.plan_button.setText(t("review.wizard.plan.action"))
+        self.scan_continue_button.setText(t("review.wizard.scan.continue"))
+        self.report_continue_button.setText(t("review.wizard.report.continue"))
+        self.step_back_button.setText(t("review.wizard.back"))
+        self.back_button.setText(t("review.wizard.leave"))
+        self._update_step_bar()
 
         self.scan_total_title.setText(t("review.scan_total"))
         self.scan_categories_title.setText(t("review.report.categories"))
@@ -1416,78 +1911,51 @@ class ReviewPage(QWidget):
         self.report_groups_title.setText(t("review.report.groups"))
         self.report_protected_title.setText(t("review.report.protected"))
 
-        for table, keys in (
-            (
-                self.report_table,
-                (
-                    "review.plan.category",
-                    "review.report.sender",
-                    "review.plan.messages",
-                    "review.report.unread",
-                    "review.plan.unsubscribe",
-                ),
-            ),
-            (
-                self.plan_table,
-                (
-                    "review.plan.category",
-                    "review.plan.destination",
-                    "review.plan.messages",
-                    "review.plan.unsubscribe",
-                ),
-            ),
-        ):
-            for column, key in enumerate(keys):
-                item = table.horizontalHeaderItem(column)
-                if item is None:
-                    table.setHorizontalHeaderItem(column, QTableWidgetItem(t(key)))
-                else:
-                    item.setText(t(key))
-
         self.plan_note.setText(t("review.plan.protected_note"))
         self.review_checkbox.setText(t("review.reviewed"))
-        self.apply_button.setText(t("review.apply"))
         self.journal_button.setText(t("review.journal"))
         self.undo_button.setText(t("review.undo.button"))
-        self.back_button.setText(t("common.back"))
         self.unsubscribe_toggle.setText(t("review.unsubscribe.title"))
         self.unsubscribe_warning.setText(t("review.unsubscribe.warning"))
         self.unsubscribe_unavailable.setText(t("review.unsubscribe.unavailable"))
         self.unsubscribe_manual.setText(t("review.unsubscribe.manual_note"))
         self.unsubscribe_spam.setText(t("review.unsubscribe.spam_note"))
 
-        for table, keys in (
-            (
-                self.report_table,
-                (
-                    "review.plan.category",
-                    "review.report.sender",
-                    "review.plan.messages",
-                    "review.report.unread",
-                    "review.plan.unsubscribe",
-                ),
-            ),
-            (
-                self.plan_table,
-                (
-                    "review.plan.category",
-                    "review.plan.destination",
-                    "review.plan.messages",
-                    "review.plan.unsubscribe",
-                ),
-            ),
-        ):
-            table.setAccessibleName(", ".join(t(key) for key in keys))
-
         # Rendered values carry translated category names and modes.
         if self._scan is not None:
-            self.scan_categories_label.setText(
-                self._category_counts(self._scan.get("categories"))
+            categories = self._scan.get("categories")
+            self.scan_categories_label.setText(self._category_counts(categories))
+            self.scan_result_label.setText(
+                t(
+                    "review.wizard.scan.result",
+                    messages=self._int(self._scan.get("total")),
+                    categories=self._category_count(categories),
+                )
             )
         if self._report is not None:
+            totals = self._report.get("totals")
+            if not isinstance(totals, Mapping):
+                totals = {}
+            messages = self._int(
+                totals.get("messages"), self._int(self._report.get("cached"))
+            )
+            groups = totals.get("groups")
+            if not isinstance(groups, int):
+                groups = len(self._report.get("groups") or [])
+            protected = self._int(totals.get("protected"))
+            self.report_result_label.setText(
+                t(
+                    "review.wizard.report.result",
+                    messages=messages,
+                    groups=groups,
+                    protected=protected,
+                )
+            )
             self._render_report(self._report)
         if self._plan is not None:
             self._render_plan()
+        else:
+            self._refresh_gate()
         if self._journal_dialog is not None:
             self._journal_dialog.retranslate()
         self._sync_feedback()
@@ -1514,6 +1982,12 @@ class ReviewPage(QWidget):
             if isinstance(category, str) and category not in seen:
                 parts.append(f"{self._category_label(category)} {self._int(count)}")
         return ", ".join(parts)
+
+    @staticmethod
+    def _category_count(categories: object) -> int:
+        if not isinstance(categories, Mapping):
+            return 0
+        return len(categories)
 
     def _unsubscribe_label(self, modes: object) -> str:
         if isinstance(modes, str):
