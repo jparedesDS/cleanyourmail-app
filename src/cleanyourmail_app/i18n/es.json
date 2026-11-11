@@ -102,7 +102,7 @@
       "pass": "Probado",
       "partial": "Con límites",
       "documented": "Documentado",
-      "pass_detail": "Validado con CleanYourMail 1.2.2.",
+      "pass_detail": "Validado con CleanYourMail 1.3.0.",
       "partial_detail": "Funciona con límites. Lee la nota antes de conectar.",
       "documented_detail": "Sigue la documentación del proveedor; aún no se ha probado en real."
     },
@@ -202,7 +202,7 @@
     },
     "custom": {
       "title": "IMAP personalizado",
-      "intro": "Escribe el host IMAP que te dio tu proveedor. CleanYourMail 1.2.2 siempre conecta por el puerto 993 con TLS; otro puerto o STARTTLS necesita una versión posterior del sidecar.",
+      "intro": "Escribe el host IMAP que te dio tu proveedor. CleanYourMail 1.3.0 siempre conecta por el puerto 993 con TLS; otro puerto o STARTTLS necesita una versión posterior del sidecar.",
       "host": "Host",
       "auth_password": "Contraseña",
       "fixed_port_tls": "Solo puerto 993 con TLS. Si tu proveedor usa otro puerto o STARTTLS, esta versión aún no puede conectar.",
@@ -440,7 +440,7 @@
     "unknown": "Error inesperado.",
     "close": "Cerrar",
     "retry": "Reintentar",
-    "cli_version": "El asistente de CleanYourMail no es la versión 1.2.2. Reinstala la app con su asistente incluido.",
+    "cli_version": "El asistente de CleanYourMail no es la versión 1.3.0. Reinstala la app con su asistente incluido.",
     "unsafe_url": "Solo se pueden abrir enlaces https:// seguros.",
     "settings_write": "La app no pudo guardar los ajustes de tu cuenta. Comprueba que tu perfil de usuario permita escribir."
   },

@@ -32,30 +32,30 @@ CleanYourMail CLI를 위한 PySide6 프런트엔드입니다. 사서함 연결�
 브라우저도, 로컬 서버도, 계정도, 텔레메트리도, 본문 접근도, 영구 삭제도 없습니다. 앱 자체가
 보내는 유일한 네트워크 요청은 사용자가 직접 보내는 피드백 POST뿐입니다.
 
-> **상태:** `0.4.0`은 현재 Windows용 초기 MVP 릴리스입니다. 앱 헤더와 웹사이트에서
+> **상태:** `0.5.0`은 현재 Windows용 초기 MVP 릴리스입니다. 앱 헤더와 웹사이트에서
 > 선택형 피드백을 보낼 수 있는 기능이 추가되었습니다. 설치 프로그램에는 동결된
-> CleanYourMail CLI `1.2.2` 사이드카가 포함됩니다. Gmail은 검증되었고, Outlook은
+> CleanYourMail CLI `1.3.0` 사이드카가 포함됩니다. Gmail은 검증되었고, Outlook은
 > Microsoft의 동의 모델에 따라 달라집니다. [제공자 상태](#provider-status)를 참고하세요.
 
 ## 다운로드
 
-[Windows 10/11 x64용 CleanYourMail 앱 0.4.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)은
-사용자 단위 설치 프로그램으로, 고정된 CleanYourMail CLI `1.2.2` 사이드카를 포함하며 관리자
+[Windows 10/11 x64용 CleanYourMail 앱 0.5.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)은
+사용자 단위 설치 프로그램으로, 고정된 CleanYourMail CLI `1.3.0` 사이드카를 포함하며 관리자
 권한이 필요하지 않습니다.
 
-0.4.0 설치 프로그램은 코드 서명이 되어 있지 않습니다. 처음 실행할 때 Windows SmartScreen에
+0.5.0 설치 프로그램은 코드 서명이 되어 있지 않습니다. 처음 실행할 때 Windows SmartScreen에
 "알 수 없는 게시자" 경고가 표시될 수 있습니다. **추가 정보**를 선택한 다음 **실행**을 누르고,
-릴리스와 함께 게시된 SHA-256을 `CleanYourMail-Setup-0.4.0.exe`와 비교하세요.
+릴리스와 함께 게시된 SHA-256을 `CleanYourMail-Setup-0.5.0.exe`와 비교하세요.
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 릴리스에는 `HASH  filename` 형식의 `.sha256` 파일도 함께 게시됩니다.
 
 Gmail은 앱 비밀번호와 2단계 인증으로 작동합니다. Outlook / Microsoft 365는 클릭 한 번으로
 연결되지 않습니다. Microsoft 365는 테넌트 관리자 동의가 필요하고, 개인 Outlook.com 계정은
-확인된 게시자가 필요합니다. 0.4.0에서는 macOS와 Linux를 지원하지 않습니다.
+확인된 게시자가 필요합니다. 0.5.0에서는 macOS와 Linux를 지원하지 않습니다.
 
 ## 이 앱이 필요한 이유
 
@@ -87,7 +87,7 @@ CleanYourMail CLI 사이드카를 호출해 결과를 표시하므로, 안전 �
 
 - 설치 프로그램은 Windows 10/11 x64에서 실행됩니다.
 - 소스에서 실행하려면 Python **3.12+**가 필요합니다.
-- CleanYourMail CLI `1.2.2` 사이드카. 설치 프로그램에 포함되어 있습니다. 개발 시에는 동일한
+- CleanYourMail CLI `1.3.0` 사이드카. 설치 프로그램에 포함되어 있습니다. 개발 시에는 동일한
   JSON 계약을 따르는 빌드된 `cym-cli.exe`를 `CYM_CLI`로 지정하세요. 앱은 `mail.py`를 직접
   실행하지 않습니다.
 
@@ -100,7 +100,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version`을 실행하면 `CleanYourMail app 0.4.0`이 출력됩니다.
+`python -m cleanyourmail_app --version`을 실행하면 `CleanYourMail app 0.5.0`이 출력됩니다.
 
 테스트를 실행하세요.
 
@@ -148,7 +148,7 @@ python -m pytest -q
 
 | 제공자 | 앱 내 방식 | 상태 |
 |---|---|---|
-| Gmail | 앱 비밀번호 + 2단계 인증 | 통과, CLI 1.2.2로 검증 |
+| Gmail | 앱 비밀번호 + 2단계 인증 | 통과, CLI 1.3.0로 검증 |
 | Outlook / Microsoft 365 | 장치 코드 | 부분 지원: Microsoft 365는 테넌트 관리자 동의 필요, Outlook.com 개인 계정은 확인된 게시자 필요 |
 | Yahoo, iCloud, Fastmail | 앱 비밀번호 | 문서화됨, 스모크 테스트 미실시 |
 | Proton Bridge | Bridge 비밀번호 | 문서화됨, 스모크 테스트 미실시 |
@@ -169,7 +169,7 @@ python -m pytest -q
 - **검토 먼저.** 검토된 계획 없이는 아무것도 변경하지 않으며, 실행 취소는 언제나 한 번의
   클릭으로 가능합니다.
 - **영구 삭제가 없습니다.** 이동과 보관은 되돌릴 수 있습니다.
-- **0.4.0에는 수신 거부가 없습니다.** 계획에 수신 거부 모드가 표시될 수 있지만, 적용은
+- **0.5.0에는 수신 거부가 없습니다.** 계획에 수신 거부 모드가 표시될 수 있지만, 적용은
   메시지를 이동할 뿐입니다.
 - **영어와 스페인어를 정식 지원합니다.** 모든 문자열은 `i18n/*.json`에 있습니다.
 

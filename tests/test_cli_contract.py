@@ -1,4 +1,4 @@
-"""Contract tests against the frozen CleanYourMail 1.2.2 sidecar.
+"""Contract tests against the frozen CleanYourMail 1.3.0 sidecar.
 
 They run only when ``CYM_CLI`` points to the sidecar, so the default suite needs
 no binary, no mailbox and no network. The sidecar version and the app's JSON
@@ -17,11 +17,11 @@ import pytest
 
 from cleanyourmail_app.services.cli import CliClient
 
-SIDECAR_VERSION = "CleanYourMail 1.2.2"
+SIDECAR_VERSION = "CleanYourMail 1.3.0"
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("CYM_CLI"),
-    reason="CYM_CLI is not set; the frozen 1.2.2 sidecar is not available",
+    reason="CYM_CLI is not set; the frozen 1.3.0 sidecar is not available",
 )
 
 

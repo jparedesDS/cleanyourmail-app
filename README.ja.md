@@ -29,21 +29,21 @@
 
 ブラウザなし、ローカルサーバーなし、アカウントなし、テレメトリーなし、本文へのアクセスなし、完全削除なし。アプリ自身が行うネットワークリクエストは、あなたが明示的に送信するフィードバックの POST だけです。
 
-> **ステータス:** `0.4.0` は現在の Windows 向け Early MVP リリースです。アプリのヘッダーとウェブサイトから送れるオプションのフィードバックを追加しました。インストーラーには、固定された CleanYourMail CLI `1.2.2` がサイドカーとして同梱されています。Gmail は検証済みです。Outlook は Microsoft の同意モデルに依存します。[プロバイダーの状態](#provider-status)を参照してください。
+> **ステータス:** `0.5.0` は現在の Windows 向け Early MVP リリースです。アプリのヘッダーとウェブサイトから送れるオプションのフィードバックを追加しました。インストーラーには、固定された CleanYourMail CLI `1.3.0` がサイドカーとして同梱されています。Gmail は検証済みです。Outlook は Microsoft の同意モデルに依存します。[プロバイダーの状態](#provider-status)を参照してください。
 
 ## ダウンロード
 
-[Windows 10/11 x64 用 CleanYourMail アプリ 0.4.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) は、固定された CleanYourMail CLI `1.2.2` をサイドカーとして同梱するユーザー単位のインストーラーで、管理者権限は不要です。
+[Windows 10/11 x64 用 CleanYourMail アプリ 0.5.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) は、固定された CleanYourMail CLI `1.3.0` をサイドカーとして同梱するユーザー単位のインストーラーで、管理者権限は不要です。
 
-0.4.0 のインストーラーはコード署名されていません。初回起動時に Windows SmartScreen が「不明な発行元」の警告を表示することがあります。**詳細情報** を選び、次に **実行** を選んでから、リリースで公開されている SHA-256 を `CleanYourMail-Setup-0.4.0.exe` と照合してください:
+0.5.0 のインストーラーはコード署名されていません。初回起動時に Windows SmartScreen が「不明な発行元」の警告を表示することがあります。**詳細情報** を選び、次に **実行** を選んでから、リリースで公開されている SHA-256 を `CleanYourMail-Setup-0.5.0.exe` と照合してください:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 リリースでは `HASH  filename` 形式の `.sha256` ファイルも公開されています。
 
-Gmail はアプリパスワードと 2 段階認証で動作します。Outlook / Microsoft 365 はワンクリックでは動作しません。Microsoft 365 にはテナント管理者の同意が必要で、個人の Outlook.com アカウントには検証済みの発行元が必要です。macOS と Linux は 0.4.0 の対象外です。
+Gmail はアプリパスワードと 2 段階認証で動作します。Outlook / Microsoft 365 はワンクリックでは動作しません。Microsoft 365 にはテナント管理者の同意が必要で、個人の Outlook.com アカウントには検証済みの発行元が必要です。macOS と Linux は 0.5.0 の対象外です。
 
 ## このアプリが必要な理由
 
@@ -72,7 +72,7 @@ CleanYourMail CLI はエンジンであり、唯一の正となる情報源で�
 
 - インストーラーは Windows 10/11 x64 向けです。
 - ソースから実行する場合のみ Python **3.12+** が必要です。
-- CleanYourMail CLI `1.2.2` のサイドカー。インストーラーには同梱されています。開発時は、同じ JSON 契約を持つビルド済みの `cym-cli.exe` を `CYM_CLI` に指定してください。アプリが `mail.py` を直接実行することはありません。
+- CleanYourMail CLI `1.3.0` のサイドカー。インストーラーには同梱されています。開発時は、同じ JSON 契約を持つビルド済みの `cym-cli.exe` を `CYM_CLI` に指定してください。アプリが `mail.py` を直接実行することはありません。
 
 ## 開発
 
@@ -83,7 +83,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` は `CleanYourMail app 0.4.0` を出力します。
+`python -m cleanyourmail_app --version` は `CleanYourMail app 0.5.0` を出力します。
 
 テストを実行:
 
@@ -116,7 +116,7 @@ python -m pytest -q
 
 | プロバイダー | アプリでの経路 | 状態 |
 |---|---|---|
-| Gmail | アプリパスワード + 2FA | 合格、CLI 1.2.2 で検証済み |
+| Gmail | アプリパスワード + 2FA | 合格、CLI 1.3.0 で検証済み |
 | Outlook / Microsoft 365 | デバイスコード | 一部対応: Microsoft 365 はテナント管理者の同意が必要。個人の Outlook.com アカウントは検証済みの発行元が必要 |
 | Yahoo、iCloud、Fastmail | アプリパスワード | 文書化済み、スモークテスト未実施 |
 | Proton Bridge | Bridge パスワード | 文書化済み、スモークテスト未実施 |
@@ -132,7 +132,7 @@ python -m pytest -q
 - **アプリ設定にシークレットを保存しない。** シークレットが QSettings、ログ、エラーダイアログ、テスト出力に入ることはありません。
 - **まずレビュー。** レビュー済みのプランなしに書き込みません。取り消しは常にワンクリックです。
 - **完全削除なし。** 移動とアーカイブは元に戻せます。
-- **0.4.0 では配信停止なし。** プランに配信停止モードが表示されることはありますが、適用はメッセージを移動するだけです。
+- **0.5.0 では配信停止なし。** プランに配信停止モードが表示されることはありますが、適用はメッセージを移動するだけです。
 - **英語とスペイン語を同等にサポート。** すべての文字列は `i18n/*.json` にあります。
 
 脆弱性の報告方法は [SECURITY.md](SECURITY.md) を参照してください。

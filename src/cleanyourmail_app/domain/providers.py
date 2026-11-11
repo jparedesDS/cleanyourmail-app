@@ -1,7 +1,7 @@
 """The fixed provider catalog and the email-domain detector.
 
 Each entry is honest about how far it is tested: ``pass`` means validated
-against CleanYourMail 1.2.2, ``partial`` means a real limitation (Microsoft
+against CleanYourMail 1.3.0, ``partial`` means a real limitation (Microsoft
 consent), and ``documented`` means the app follows provider documentation but
 has not smoke-tested that provider. The UI must show that status, never hide it.
 """

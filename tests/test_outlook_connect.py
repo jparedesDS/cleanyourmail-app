@@ -91,7 +91,7 @@ class FakeCli:
         self.wait_threads: list[threading.Thread] = []
         self.doctor_threads: list[threading.Thread] = []
 
-    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+    def verify_version(self, expected: str = "CleanYourMail 1.3.0") -> str:
         return expected
 
     def run(
@@ -763,7 +763,7 @@ def test_wait_returns_cancelled_when_the_event_is_set(cli: FakeCli):
 def test_a_version_mismatch_stops_outlook_before_any_config(
     qtbot, page, services, cli
 ):
-    cli.verify_version = lambda expected="CleanYourMail 1.2.2": (_ for _ in ()).throw(
+    cli.verify_version = lambda expected="CleanYourMail 1.3.0": (_ for _ in ()).throw(
         CliVersionMismatch("wrong")
     )
 

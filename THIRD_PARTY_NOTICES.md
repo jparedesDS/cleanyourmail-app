@@ -1,7 +1,7 @@
 # Third-party notices
 
-CleanYourMail app 0.4.0 is built from several open-source components. This file
-is installed next to the application by `CleanYourMail-Setup-0.4.0.exe` and is
+CleanYourMail app 0.5.0 is built from several open-source components. This file
+is installed next to the application by `CleanYourMail-Setup-0.5.0.exe` and is
 also present in the source repository.
 
 ## CleanYourMail app
@@ -11,8 +11,8 @@ License. See [LICENSE](LICENSE). Copyright (c) 2026 CleanYourMail contributors.
 
 ## CleanYourMail CLI (sidecar)
 
-The app ships a frozen build of the CleanYourMail CLI at tag `v1.2.2` from
-<https://github.com/jparedesDS/cleanyourmail/tree/v1.2.2>. The CLI is licensed
+The app ships a frozen build of the CleanYourMail CLI at tag `v1.3.0` from
+<https://github.com/jparedesDS/cleanyourmail/tree/v1.3.0>. The CLI is licensed
 under the MIT License, copyright (c) 2026 CleanYourMail contributors. The
 pinned tag is the exact source of `resources/cli/cym-cli.exe`; the app does not
 modify it.

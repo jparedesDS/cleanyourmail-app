@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _bare_version(line: str) -> str:
-        """Strip the product prefix (``CleanYourMail 1.2.2`` → ``1.2.2``)."""
+        """Strip the product prefix (``CleanYourMail 1.3.0`` → ``1.3.0``)."""
         text = line.strip()
         prefix = "CleanYourMail "
         if text.lower().startswith(prefix.lower()):

@@ -1,7 +1,7 @@
 """The only bridge to the frozen CleanYourMail CLI sidecar.
 
 The app never implements IMAP, planning or moves: it runs ``cym-cli.exe``
-(CleanYourMail 1.2.2, pinned) and reads its JSON. Two rules hold everywhere in
+(CleanYourMail 1.3.0, pinned) and reads its JSON. Two rules hold everywhere in
 this module:
 
 - No secret is passed in ``argv``. The app writes app passwords to the sidecar's
@@ -40,7 +40,7 @@ VERSION_TIMEOUT = 5
 #: The sidecar the app is built and tested against. A different version may
 #: change the JSON contract or the safety rules, so the app verifies this
 #: before it writes a config or asks for mail changes.
-EXPECTED_CLI_VERSION = "CleanYourMail 1.2.2"
+EXPECTED_CLI_VERSION = "CleanYourMail 1.3.0"
 
 #: A header scan of a year's mail can take minutes on a large mailbox. The
 #: page always runs it off the UI thread, so a generous ceiling is safe.
@@ -61,7 +61,7 @@ class CliError(RuntimeError):
 
 
 class CliVersionMismatch(CliError):
-    """The sidecar answered, but not with the pinned 1.2.2 contract."""
+    """The sidecar answered, but not with the pinned 1.3.0 contract."""
 
 
 def find_sidecar(app_root: Path, explicit: str | None = None) -> Path | None:
@@ -242,7 +242,7 @@ class CliClient:
     # -- typed helpers ------------------------------------------------------
     #
     # The wizard never builds argv itself. These helpers mirror the frozen
-    # 1.2.2 commands and keep the ``--json`` flag in one place; each returns
+    # 1.3.0 commands and keep the ``--json`` flag in one place; each returns
     # the same ``{ok, exit_code, data, stdout, stderr}`` shape as ``run`` and
     # never raises for a failed command.
 
@@ -360,7 +360,7 @@ class CliClient:
         )
 
     def version(self) -> str:
-        """Return the sidecar's version line, e.g. ``CleanYourMail 1.2.2``."""
+        """Return the sidecar's version line, e.g. ``CleanYourMail 1.3.0``."""
         completed = self._execute([*self.command, "--version"], VERSION_TIMEOUT)
         text = completed.stdout.lstrip("\ufeff").strip()
         if completed.returncode != 0 or not text:

@@ -20,7 +20,7 @@
                v
 ┌──────────────────────────────┐
 │ frozen cym-cli.exe           │
-│ CleanYourMail 1.2.2 sidecar  │
+│ CleanYourMail 1.3.0 sidecar  │
 └──────────────┬───────────────┘
                │ IMAP / SMTP
                v
@@ -38,7 +38,7 @@ a native view and a process wrapper around the frozen sidecar.
 |---|---|
 | `src/cleanyourmail_app/__main__.py` | `python -m cleanyourmail_app`; prints `--version` before importing Qt. |
 | `src/cleanyourmail_app/app.py` | Builds `QApplication`, the translator, `SettingsStore`, `AppServices` and `MainWindow`. |
-| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.4.0`). |
+| `src/cleanyourmail_app/version.py` | Single source of the app version (`0.5.0`). |
 | `src/cleanyourmail_app/ui/main_window.py` | Window chrome, progress rail, page stack, navigation, header language switch and the Feedback button. |
 | `src/cleanyourmail_app/ui/pages/provider.py` | Seven provider cards, email validation, account handoff. |
 | `src/cleanyourmail_app/ui/pages/connect.py` | App-password save, doctor, custom host, Outlook device-code UI, Cancel and sensitive-state clearing. |
@@ -92,7 +92,7 @@ The trade-off is that fine-grained progress is not streamed yet. A future sideca
 ## Request flow
 
 1. The provider page saves the account in `SettingsStore` and hands provider/email to Connect.
-2. Connect calls `CliClient.verify_version()`; a build other than `CleanYourMail 1.2.2` is refused.
+2. Connect calls `CliClient.verify_version()`; a build other than `CleanYourMail 1.3.0` is refused.
 3. Connect calls `ConfigService.ensure()`. An existing config for another email or IMAP host raises
    `ConfigMismatchError`; the app asks before running `init --force`.
 4. The app writes the app password to `ConfigService.password_file()` — the path the CLI config

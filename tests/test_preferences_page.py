@@ -77,7 +77,7 @@ class FakeCli:
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
 
-    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+    def verify_version(self, expected: str = "CleanYourMail 1.3.0") -> str:
         return expected
 
     def run(

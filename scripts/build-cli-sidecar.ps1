@@ -12,14 +12,14 @@
     The exact executable that ships is smoke-tested from a different working
     directory while the checkout is renamed away, so a successful build proves
     the bundle is self-contained (config, IMAP, planning, journal and undo are
-    all frozen inside it). ``--version`` must print ``CleanYourMail 1.2.2`` and
+    all frozen inside it). ``--version`` must print ``CleanYourMail 1.3.0`` and
     ``--help`` must exit 0.
 
     The sidecar is a console-subsystem program. The app launches every call
     with CREATE_NO_WINDOW, so no console window flashes at runtime.
 
 .PARAMETER CliVersion
-    Git tag of the CLI to build. The app ships v1.2.2.
+    Git tag of the CLI to build. The app ships v1.3.0.
 
 .PARAMETER RepoUrl
     Repository to clone the CLI from.
@@ -32,7 +32,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$CliVersion = "v1.2.2",
+    [string]$CliVersion = "v1.3.0",
     [string]$RepoUrl = "https://github.com/jparedesDS/cleanyourmail",
     [string]$Python = "python",
     [switch]$Force
@@ -225,8 +225,8 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "The frozen sidecar --version failed with exit code $LASTEXITCODE."
     }
-    if ($version -ne "CleanYourMail 1.2.2") {
-        throw "Expected sidecar version 'CleanYourMail 1.2.2', got '$version'."
+    if ($version -ne "CleanYourMail 1.3.0") {
+        throw "Expected sidecar version 'CleanYourMail 1.3.0', got '$version'."
     }
 
     $null = (& $FrozenExe "--help" 2>&1 | Out-String)

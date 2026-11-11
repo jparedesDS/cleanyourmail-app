@@ -141,9 +141,9 @@ def test_json_failure_wins_over_a_zero_exit(fake: FakeCli):
 
 
 def test_version_reads_the_sidecar_line(fake: FakeCli):
-    fake.respond("CleanYourMail 1.2.2\n")
+    fake.respond("CleanYourMail 1.3.0\n")
 
-    assert fake.client().version() == "CleanYourMail 1.2.2"
+    assert fake.client().version() == "CleanYourMail 1.3.0"
     assert fake.recorded_argv() == ["--version"]
 
 
@@ -162,19 +162,19 @@ def test_version_uses_a_short_local_timeout(monkeypatch: pytest.MonkeyPatch):
         seen["argv"] = argv
         seen["timeout"] = timeout
         return subprocess.CompletedProcess(
-            argv, 0, "CleanYourMail 1.2.2\n", ""
+            argv, 0, "CleanYourMail 1.3.0\n", ""
         )
 
     monkeypatch.setattr(client, "_execute", fake_execute)
 
-    assert client.version() == "CleanYourMail 1.2.2"
+    assert client.version() == "CleanYourMail 1.3.0"
     assert seen["argv"] == ["cym-cli", "--version"]
     assert seen["timeout"] == VERSION_TIMEOUT
     assert VERSION_TIMEOUT <= 5
 
 
 def test_cached_version_appears_after_a_verified_read(fake: FakeCli):
-    fake.respond("CleanYourMail 1.2.2\n")
+    fake.respond("CleanYourMail 1.3.0\n")
     client = fake.client()
 
     assert client.cached_version is None
@@ -239,7 +239,7 @@ def test_no_secret_is_passed_in_argv_or_output(fake: FakeCli, tmp_path: Path):
     assert set(client.env) == set(os.environ) | {"CYM_PASSWORD"}
 
 def test_verify_version_caches_a_success(fake: FakeCli):
-    fake.respond("CleanYourMail 1.2.2\n")
+    fake.respond("CleanYourMail 1.3.0\n")
 
     class CountingClient(CliClient):
         def __init__(self) -> None:
@@ -295,6 +295,6 @@ def test_run_cancels_a_slow_sidecar_and_returns_a_normalized_result():
     assert result["data"] == {}
 
 def test_print_version_returns_the_sidecar_line(fake: FakeCli):
-    fake.respond("CleanYourMail 1.2.2\n")
+    fake.respond("CleanYourMail 1.3.0\n")
 
     assert fake.client().print_version() == EXPECTED_CLI_VERSION

@@ -29,21 +29,21 @@
 
 没有浏览器，没有本地服务器，没有账号，没有遥测，不读取邮件正文，也不会永久删除。应用自身发出的唯一网络请求，就是你主动发送的反馈 POST。
 
-> **状态：** `0.4.0` 是当前 Windows 早期 MVP 版本。它新增了从应用顶栏和网站发送的可选反馈。安装程序捆绑了冻结的 CleanYourMail CLI `1.2.2` sidecar。Gmail 已验证；Outlook 取决于 Microsoft 的同意模式。见[提供商状态](#provider-status)。
+> **状态：** `0.5.0` 是当前 Windows 早期 MVP 版本。它新增了从应用顶栏和网站发送的可选反馈。安装程序捆绑了冻结的 CleanYourMail CLI `1.3.0` sidecar。Gmail 已验证；Outlook 取决于 Microsoft 的同意模式。见[提供商状态](#provider-status)。
 
 ## 下载
 
-[适用于 Windows 10/11 x64 的 CleanYourMail 应用 0.4.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是每用户安装程序，捆绑固定版本的 CleanYourMail CLI `1.2.2` sidecar，无需管理员权限。
+[适用于 Windows 10/11 x64 的 CleanYourMail 应用 0.5.0](https://github.com/jparedesDS/cleanyourmail-app/releases/latest) 是每用户安装程序，捆绑固定版本的 CleanYourMail CLI `1.3.0` sidecar，无需管理员权限。
 
-0.4.0 安装程序未进行代码签名。首次启动时，Windows SmartScreen 可能显示“未知发布者”警告：请选择**更多信息**，再选择**仍要运行**，并将随版本发布的 SHA-256 与 `CleanYourMail-Setup-0.4.0.exe` 进行比对：
+0.5.0 安装程序未进行代码签名。首次启动时，Windows SmartScreen 可能显示“未知发布者”警告：请选择**更多信息**，再选择**仍要运行**，并将随版本发布的 SHA-256 与 `CleanYourMail-Setup-0.5.0.exe` 进行比对：
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 发布页还提供 `.sha256` 文件，格式为 `HASH  filename`。
 
-Gmail 可通过应用专用密码和两步验证使用。Outlook / Microsoft 365 无法一键完成：Microsoft 365 需要租户管理员同意，个人 Outlook.com 账户需要已验证的发布者。macOS 和 Linux 不在 0.4.0 的支持范围内。
+Gmail 可通过应用专用密码和两步验证使用。Outlook / Microsoft 365 无法一键完成：Microsoft 365 需要租户管理员同意，个人 Outlook.com 账户需要已验证的发布者。macOS 和 Linux 不在 0.5.0 的支持范围内。
 
 ## 为什么做这个应用
 
@@ -72,7 +72,7 @@ CleanYourMail CLI 是引擎，也是唯一事实来源。它已经负责 IMAP �
 
 - 安装程序需要 Windows 10/11 x64。
 - 仅从源码运行时需要 Python **3.12+**。
-- CleanYourMail CLI `1.2.2` sidecar。安装程序已捆绑；开发时，请将 `CYM_CLI` 指向具有相同 JSON 契约的已构建 `cym-cli.exe`。应用不会直接运行 `mail.py`。
+- CleanYourMail CLI `1.3.0` sidecar。安装程序已捆绑；开发时，请将 `CYM_CLI` 指向具有相同 JSON 契约的已构建 `cym-cli.exe`。应用不会直接运行 `mail.py`。
 
 ## 开发
 
@@ -83,7 +83,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` 会输出 `CleanYourMail app 0.4.0`。
+`python -m cleanyourmail_app --version` 会输出 `CleanYourMail app 0.5.0`。
 
 运行测试：
 
@@ -116,7 +116,7 @@ python -m pytest -q
 
 | 提供商 | 应用内方式 | 状态 |
 |---|---|---|
-| Gmail | 应用专用密码 + 两步验证 | 通过，已用 CLI 1.2.2 验证 |
+| Gmail | 应用专用密码 + 两步验证 | 通过，已用 CLI 1.3.0 验证 |
 | Outlook / Microsoft 365 | 设备代码 | 部分可用：Microsoft 365 需要租户管理员同意；Outlook.com 个人账户需要已验证的发布者 |
 | Yahoo, iCloud, Fastmail | 应用专用密码 | 已有文档，未做冒烟测试 |
 | Proton Bridge | Bridge 密码 | 已有文档，未做冒烟测试 |
@@ -132,7 +132,7 @@ python -m pytest -q
 - **应用设置中不存储机密。** 机密绝不会进入 QSettings、日志、错误对话框或测试输出。
 - **先审阅。** 没有经过审阅的计划就不会写入；撤销始终只需点击一次。
 - **不永久删除。** 移动和归档均可撤销。
-- **0.4.0 不支持退订。** 计划中可能显示退订模式，但应用只会移动邮件。
+- **0.5.0 不支持退订。** 计划中可能显示退订模式，但应用只会移动邮件。
 - **英语和西班牙语都是完整支持的语言。** 所有字符串都位于 `i18n/*.json`。
 
 见 [SECURITY.md](SECURITY.md) 了解如何报告漏洞。

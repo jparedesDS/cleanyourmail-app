@@ -2,14 +2,14 @@
 
 ## Scope
 
-This model covers the native CleanYourMail app 0.4.x: the PySide6 UI, the in-process services, the
-frozen `cym-cli.exe` CleanYourMail 1.2.2 sidecar and the files the app touches on Windows 10/11 x64.
+This model covers the native CleanYourMail app 0.5.x: the PySide6 UI, the in-process services, the
+frozen `cym-cli.exe` CleanYourMail 1.3.0 sidecar and the files the app touches on Windows 10/11 x64.
 It also covers the opt-in feedback path: the app dialog and the website form, the Cloudflare Worker
 and the private Discord channel. The CLI's own threat model is in
 [`cleanyourmail/docs/SAFETY.md`](https://github.com/jparedesDS/cleanyourmail/blob/master/docs/SAFETY.md).
 
 The retired 0.2.x local-web UI is out of scope. The app has no embedded browser, HTTP server, cookie,
-session, CSRF token or localhost listener in 0.4.x. The website is a static, no-cookie page.
+session, CSRF token or localhost listener in 0.5.x. The website is a static, no-cookie page.
 
 ## Assets
 
@@ -45,14 +45,14 @@ session, CSRF token or localhost listener in 0.4.x. The website is a static, no-
 |---|---|
 | App password left in the widget or undo history | The field is cleared with `setText("")` on save, Back and account change; tests assert `undo()` cannot restore it. |
 | App password in argv | The app never passes a secret as an argument. `save_app_password` writes the file; `CliClient` argv is asserted secret-free. |
-| App password in QSettings, a label or a log | Settings hold only provider/email/preferences. Errors use localized generic copy, and 0.4.0 writes no local log. Tests scan rendered labels and settings. |
+| App password in QSettings, a label or a log | Settings hold only provider/email/preferences. Errors use localized generic copy, and 0.5.0 writes no local log. Tests scan rendered labels and settings. |
 | App password written to the wrong account's file | An existing config for another email or IMAP host raises `ConfigMismatchError`; the person must confirm before `init --force`, and the app writes the `password_file` the config actually names. |
 | OAuth token exposed to the UI | The app only calls the sidecar's device-code commands and renders URL/code. It never reads the OAuth store or a token field. |
 | Command injection through a run id, plan path or host | Argument-list subprocesses with no shell; fixed command names; run ids match a strict pattern; plan path is one argv word; custom host rejects spaces and URL schemes. |
 | Malicious or malformed sidecar JSON | Parsed as data, never evaluated; unknown shapes become a failed command, not a crash. Raw stdout/stderr are never rendered. |
 | Plan tampering after review | The CLI re-checks UIDVALIDITY, flags, category and protected senders at apply time. The app requires a reviewed plan and allows one apply per plan. |
 | Double apply | The gate closes as soon as an apply starts, including a timeout or partial result; only a fresh scan or plan reopens it. |
-| Applying unsubscribe by accident | There is no unsubscribe action in 0.4.0. The plan column is informational; Apply is always `--action move`. |
+| Applying unsubscribe by accident | There is no unsubscribe action in 0.5.0. The plan column is informational; Apply is always `--action move`. |
 | Accidental PII in feedback | The checklist is editable and limited to app/sidecar versions, Windows version, provider label, mode, categories and language. The dialog copy names passwords, tokens, addresses, subjects, message IDs and paths as things not to include. Tests use an email, a path and a token as sentinels and assert none reach the checklist, a label or a status line. |
 | Automatic or background feedback | The app opens no network connection at startup, and the feedback client is constructed only after Send. A send requires the consent checkbox; tests assert nothing is sent without it. |
 | Discord webhook leak | The webhook and IP salt live only as Cloudflare secrets and never appear in either repository, the installer, the website, logs or tests. The clients post to the Worker, not to Discord. |
@@ -73,7 +73,7 @@ session, CSRF token or localhost listener in 0.4.x. The website is a static, no-
 - Physical access to an unlocked machine.
 - Protecting a mailbox from the mail provider itself.
 - A multi-user or hosted deployment.
-- Guaranteeing that a sender honours an unsubscribe request (and 0.4.0 does not send one).
+- Guaranteeing that a sender honours an unsubscribe request (and 0.5.0 does not send one).
 - Preventing a person from typing sensitive data into the editable feedback message or checklist.
 - Confidentiality or retention guarantees after Discord receives a feedback message.
 - Full custom-IMAP support for ports other than 993 or STARTTLS; that needs a later sidecar.

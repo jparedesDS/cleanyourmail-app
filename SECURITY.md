@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---|---|
-| 0.4.x | Yes |
+| 0.5.x | Yes |
 
 0.2.x and 0.1.x were the retired local-web UI and are no longer supported. This policy covers the
-native CleanYourMail app 0.4.x for Windows 10/11 x64.
+native CleanYourMail app 0.5.x for Windows 10/11 x64.
 
 ## Reporting a vulnerability
 
@@ -30,7 +30,7 @@ a real inbox. Redact them.
 
 ## Security model in one page
 
-CleanYourMail app is a **native PySide6 front end** for the frozen CleanYourMail CLI 1.2.2 sidecar.
+CleanYourMail app is a **native PySide6 front end** for the frozen CleanYourMail CLI 1.3.0 sidecar.
 The app does not replace the CLI's safety rules and does not add capabilities the CLI does not have.
 
 - **No local HTTP server, browser, cookies or CSRF surface.** The UI is a native window. The app
@@ -56,20 +56,20 @@ The app does not replace the CLI's safety rules and does not add capabilities th
   JSON summaries. The app has no IMAP code and no attachment viewer.
 - **No permanent deletion.** The app exposes moves and archives only. It has no delete action and
   no server-side filter upload.
-- **No unsubscribe in 0.4.0.** The plan may display unsubscribe modes for context, but Apply is
+- **No unsubscribe in 0.5.0.** The plan may display unsubscribe modes for context, but Apply is
   always `--action move`; the app never sends an unsubscribe request.
 - **Review first.** No mailbox change happens without a scanned plan, an explicit review checkbox
   and a confirmation dialog. Apply is limited by policy and by the plan's own move count.
 - **Undo belongs to the CLI.** The journal is the CLI's; the app passes the full run id back and
   never guesses. The sidecar re-checks message identity before restoring.
 - **Fail closed on drift.** Before creating a config, the app verifies that the sidecar is
-  `CleanYourMail 1.2.2`. A different build is refused rather than guessed at.
+  `CleanYourMail 1.3.0`. A different build is refused rather than guessed at.
 - **Fail closed on the wrong account.** An existing config for another email or IMAP host is not
   reused; the person must explicitly confirm replacing it, and only then does the app run
   `init --force`.
 - **English and Spanish first-class.** Every visible string lives in `i18n/*.json`.
 
-There is deliberately no local log file in 0.4.0. Errors use localized generic copy so a server
+There is deliberately no local log file in 0.5.0. Errors use localized generic copy so a server
 message or path cannot leak a secret into a log. The trade-off is reduced diagnostics; a redacted
 diagnostics channel is future work.
 

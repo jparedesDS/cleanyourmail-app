@@ -34,23 +34,23 @@ Sem navegador, sem servidor local, sem conta, sem telemetria, sem corpos de mens
 permanente. A única requisição de rede que o app faz por conta própria é o POST de feedback que você
 envia explicitamente.
 
-> **Status:** `0.4.0` é a versão early-MVP atual para Windows. Ela adiciona feedback opcional no
+> **Status:** `0.5.0` é a versão early-MVP atual para Windows. Ela adiciona feedback opcional no
 > cabeçalho do app e no site. O instalador inclui o sidecar congelado da CLI do CleanYourMail
-> `1.2.2`. O Gmail está validado; o Outlook depende do modelo de consentimento da Microsoft. Veja o
+> `1.3.0`. O Gmail está validado; o Outlook depende do modelo de consentimento da Microsoft. Veja o
 > [status dos provedores](#provider-status).
 
 ## Download
 
-[CleanYourMail app 0.4.0 para Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
-é um instalador por usuário que inclui o sidecar fixado da CLI do CleanYourMail `1.2.2` e não exige
+[CleanYourMail app 0.5.0 para Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+é um instalador por usuário que inclui o sidecar fixado da CLI do CleanYourMail `1.3.0` e não exige
 direitos de administrador.
 
-O instalador 0.4.0 não tem assinatura de código. O Windows SmartScreen pode mostrar um aviso de
+O instalador 0.5.0 não tem assinatura de código. O Windows SmartScreen pode mostrar um aviso de
 "Editor desconhecido" na primeira execução: escolha **Mais informações** e depois **Executar mesmo
-assim**, e compare o SHA-256 publicado na release com o de `CleanYourMail-Setup-0.4.0.exe`:
+assim**, e compare o SHA-256 publicado na release com o de `CleanYourMail-Setup-0.5.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 A release também publica um arquivo `.sha256` no formato `HASH  filename`.
@@ -58,7 +58,7 @@ A release também publica um arquivo `.sha256` no formato `HASH  filename`.
 O Gmail funciona com uma senha de app e verificação em duas etapas. O Outlook / Microsoft 365 não
 funciona em um clique: o Microsoft 365 precisa de consentimento do administrador do locatário, e
 contas pessoais do Outlook.com precisam de um editor verificado. macOS e Linux estão fora do escopo
-da 0.4.0.
+da 0.5.0.
 
 ## Por que este app
 
@@ -91,7 +91,7 @@ há um único modelo de segurança e um único conjunto de regras.
 
 - Windows 10/11 x64 para o instalador.
 - Python **3.12+** apenas para rodar a partir do código-fonte.
-- O sidecar da CLI do CleanYourMail `1.2.2`. O instalador o inclui; para desenvolvimento, aponte
+- O sidecar da CLI do CleanYourMail `1.3.0`. O instalador o inclui; para desenvolvimento, aponte
   `CYM_CLI` para um `cym-cli.exe` compilado com o mesmo contrato JSON. O app não executa `mail.py`
   diretamente.
 
@@ -104,7 +104,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` imprime `CleanYourMail app 0.4.0`.
+`python -m cleanyourmail_app --version` imprime `CleanYourMail app 0.5.0`.
 
 Rode os testes:
 
@@ -151,7 +151,7 @@ segundo plano, e o app não envia nada até você apertar **Enviar** e aceitar a
 
 | Provedor | Caminho no app | Status |
 |---|---|---|
-| Gmail | Senha de app + 2FA | aprovado, validado com a CLI 1.2.2 |
+| Gmail | Senha de app + 2FA | aprovado, validado com a CLI 1.3.0 |
 | Outlook / Microsoft 365 | Código de dispositivo | parcial: o Microsoft 365 precisa de consentimento do administrador do locatário; o Outlook.com pessoal precisa de um editor verificado |
 | Yahoo, iCloud, Fastmail | Senha de app | documentado, sem smoke test |
 | Proton Bridge | Senha do Bridge | documentado, sem smoke test |
@@ -171,7 +171,7 @@ O app relata esses estados com honestidade. Ele não afirma oferecer suporte a O
   logs, nas caixas de erro nem na saída dos testes.
 - **Revisar primeiro.** Nenhuma escrita sem um plano revisado; desfazer fica a um clique.
 - **Sem exclusão permanente.** Movimentos e arquivamentos são reversíveis.
-- **Sem cancelamento de inscrição na 0.4.0.** O plano pode mostrar modos de cancelamento, mas
+- **Sem cancelamento de inscrição na 0.5.0.** O plano pode mostrar modos de cancelamento, mas
   Aplicar só move mensagens.
 - **Inglês e espanhol de primeira classe.** Cada string fica em `i18n/*.json`.
 

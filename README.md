@@ -32,30 +32,30 @@ connecting a mailbox, choosing what to clean, reviewing a reversible plan and un
 No browser, no local server, no account, no telemetry, no bodies, no permanent deletion. The only
 network request the app makes itself is the feedback POST you explicitly send.
 
-> **Status:** `0.4.0` is the current Windows early-MVP release. It adds opt-in feedback from the
-> app header and the website. The installer bundles the frozen CleanYourMail CLI `1.2.2` sidecar.
-> Gmail is validated; Outlook depends on Microsoft's consent model. See
-> [Provider status](#provider-status).
+> **Status:** `0.5.0` is the current Windows early-MVP release. It adds a three-step Review wizard
+> with message previews before Apply, plus opt-in feedback from the app header and the website.
+> The installer bundles the frozen CleanYourMail CLI `1.3.0` sidecar. Gmail is validated; Outlook
+> depends on Microsoft's consent model. See [Provider status](#provider-status).
 
 ## Download
 
-[CleanYourMail app 0.4.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
-is a per-user installer that bundles the pinned CleanYourMail CLI `1.2.2` sidecar and needs no
+[CleanYourMail app 0.5.0 for Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+is a per-user installer that bundles the pinned CleanYourMail CLI `1.3.0` sidecar and needs no
 administrator rights.
 
-The 0.4.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
+The 0.5.0 installer is not code-signed. Windows SmartScreen may show an "Unknown publisher"
 warning on first launch: choose **More info**, then **Run anyway**, and compare the SHA-256
-published with the release against `CleanYourMail-Setup-0.4.0.exe`:
+published with the release against `CleanYourMail-Setup-0.5.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 The release also publishes a `.sha256` file in `HASH  filename` format.
 
 Gmail works with an App Password and 2-Step Verification. Outlook / Microsoft 365 does not work
 one-click: Microsoft 365 needs tenant admin consent, and personal Outlook.com accounts need a
-verified publisher. macOS and Linux are out of scope for 0.4.0.
+verified publisher. macOS and Linux are out of scope for 0.5.0.
 
 ## Why this app
 
@@ -87,7 +87,7 @@ CleanYourMail CLI sidecar and renders the result, so there is one safety model a
 
 - Windows 10/11 x64 for the installer.
 - Python **3.12+** only to run from source.
-- The CleanYourMail CLI `1.2.2` sidecar. The installer bundles it; for development, point `CYM_CLI`
+- The CleanYourMail CLI `1.3.0` sidecar. The installer bundles it; for development, point `CYM_CLI`
   at a built `cym-cli.exe` with the same JSON contract. The app does not run `mail.py` directly.
 
 ## Development
@@ -99,7 +99,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.4.0`.
+`python -m cleanyourmail_app --version` prints `CleanYourMail app 0.5.0`.
 
 Run the tests:
 
@@ -144,7 +144,7 @@ the background, and the app sends nothing until you press **Send** and accept th
 
 | Provider | App path | Status |
 |---|---|---|
-| Gmail | App Password + 2FA | pass, validated with CLI 1.2.2 |
+| Gmail | App Password + 2FA | pass, validated with CLI 1.3.0 |
 | Outlook / Microsoft 365 | Device code | partial: Microsoft 365 needs tenant admin consent; Outlook.com personal needs a verified publisher |
 | Yahoo, iCloud, Fastmail | App password | documented, not smoke-tested |
 | Proton Bridge | Bridge password | documented, not smoke-tested |
@@ -164,7 +164,7 @@ The app reports these states honestly. It does not claim one-click Outlook suppo
   output.
 - **Review first.** No write without a reviewed plan; undo stays one click away.
 - **No permanent deletion.** Moves and archives are reversible.
-- **No unsubscribe in 0.4.0.** The plan may show unsubscribe modes, but Apply only moves messages.
+- **No unsubscribe in 0.5.0.** The plan may show unsubscribe modes, but Apply only moves messages.
 - **English and Spanish first-class.** Every string lives in `i18n/*.json`.
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability.

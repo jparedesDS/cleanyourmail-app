@@ -34,24 +34,24 @@ Kein Browser, kein lokaler Server, kein Konto, keine Telemetrie, kein Zugriff au
 keine endgültige Löschung. Die einzige Netzwerkanfrage, die die App selbst stellt, ist der
 Feedback-POST, den du ausdrücklich absendest.
 
-> **Status:** `0.4.0` ist die aktuelle Early-MVP-Version für Windows. Sie ergänzt optionales Feedback
+> **Status:** `0.5.0` ist die aktuelle Early-MVP-Version für Windows. Sie ergänzt optionales Feedback
 > aus der App-Kopfzeile und von der Website. Der Installer bündelt die eingefrorene CleanYourMail-CLI
-> `1.2.2` als Sidecar. Gmail ist validiert; Outlook hängt vom Zustimmungsmodell von Microsoft ab.
+> `1.3.0` als Sidecar. Gmail ist validiert; Outlook hängt vom Zustimmungsmodell von Microsoft ab.
 > Siehe [Provider-Status](#provider-status).
 
 ## Download
 
-[CleanYourMail app 0.4.0 für Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
-ist ein Installer pro Benutzer, der die festgeschriebene CleanYourMail-CLI `1.2.2` als Sidecar
+[CleanYourMail app 0.5.0 für Windows 10/11 x64](https://github.com/jparedesDS/cleanyourmail-app/releases/latest)
+ist ein Installer pro Benutzer, der die festgeschriebene CleanYourMail-CLI `1.3.0` als Sidecar
 bündelt und keine Administratorrechte benötigt.
 
-Der Installer 0.4.0 ist nicht code-signiert. Windows SmartScreen zeigt beim ersten Start
+Der Installer 0.5.0 ist nicht code-signiert. Windows SmartScreen zeigt beim ersten Start
 möglicherweise eine Warnung wegen eines unbekannten Herausgebers: Wähle **Weitere Informationen** und
 dann **Trotzdem ausführen**, und vergleiche die mit dem Release veröffentlichte SHA-256 mit
-`CleanYourMail-Setup-0.4.0.exe`:
+`CleanYourMail-Setup-0.5.0.exe`:
 
 ```powershell
-Get-FileHash .\CleanYourMail-Setup-0.4.0.exe -Algorithm SHA256
+Get-FileHash .\CleanYourMail-Setup-0.5.0.exe -Algorithm SHA256
 ```
 
 Das Release veröffentlicht außerdem eine `.sha256`-Datei im Format `HASH  filename`.
@@ -59,7 +59,7 @@ Das Release veröffentlicht außerdem eine `.sha256`-Datei im Format `HASH  file
 Gmail funktioniert mit einem App-Passwort und der Bestätigung in zwei Schritten. Outlook /
 Microsoft 365 funktioniert nicht per Klick: Microsoft 365 benötigt die Zustimmung des
 Tenant-Administrators, und persönliche Outlook.com-Konten benötigen einen verifizierten Herausgeber.
-macOS und Linux sind für 0.4.0 nicht vorgesehen.
+macOS und Linux sind für 0.5.0 nicht vorgesehen.
 
 ## Warum diese App
 
@@ -94,7 +94,7 @@ Sicherheitsmodell und einen Satz von Regeln gibt.
 
 - Windows 10/11 x64 für den Installer.
 - Python **3.12+** nur zum Ausführen aus dem Quellcode.
-- Das CleanYourMail-CLI-Sidecar `1.2.2`. Der Installer bündelt es; für die Entwicklung setzt du
+- Das CleanYourMail-CLI-Sidecar `1.3.0`. Der Installer bündelt es; für die Entwicklung setzt du
   `CYM_CLI` auf eine gebaute `cym-cli.exe` mit demselben JSON-Vertrag. Die App führt `mail.py` nicht
   direkt aus.
 
@@ -107,7 +107,7 @@ python -m pip install -e ".[dev]"
 python -m cleanyourmail_app --version
 ```
 
-`python -m cleanyourmail_app --version` gibt `CleanYourMail app 0.4.0` aus.
+`python -m cleanyourmail_app --version` gibt `CleanYourMail app 0.5.0` aus.
 
 Führe die Tests aus:
 
@@ -159,7 +159,7 @@ zustimmst.
 
 | Anbieter | Weg in der App | Status |
 |---|---|---|
-| Gmail | App-Passwort + 2FA | bestanden, mit CLI 1.2.2 validiert |
+| Gmail | App-Passwort + 2FA | bestanden, mit CLI 1.3.0 validiert |
 | Outlook / Microsoft 365 | Gerätecode | teilweise: Microsoft 365 benötigt die Zustimmung des Tenant-Administrators; persönliche Outlook.com-Konten benötigen einen verifizierten Herausgeber |
 | Yahoo, iCloud, Fastmail | App-Passwort | dokumentiert, nicht per Smoke-Test geprüft |
 | Proton Bridge | Bridge-Passwort | dokumentiert, nicht per Smoke-Test geprüft |
@@ -180,7 +180,7 @@ Die App meldet diese Zustände ehrlich. Sie behauptet nicht, Outlook funktionier
   Fehlerdialoge oder Testausgaben.
 - **Prüfung zuerst.** Keine Schreibaktion ohne geprüften Plan; Rückgängig bleibt einen Klick entfernt.
 - **Keine endgültige Löschung.** Verschiebungen und Archivierungen sind umkehrbar.
-- **Keine Abmeldung in 0.4.0.** Der Plan kann Abmeldemodi anzeigen, aber Anwenden verschiebt nur
+- **Keine Abmeldung in 0.5.0.** Der Plan kann Abmeldemodi anzeigen, aber Anwenden verschiebt nur
   Nachrichten.
 - **Englisch und Spanisch gleichberechtigt.** Jeder Text liegt in `i18n/*.json`.
 

@@ -93,7 +93,7 @@ class FakeCli:
         self.verify_calls = 0
         self.version_error: BaseException | None = None
 
-    def verify_version(self, expected: str = "CleanYourMail 1.2.2") -> str:
+    def verify_version(self, expected: str = "CleanYourMail 1.3.0") -> str:
         self.verify_calls += 1
         if self.version_error is not None:
             raise self.version_error
@@ -935,7 +935,7 @@ def test_choosing_another_provider_clears_the_password_and_code(window, qtbot):
 def test_a_sidecar_version_mismatch_shows_version_copy(
     qtbot, page, services, cli
 ):
-    cli.version_error = CliVersionMismatch("not 1.2.2")
+    cli.version_error = CliVersionMismatch("not 1.3.0")
     page.password_edit.setText(SECRET)
 
     _save(qtbot, page)

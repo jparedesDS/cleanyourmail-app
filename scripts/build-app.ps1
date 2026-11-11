@@ -7,7 +7,7 @@
     2. packaging/app.ico is generated from the SVG when missing.
     3. PyInstaller builds dist/CleanYourMail from cleanyourmail-app.spec.
     4. The shipped tree and both executables are smoke-tested.
-    5. Inno Setup builds dist/CleanYourMail-Setup-0.4.0.exe.
+    5. Inno Setup builds dist/CleanYourMail-Setup-0.5.0.exe.
 
     Inno Setup 6 is required for the installer. If ISCC.exe is not installed the
     script fails with an explicit message after the app itself has been built;
@@ -46,7 +46,7 @@ $Dist = Join-Path $Root "dist"
 $AppDist = Join-Path $Dist "CleanYourMail"
 $AppExe = Join-Path $AppDist "CleanYourMail.exe"
 $SidecarExe = Join-Path $AppDist "resources\cli\cym-cli.exe"
-$SetupExe = Join-Path $Dist "CleanYourMail-Setup-0.4.0.exe"
+$SetupExe = Join-Path $Dist "CleanYourMail-Setup-0.5.0.exe"
 
 function Invoke-Native {
     param(
@@ -190,8 +190,8 @@ try {
     Set-Location $env:TEMP
 
     $sidecarVersion = (& $SidecarExe "--version" | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $sidecarVersion -ne "CleanYourMail 1.2.2") {
-        throw "Sidecar smoke test failed: expected 'CleanYourMail 1.2.2', got '$sidecarVersion' (exit $LASTEXITCODE)."
+    if ($LASTEXITCODE -ne 0 -or $sidecarVersion -ne "CleanYourMail 1.3.0") {
+        throw "Sidecar smoke test failed: expected 'CleanYourMail 1.3.0', got '$sidecarVersion' (exit $LASTEXITCODE)."
     }
 
     $appVersionFile = Join-Path $Root "build\app-version.txt"
@@ -222,8 +222,8 @@ try {
         throw "App smoke test produced no version output (exit 0).`nstderr:`n$appError"
     }
     $appVersion = $appVersionText.Trim()
-    if ($appVersion -ne "CleanYourMail app 0.4.0") {
-        throw "App smoke test failed: expected 'CleanYourMail app 0.4.0', got '$appVersion' (exit $($appProcess.ExitCode)).`n$appError"
+    if ($appVersion -ne "CleanYourMail app 0.5.0") {
+        throw "App smoke test failed: expected 'CleanYourMail app 0.5.0', got '$appVersion' (exit $($appProcess.ExitCode)).`n$appError"
     }
 }
 finally {
